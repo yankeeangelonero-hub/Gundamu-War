@@ -1,0 +1,13 @@
+# Local/browser smoke artifacts
+.playwright-mcp/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.log
+
+# Dependency/build outputs if future slices add tooling
+node_modules/
+dist/
+build/
+.cache/

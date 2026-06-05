@@ -89,15 +89,86 @@ Tracks research questions, findings, and outstanding items relevant to the proje
 
 ---
 
+## Concept handoffs
+
+### Concept Handoff: Backpack auto-battler meta layer — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-backpack-autobattler-meta.md`
+
+**Summary:** Captures the initial meta-layer direction: persistent backpack in an asynchronous offline PVP arena, harvest-style loot/progression, unresolved convergence tension, and the pilot relationship layer as the likely spine if it changes play rather than merely adding stats. Partially superseded by the warfront/pilot/grid-vs-gear handoff below.
+
+### Concept Handoff: Warfront, pilot stakes, and grid-vs-gear fork — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-warfront-pilot-grid-vs-gear.md`
+
+**Summary:** Records the expanded direction: living asynchronous warfront, deterministic simulator plus LLM war director, pilot injury/out-of-service stakes, and the unresolved build-surface fork between Backpack-style body-part grids and direct gear/mech customisation. Flags this fork as a required next-version test.
+
+**Carried into:** `Project Version/Version 0.2/Version 0_2 Project Specifications.md` (draft-proposed). The version makes the grid-vs-gear fork an evidence gate rather than a prose decision (Slice 08), keeps deterministic war state separate from narrative copy, and builds the pilot-risk stakes loop. The spec is proposed pending Version 0.1 close.
+
+### Concept Handoff: Theatre meta feed essential loop — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-theatre-meta-feed-essential-loop.md`
+
+**Summary:** Owner correction replacing the mission-condition / pre-deploy-risk framing with a theatre-performance feed loop: players build the strongest mech they can, deploy into a theatre, read top-performing enemy builds and matchup reports, then counter-build against the visible enemy meta. Partially superseded by the essential sortie loop handoff below.
+
+### Concept Handoff: Version 0.2 essential sortie loop — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-v0-2-essential-sortie-loop.md`
+
+**Summary:** Narrowed Version 0.2 to a customize → deploy → retreat → improve loop, but assumed instant 10-fight batch resolution. Superseded by the real-time theatre loop handoff below.
+
+### Concept Handoff: Real-time theatre loop — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-real-time-theatre-loop.md`
+
+**Summary:** Owner correction that the theatre should not resolve instantly. The suit keeps fighting until retreat; each fight takes 15–30 seconds; wins create 5 seconds of resupply; losses create 15 seconds of repair/delay lockout; retreat claims accumulated loot, pilot XP/level progress, condition, and skill acquisition/progress. Partially superseded by the single-canvas handoff below for build-surface direction.
+
+### Concept Handoff: Single canvas and buyable bags — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-single-canvas-buyable-bags.md`
+
+**Summary:** Owner correction replacing the five body-part bags with one big Backpack Battles-like canvas and small buyable bag pieces/canvas expansions. This is now the immediate V0.2 build-surface direction while retaining the real-time theatre, retreat, loot, and pilot-growth loop.
+
+### Concept Handoff: Pilot skill and XP layer — 2026-06-05
+
+**Path:** `Research/Research Documents/concept-handoff-2026-06-05-pilot-skill-xp-layer.md`
+
+**Summary:** Owner addition that pilots should have Level, XP, and skill progression in addition to condition/injury consequences. For the essential loop, this should be small: one pilot, visible XP, one or two skill tracks, and report lines that separate battle outcome, pilot condition, and pilot growth.
+
+---
+
+## Living journey documents
+
+### User Journeys — active
+
+**Path:** `Research/User Journeys.md`
+
+**Summary:** Tracks current prototype journeys and next-version candidate journeys for warfront adaptation, pilot care, war-hero rewards, and the grid-vs-gear build-surface comparison.
+
+---
+
 ## Open research questions
 
 | Question | Priority | Owner |
 |---|---|---|
+| Confirm persistent backpack as the project spine over fresh disposable runs. | High | Xuanyue |
+| Define how asynchronous offline PVP results are matched, timed, reported, and harvested. | High | — |
+| Decide whether the next product spine is pure mech-customisation PVP or a living asynchronous warfront with daily mission-board changes. | High | Xuanyue |
+| Define deterministic warfront state rules versus LLM war-director narration boundaries. | High | — |
+| Decide whether the build surface should remain Backpack-style body-part grids or shift toward gear/mech customisation; test both in the next version. | High | Xuanyue |
+| Define pilot injury/out-of-service mechanics that make risk readable without punishing experimentation. | High | — |
+| Decide whether anti-convergence is led by structural rock-paper-scissors cycling, injected randomness, warfront mission shifts, pilot constraints, or a bounded combination. | High | — |
+| Define pilot mechanics, including Level/XP and skill tracks, that change how players build/play without acting as flat stat bonuses or overpowering mech buildcraft. | High | — |
+| Decide which progression layer is the spine: build, warfront, loot farm, or pilot. | High | Xuanyue |
 | What is a good starting item set (8–12 items) for a fun first prototype run? | High | — |
 | What adjacency bonus rules are most readable for 5–6 initial items? | High | — |
 | What constitutes a good enemy pool (how many builds, how spread across rounds)? | Medium | — |
 | Should `localStorage` persistence be in scope for V0.1 or deferred? | Low | Xuanyue |
 | Speed controls (fast/skip battle) — in scope for Slice 06 or deferred? | Low | Xuanyue |
+
+The grid-vs-gear build-surface question, the deterministic-warfront-vs-LLM-narration boundary, and the readable-non-punitive pilot-injury question are routed into the draft-proposed `Project Version/Version 0.2/Version 0_2 Project Specifications.md` for testing. They remain open here until Slice 08 produces evidence and a recommendation. The broader spine question (build vs warfront vs loot farm vs pilot) is not resolved by Version 0.2 — that version validates the warfront + pilot + build-surface slice of it only.
+
+**Distillation note (2026-06-05, `agent-handoffs/opus-essential-loop-distillation-report.md`):** a distillation pass recommended sequencing loop-validation first. Xuanyue then corrected the proposed loop in `Research/Research Documents/concept-handoff-2026-06-05-theatre-meta-feed-essential-loop.md`: the essential loop should center a **theatre-performance feed of top enemy builds**, not authored mission-condition tags or a pre-deploy risk meter. The player builds the strongest mech they can, deploys into the theatre, reads which enemy builds are dominating, then adapts the mech against that meta. Under this correction, the grid-vs-gear question remains deferred until the theatre-meta loop is validated; the immediate V0.2 rewrite should replace mission-fit/risk tuning with feed-driven counter-building.
 
 ---
 

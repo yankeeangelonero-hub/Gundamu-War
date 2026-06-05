@@ -3,8 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mech Bags 0.1</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Mech Bags 0.2</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260605-pickmovefix">
 </head>
 <body>
 <div id="app">
@@ -14,16 +18,17 @@
     <h1>MECH BAGS</h1>
     <div class="run-stats">
       <span>Round <strong id="stat-round">1</strong></span>
-      <span>Wins <strong id="stat-wins" style="color:#44cc88">0</strong></span>
-      <span>Losses <strong id="stat-losses" style="color:#ee4444">0</strong></span>
-      <span>Gold <strong id="gold-display" style="color:#f5c518">10</strong>g</span>
+      <span>Wins <strong id="stat-wins">0</strong></span>
+      <span>Losses <strong id="stat-losses">0</strong></span>
+      <span>Gold <strong id="gold-display">10</strong>g</span>
     </div>
   </header>
 
   <!-- Main: build board + side panel -->
   <div id="main">
-    <div style="flex:1;overflow-x:auto;display:flex;justify-content:center">
-      <div id="build-board"><!-- bag panels injected by app.js --></div>
+    <div id="board-wrapper">
+      <!-- Single canvas injected by app.js -->
+      <div id="build-board"></div>
     </div>
 
     <div id="side-panel">
@@ -40,6 +45,11 @@
         <h3>Item Info</h3>
         <div id="info-box">Select an item to see details.</div>
       </div>
+
+      <div class="panel-box" id="pilot-panel">
+        <h3>Pilot</h3>
+        <div id="pilot-info"><!-- rendered by app.js --></div>
+      </div>
     </div>
   </div>
 
@@ -47,7 +57,8 @@
   <div id="shop-area">
     <div id="shop-controls">
       <button class="ctrl-btn" id="reroll-btn">⟳ Reroll (1g)</button>
-      <button class="ctrl-btn primary" id="battle-btn">⚔ Battle!</button>
+      <button class="ctrl-btn primary" id="deploy-btn">⚡ Deploy</button>
+      <button class="ctrl-btn" id="battle-btn">⚔ Battle!</button>
     </div>
     <div id="shop-offers"><!-- rendered by app.js --></div>
   </div>
@@ -58,7 +69,6 @@
 <div id="battle-screen">
   <div id="battle-arena">
 
-    <!-- Player combatant -->
     <div class="combatant">
       <div class="combatant-label">YOUR MECH</div>
       <div class="mech-sprite" id="player-sprite">
@@ -79,7 +89,6 @@
       </div>
     </div>
 
-    <!-- Battle center -->
     <div id="battle-center">
       <div id="event-banner">
         <div class="banner-main" id="banner-main">Ready…</div>
@@ -89,11 +98,11 @@
         <div id="combat-log"></div>
       </div>
       <div id="battle-bottom">
-        <button class="ctrl-btn" id="skip-btn" style="width:100%">⏭ Skip Battle</button>
+        <button class="ctrl-btn" id="leave-spectate-btn" style="display:none">← Leave Spectate</button>
+        <button class="ctrl-btn" id="skip-btn">⏭ Skip Battle</button>
       </div>
     </div>
 
-    <!-- Enemy combatant -->
     <div class="combatant">
       <div class="combatant-label" id="enemy-name-label">ENEMY</div>
       <div class="mech-sprite" id="enemy-sprite">
@@ -123,7 +132,7 @@
     <div class="result-title" id="result-title">—</div>
     <div class="result-subtitle" id="result-subtitle"></div>
     <div class="result-highlights" id="result-highlights"></div>
-    <button class="ctrl-btn primary" id="result-continue-btn" style="width:100%">Continue →</button>
+    <button class="ctrl-btn primary" id="result-continue-btn">Continue →</button>
   </div>
 </div>
 
@@ -131,10 +140,45 @@
 <div id="run-end-screen">
   <div class="end-title" id="end-title">—</div>
   <div class="end-stats" id="end-stats"></div>
-  <button class="ctrl-btn primary" id="new-run-btn" style="min-width:160px;padding:12px 20px;font-size:14px">Start New Run</button>
+  <button class="ctrl-btn primary" id="new-run-btn">Start New Run</button>
 </div>
 
-<script src="game-core.js"></script>
-<script src="app.js"></script>
+<!-- Sortie screen — real-time theatre status -->
+<div id="sortie-screen">
+  <div id="sortie-inner">
+    <div class="sortie-title">WAR THEATRE</div>
+    <div class="sortie-subtitle" id="sortie-subtitle">Deploying…</div>
+
+    <!-- Real-time phase status -->
+    <div id="theatre-status">
+      <div id="theatre-phase-label">—</div>
+      <div id="theatre-progress-wrap">
+        <div id="theatre-progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="sortie-fight-grid"><!-- fight chips rendered by app.js --></div>
+    <div id="sortie-tally"><!-- wins / losses --></div>
+    <div id="sortie-controls">
+      <button class="ctrl-btn" id="spectate-btn">⚔ Spectate Last Fight</button>
+      <button class="ctrl-btn primary" id="retreat-btn">↩ Retreat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Retreat summary overlay -->
+<div id="retreat-overlay">
+  <div id="retreat-box">
+    <div class="retreat-title">SORTIE COMPLETE</div>
+    <div id="retreat-record"><!-- record --></div>
+    <div id="retreat-loot"><!-- loot --></div>
+    <div id="retreat-pilot"><!-- pilot changes --></div>
+    <div id="retreat-learn"><!-- learning signal --></div>
+    <button class="ctrl-btn primary" id="retreat-continue-btn">Back to Workshop →</button>
+  </div>
+</div>
+
+<script src="game-core.js?v=20260605-pickmovefix"></script>
+<script src="app.js?v=20260605-pickmovefix"></script>
 </body>
 </html>

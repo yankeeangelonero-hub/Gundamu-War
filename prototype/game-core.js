@@ -33,9 +33,11 @@
   };
 
   const THEATRE_CONFIG = {
-    FIGHT_DURATION_MIN:  15000,
-    FIGHT_DURATION_MAX:  30000,
-    VICTORY_DOWNTIME:     5000,
+    // Fight display time is derived from the authoritative simulation timeline:
+    // real theatre milliseconds = final simulated event time × BATTLE_TIME_SCALE.
+    // Example: a 400-tick simulated fight displays for ~4 seconds.
+    BATTLE_TIME_SCALE:       10,
+    VICTORY_DOWNTIME:      5000,
     LOSS_DOWNTIME:       15000,
   };
 
@@ -626,7 +628,9 @@
       phase:         'fighting',   // 'fighting' | 'victory-downtime' | 'loss-downtime' | 'retreated'
       fightIdx:      0,
       elapsed:       0,
-      phaseDuration: _fightDuration(sortieSeed, 0, config),
+      phaseDuration: config.BATTLE_TIME_SCALE !== undefined ? 0 : _fightDuration(sortieSeed, 0, config),
+      simulatedBattleTime: null,
+      pendingFight:  null,
       results:       [],
       sortieSeed,
       wins:          0,
@@ -634,31 +638,51 @@
     };
   }
 
+  function _prepareCurrentFight(state, playerBuild, enemyPool, config) {
+    if (state.pendingFight) return;
+
+    const enemyIdx   = state.fightIdx % enemyPool.length;
+    const fightSeed  = ((state.sortieSeed * 1000 + state.fightIdx * 137 + 1) >>> 0) || 1;
+    const enemyBuild = buildFromEnemyData(enemyPool[enemyIdx]);
+    const simResult  = simulate(playerBuild, enemyBuild, fightSeed);
+    const finalEvent = simResult.events[simResult.events.length - 1];
+    const simulatedBattleTime = finalEvent ? finalEvent.time : 0;
+
+    state.pendingFight = {
+      enemyIdx,
+      enemyName:      enemyPool[enemyIdx].name,
+      enemyArchetype: enemyPool[enemyIdx].archetype,
+      winner:         simResult.winner,
+      finalPlayerHP:  simResult.finalPlayerHP,
+      finalEnemyHP:   simResult.finalEnemyHP,
+      events:         simResult.events,
+    };
+    state.simulatedBattleTime = simulatedBattleTime;
+
+    if (config.BATTLE_TIME_SCALE !== undefined) {
+      state.phaseDuration = Math.max(1, simulatedBattleTime) * config.BATTLE_TIME_SCALE;
+    } else {
+      // Backward-compatible test hook for callers that still pass fixed/random durations.
+      state.phaseDuration = _fightDuration(state.sortieSeed, state.fightIdx, config);
+    }
+  }
+
   // Advance theatre by dtMs. Mutates state in place.
   function tickTheatre(state, playerBuild, enemyPool, dtMs, config) {
     if (state.phase === 'retreated') return;
     config = config || THEATRE_CONFIG;
 
+    if (state.phase === 'fighting') _prepareCurrentFight(state, playerBuild, enemyPool, config);
+
     state.elapsed += dtMs;
 
     if (state.phase === 'fighting' && state.elapsed >= state.phaseDuration) {
-      const enemyIdx = state.fightIdx % enemyPool.length;
-      const fightSeed = ((state.sortieSeed * 1000 + state.fightIdx * 137 + 1) >>> 0) || 1;
-      const enemyBuild = buildFromEnemyData(enemyPool[enemyIdx]);
-      const simResult  = simulate(playerBuild, enemyBuild, fightSeed);
+      const fightResult = state.pendingFight;
 
-      state.results.push({
-        enemyIdx,
-        enemyName:      enemyPool[enemyIdx].name,
-        enemyArchetype: enemyPool[enemyIdx].archetype,
-        winner:         simResult.winner,
-        finalPlayerHP:  simResult.finalPlayerHP,
-        finalEnemyHP:   simResult.finalEnemyHP,
-        events:         simResult.events,
-      });
+      state.results.push(fightResult);
       state.fightIdx++;
 
-      if (simResult.winner === 'player') {
+      if (fightResult.winner === 'player') {
         state.wins++;
         state.phase         = 'victory-downtime';
         state.phaseDuration = config.VICTORY_DOWNTIME;
@@ -668,6 +692,7 @@
         state.phaseDuration = config.LOSS_DOWNTIME;
       }
       state.elapsed = 0;
+      state.pendingFight = null;
       return;
     }
 
@@ -675,7 +700,12 @@
         && state.elapsed >= state.phaseDuration) {
       state.phase         = 'fighting';
       state.elapsed       = 0;
-      state.phaseDuration = _fightDuration(state.sortieSeed, state.fightIdx, config);
+      state.phaseDuration = config.BATTLE_TIME_SCALE !== undefined ? 0 : _fightDuration(state.sortieSeed, state.fightIdx, config);
+      state.simulatedBattleTime = null;
+      state.pendingFight  = null;
+      if (config.BATTLE_TIME_SCALE !== undefined) {
+        _prepareCurrentFight(state, playerBuild, enemyPool, config);
+      }
     }
   }
 

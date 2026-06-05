@@ -368,54 +368,49 @@ console.log('\n[12] Sortie resolver — determinism');
 }
 
 // ─── 13. Theatre scheduler — not instant ─────────────────────────────────────
-console.log('\n[13] Theatre scheduler — real-time pacing');
+// ─── 13. Theatre scheduler — scaled from simulated battle time ───────────────
+console.log('\n[13] Theatre scheduler — scaled simulated battle time');
 
 {
   const pBuild = initBuild();
-  addBagPiece(pBuild, 3, 0, [[0,0],[1,0],[2,0]]);
   placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
 
-  const FIXED_CONFIG = {
-    FIGHT_DURATION_MIN: 15000,
-    FIGHT_DURATION_MAX: 15000, // fixed for deterministic tests
-    VICTORY_DOWNTIME:    5000,
-    LOSS_DOWNTIME:      15000,
+  const SCALED_CONFIG = {
+    BATTLE_TIME_SCALE: 10,
+    VICTORY_DOWNTIME:  5000,
+    LOSS_DOWNTIME:    15000,
   };
 
-  const ts = makeTheatreState(42, FIXED_CONFIG);
+  const ts = makeTheatreState(42, SCALED_CONFIG);
   assertEqual(ts.phase, 'fighting', 'Theatre starts in fighting phase');
   assertEqual(ts.results.length, 0, 'No results yet at start');
 
-  // Before fight ends: no result
-  tickTheatre(ts, pBuild, ENEMY_POOL, 5000, FIXED_CONFIG);
-  assertEqual(ts.results.length, 0, 'No result after 5s (fight not done)');
-  assert(ts.phase === 'fighting', 'Still fighting after 5s');
+  tickTheatre(ts, pBuild, ENEMY_POOL, 0, SCALED_CONFIG);
+  const expectedFightSeed = ((ts.sortieSeed * 1000 + 0 * 137 + 1) >>> 0) || 1;
+  const expectedSim = simulate(pBuild, buildFromEnemyData(ENEMY_POOL[0]), expectedFightSeed);
+  const expectedActualBattleTime = expectedSim.events.at(-1).time;
+  assertEqual(ts.simulatedBattleTime, expectedActualBattleTime,
+    'Theatre records actual simulated battle time from event timeline');
+  assertEqual(ts.phaseDuration, expectedActualBattleTime * 10,
+    'Fight display duration is 10× actual simulated battle time');
 
-  // Advance to just past fight duration: fight resolves
-  tickTheatre(ts, pBuild, ENEMY_POOL, 10001, FIXED_CONFIG);
-  assertEqual(ts.results.length, 1, 'Fight resolves after 15s elapsed');
+  tickTheatre(ts, pBuild, ENEMY_POOL, ts.phaseDuration - 1, SCALED_CONFIG);
+  assertEqual(ts.results.length, 0, 'No result before scaled battle duration completes');
+  assert(ts.phase === 'fighting', 'Still fighting before scaled battle duration completes');
+
+  tickTheatre(ts, pBuild, ENEMY_POOL, 1, SCALED_CONFIG);
+  assertEqual(ts.results.length, 1, 'Fight resolves when scaled battle duration completes');
   assert(ts.phase === 'victory-downtime' || ts.phase === 'loss-downtime',
     'In downtime phase after first fight');
-
-  const firstResult = ts.results[0];
-  assert(firstResult.winner === 'player' || firstResult.winner === 'enemy',
-    'Fight has a valid winner');
 }
 
-// ─── 14. Theatre — fight duration range ──────────────────────────────────────
-console.log('\n[14] Theatre — fight duration in 15–30s range');
+// ─── 14. Theatre — default timing config ──────────────────────────────────────
+console.log('\n[14] Theatre — default timing config');
 
 {
-  const pBuild = initBuild();
-  placeItem(pBuild, nextIid(), 'machine-gun', 0, 0, 0);
-
-  // Run 5 sorties and check fight durations fall in range
-  for (let seed = 1; seed <= 5; seed++) {
-    const ts = makeTheatreState(seed); // default THEATRE_CONFIG
-    assert(ts.phaseDuration >= THEATRE_CONFIG.FIGHT_DURATION_MIN &&
-           ts.phaseDuration <= THEATRE_CONFIG.FIGHT_DURATION_MAX,
-      `Fight duration for seed ${seed} is in [15000, 30000] range (got ${ts.phaseDuration})`);
-  }
+  assertEqual(THEATRE_CONFIG.BATTLE_TIME_SCALE, 10, 'Default theatre uses 10× simulated battle time');
+  assertEqual(THEATRE_CONFIG.VICTORY_DOWNTIME, 5000, 'Victory downtime remains 5s');
+  assertEqual(THEATRE_CONFIG.LOSS_DOWNTIME, 15000, 'Loss downtime remains 15s');
 }
 
 // ─── 15. Theatre — victory/loss downtime values ───────────────────────────────
@@ -430,19 +425,19 @@ console.log('\n[15] Theatre — victory/loss downtime');
   addBagPiece(pBuild, 0, 1, [[0,0],[0,1],[1,0],[1,1]]);
   placeItem(pBuild, nextIid(), 'sensor', 3, 0, 0);
 
-  const FIXED_CONFIG = {
-    FIGHT_DURATION_MIN: 15000,
-    FIGHT_DURATION_MAX: 15000,
-    VICTORY_DOWNTIME:    5000,
-    LOSS_DOWNTIME:      15000,
+  const SCALED_CONFIG = {
+    BATTLE_TIME_SCALE: 10,
+    VICTORY_DOWNTIME:  5000,
+    LOSS_DOWNTIME:    15000,
   };
 
   let sawVictoryDowntime = false;
   let sawLossDowntime    = false;
 
   for (let seed = 1; seed <= 50 && (!sawVictoryDowntime || !sawLossDowntime); seed++) {
-    const ts = makeTheatreState(seed, FIXED_CONFIG);
-    tickTheatre(ts, pBuild, ENEMY_POOL, 15001, FIXED_CONFIG);
+    const ts = makeTheatreState(seed, SCALED_CONFIG);
+    tickTheatre(ts, pBuild, ENEMY_POOL, 0, SCALED_CONFIG);
+    tickTheatre(ts, pBuild, ENEMY_POOL, ts.phaseDuration, SCALED_CONFIG);
     if (ts.phase === 'victory-downtime') {
       assertEqual(ts.phaseDuration, 5000, `Victory downtime = 5000ms (seed ${seed})`);
       sawVictoryDowntime = true;

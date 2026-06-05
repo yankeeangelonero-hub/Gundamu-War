@@ -688,6 +688,9 @@
     const sortieSeed = ((state.sortieSeed + state.pilot.sorties * 997 + 1) >>> 0) || 1;
     state.sortieSeed   = sortieSeed;
     state.theatreState = G.makeTheatreState(sortieSeed);
+    // Prepare the first fight immediately so the UI timer reflects the
+    // actual simulated battle length × theatre scale, not a placeholder.
+    G.tickTheatre(state.theatreState, state.build, ENEMY_POOL, 0);
     state.sortiePhase  = 'deployed';
 
     dom.sortieScreen.classList.add('active');

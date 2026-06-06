@@ -1,51 +1,71 @@
 ---
-project: mech-bags
+project: kitbash-mecha
+repo: gundamu-war
 doc_type: version-log
 status: active
-updated: 2026-06-04
+updated: 2026-06-06
 ---
 
-# Version Log — Mech Bags
+# Version Log — Kitbash Mecha
 
-Tracks released and in-progress versions. Append a new entry when a version is completed or substantially changed.
+Tracks released and in-progress versions. Newest first. Append a new entry when a version is
+completed or substantially changed.
 
 ---
 
-## Version 0.1 — Browser Prototype
+## Version 0.4 — Pilot-fit and War-front direction
 
-**Status:** In progress
-**Started:** 2026-06-04
-**Target completion:** 2026-06-21
+**Status:** In planning (no build yet)
+**Started:** 2026-06-06
 
-**Goal:** A player can complete a short browser prototype run: buy shaped items and body-part expansions, arrange them across five unrestricted bags, launch battles against prebuilt enemy builds, and watch deterministic ATB sprite playback until a win/loss result.
+**Goal:** Reframe the game around a persistent pilot and a living war. The player is the
+partner engineer who fits a mech out for one bonded pilot, weighs a deploy gamble, and
+watches the duel; the experience is a positive power loop building toward an ace, and the
+defining endgame is async PvP against other real players' stored builds. The build is
+governed by a three-layer constraint model (machine engineering, pilot-machine fit, pilot
+behavior) with pilot-fit as the star, expressed in combat as sync climbing toward a
+breakthrough rather than stress toward a breakdown.
 
-**Tech stack:** Plain HTML/CSS/JavaScript, single-page, no backend.
+**Build target:** Godot 4.6 + GDScript (provisional; see the stack ADR). The earlier
+plain-web prototype is a reference to port.
 
-**Scope summary:**
-- Five-bag mech builder (Head, Torso, Back, Left Arm, Right Arm)
-- Body-part bag expansion cards
-- Data-driven item definitions with adjacency bonuses
-- Deterministic ATB battle simulator
-- 2D sprite battle viewer with paused animation playback
-- Prebuilt static enemy pool
-- Short run loop (buy/fight/advance)
+**Design record:** docs/wishlist/wishlist.md (r2), docs/wishlist/flows/,
+docs/pilot-and-war-front-high-level-spec-and-work-map.md (r2),
+docs/adrs/2026-06-06-build-stack-decision.md, agent-handoffs/Kitbash - Mechanics Handoff.md.
 
-**Slice log:**
-| Slice | Title | Status |
-|---|---|---|
-| 01 | Static five-bag board shell | Not started |
-| 02 | Item placement and rotation | Not started |
-| 03 | Shop and body expansion cards | Not started |
-| 04 | Data-driven item stats and adjacency preview | Not started |
-| 05 | Deterministic ATB simulator | Not started |
-| 06 | 2D battle viewer and paused animation playback | Not started |
-| 07 | Short run loop with enemy pool | Not started |
+**Next test version:** the deploy-decision prototype (KM-DEPLOY) — the choice of pushing the
+pilot for a breakthrough versus a safe fit, with a legible watched fight and a growth readout.
 
-**Known constraints:**
-- No backend, accounts, or real matchmaking
-- No anatomical placement restrictions
-- No Gundam IP
-- No 3D
+---
+
+## Version 0.3 — Kitbash Mecha prototype
+
+**Status:** Built (prototype), superseded by the v0.4 direction
+**Goal:** Replace the bag/canvas spatial packing with recursive socket assembly — a typed
+tree of snap-together parts edited by the player, resolved by a pure deterministic sim, and
+rendered as the combat rig. Lives under prototype/ (game-core.js, app.js). Introduced the
+canonical nodeId paths, ownedInstanceId inventory identity, {side,nodeId} combat events, and
+the front/rear blueprint build UI. The pure deterministic core carries forward as the thing
+to port into the Godot build.
+
+---
+
+## Version 0.2 — Single-canvas theatre prototype
+
+**Status:** Built (prototype), superseded
+**Goal:** A single-canvas theatre loop with battles scaled by simulated battle time — an
+intermediate step between the bag prototype and the kitbash pivot.
+
+---
+
+## Version 0.1 — Browser prototype ("Mech Bags")
+
+**Status:** Built (prototype, all 7 slices complete), superseded
+**Goal:** A Backpack Battles-style autobattler with shaped parts across five body-part bags,
+a shop/expansion loop, a deterministic ATB simulator, and 2D sprite playback against a
+prebuilt enemy pool. The deterministic-sim and sim-versus-animation separation established
+here carry forward; the spatial bag-packing surface was dropped in the pivot. Slices 01–07
+were all built and verified (see Kanban history).
 
 ---
 

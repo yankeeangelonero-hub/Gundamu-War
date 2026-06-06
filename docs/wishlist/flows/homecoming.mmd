@@ -1,0 +1,26 @@
+%% Homecoming branch (r2, positive valence): what a win vs a survived loss does to the pilot and build.
+%% Growth is always upward; the downside of a loss is a slower road and a missed breakthrough, never harm.
+flowchart TD
+    Return["Mech returns from the field"]
+    Outcome{"Battle result"}
+
+    Return --> Outcome
+
+    Outcome -->|"win"| WXP["Pilot gains XP; sync ceiling rises\nmay level up"]
+    WXP --> WSkill["New skills may unlock\nplayer can equip / invest in them"]
+    WSkill --> WSalvage["Salvage from beaten enemies\ngoes to inventory"]
+    WStretch{"Did you push a stretch fit?"}
+    WSalvage --> WStretch
+    WStretch -->|"yes, and survived it"| WBreak["Breakthrough\nlearned trait / sync milestone / new ability"]
+    WStretch -->|"no, safe fit"| Debrief
+    WBreak --> Debrief
+
+    Outcome -->|"survived loss"| LXP["Little XP, no breakthrough"]
+    LXP --> LRoad["A harder road next\nno injury, no frayed bond — just slower"]
+    LRoad --> Debrief
+
+    Debrief["Debrief screen\nwhat she grew into, the sync gained, what was salvaged"]
+    Debrief --> Use{"What to do with salvage?"}
+    Use -->|"fit it"| Workshop["Back to Workshop\nbolt salvage on, refit, reach higher next sortie"]
+    Use -->|"research (deferred)"| ResearchNote["Research material\n(out of scope now; recorded wish)"]
+    ResearchNote --> Workshop

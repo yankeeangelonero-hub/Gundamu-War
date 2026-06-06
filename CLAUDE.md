@@ -1,39 +1,73 @@
-# CLAUDE.md — Mech Bags
+# CLAUDE.md — Kitbash Mecha
 
-Project slug: `mech-bags`
+Working title: Kitbash Mecha
+Repo: Gundamu-War
 Owner: Xuanyue
-Root: `D:/Claude/Mech Bags`
-Started: 2026-06-04
+Started: 2026-06-04 (as "Mech Bags"); pivoted through recursive kitbash to the current
+pilot-fit + war-front direction on 2026-06-06.
 
 ## What this project is
 
-Mech Bags is a browser-based HTML prototype for a Backpack Battles-style async autobattler. Players arrange shaped mech parts across five body-part bags (Head, Torso, Back, Left Arm, Right Arm), upgrade individual bag sizes, then watch 2D sprite battles resolve through a paused ATB animation queue.
+Kitbash Mecha is a mech build-fighter with a pilot bond. The player is the partner
+engineer, not the pilot: you kitbash a humanoid mech from a tree of snap-together parts,
+fit it out for a single persistent pilot you grow attached to, then deploy that pilot into
+a living war and watch the deterministic duel resolve. The fantasy is a positive power
+loop — building a feared ace — and the defining endgame is async PvP where your ace fights
+other real players' stored builds in a contested war.
+
+The build is a negotiation across three constraint layers, all running through the pilot:
+machine engineering (power/heat/armor/weight — kept lean), pilot-machine fit (the star: a
+soft capacity-vs-demand relationship expressed in combat as sync climbing toward a
+breakthrough), and pilot behavior (smart defaults near-term; an opt-in rule layer later,
+gated hard). Power is never free, but it is potential the pilot grows into, not a tax she
+suffers — there is no permanent harm to the pilot.
+
+This file is a pointer to the live design record, not the record itself. Read the wishlist
+for intent and the work map for the plan before doing design or build work.
 
 ## Context for agents
 
-- **Version 0.1 is a browser prototype only.** No backend, accounts, or real matchmaking. All work stays in plain HTML/CSS/JavaScript (single page preferred).
-- **No anatomy police.** Items can go in any bag. Do not add placement restrictions by body part.
-- **Simulation and animation are separate concerns.** Keep them architecturally distinct.
-- **Determinism is required.** Battle simulation must produce the same event sequence from the same build + seed every time.
-- **Enemy builds are static.** Opponent pool is prebuilt data, not networked.
+- The build target is Godot 4.6 using GDScript. GDScript specifically, because Godot 4
+  cannot export C# to the web and web playtest sharing is wanted. C++ via GDExtension is
+  the only sanctioned performance escape hatch. The choice is recorded in the stack ADR and
+  is provisional pending a confirmation spike.
+- The earlier prototype under `prototype/` is plain-web JavaScript (`game-core.js` is a
+  pure deterministic core, `app.js` is a DOM renderer). It is a reference to port into the
+  Godot build, not the shipping codebase.
+- The simulation is a pure, deterministic, renderer-agnostic core. Same build(s) + seed
+  must produce the identical event sequence. Determinism is also the PvP enabler: a result
+  must be reproducible so a headless re-simulation can verify it.
+- Simulation and animation are separate concerns; keep them architecturally distinct so a
+  fight can be skipped, replayed, or re-simulated server-side.
+- Opponent builds are an injected data source behind one interface. The game simulates any
+  build identically whether it came from a static file, a designer, or a real player. Near
+  term, opponents are local seeded ghost builds shaped like real-player builds; there is no
+  backend yet, but the architecture must not preclude the one the war endgame needs.
+- Part, skill, gate, fit, ghost-build, and war-front definitions are data, not code.
 
 ## Key documents
 
 | Document | Purpose |
 |---|---|
-| `High Level Project Specifications.md` | FEAT, BEH, ARC entries — source of truth for requirements |
-| `Roadmap.md` | Milestones and delivery targets |
-| `Kanban.md` | Slice-level work status |
-| `Project Version/Version 0.1/Version 0_1 Project Specifications.md` | V0.1 scope, slices, and acceptance checks |
-| `Current Architecture/Current Architecture.md` | System design for the prototype |
-| `agent-handoffs/claude-design-ui-requirements.md` | Visual/UI design requirements — read before touching UI |
+| `docs/wishlist/wishlist.md` | The experience wishlist (r2) — authoritative record of intent. Read first. |
+| `docs/wishlist/flows/` | Core-loop and homecoming user-flow diagrams. |
+| `docs/pilot-and-war-front-high-level-spec-and-work-map.md` | The high-level spec + decomposition (work map) — the build plan and invariants. |
+| `docs/adrs/2026-06-06-build-stack-decision.md` | Stack decision (Godot 4.6 + GDScript), provisional pending a confirmation spike. |
+| `agent-handoffs/Kitbash - Mechanics Handoff.md` | Owner's v0.4 mechanics design handoff (source for the three-layer model and the next test). |
+| `agent-handoffs/Kitbash - Art Handoff.md`, `agent-handoffs/kb-art-manifest.json` | Art direction and the part/anchor manifest. |
+| `Version Log.md`, `Roadmap.md`, `Kanban.md` | Version history, milestones, slice status. |
 
 ## Agents should not
 
-- Create backend code, databases, or network endpoints.
-- Add item placement restrictions based on body part.
-- Add real Gundam IP, licensed names, or lore.
-- Introduce 3D rendering.
+- Add a backend, database, or network endpoint in the near-term prototype. Architect so the
+  later backend is not precluded, but do not build it now.
+- Use C# (it forecloses web export); use GDScript. Do not introduce 3D.
+- Add real Gundam IP, licensed names, or lore. Specifically no V-fin antenna, no split
+  twin-eye visor, no RX-78 silhouette or trim. Original identity uses a mono-eye, a single
+  visor band, or a full-face sensor plate.
+- Inflict permanent harm on the pilot, or use a stress-as-punishment loop; the valence is
+  positive (sync toward a breakthrough; the downside of a loss is slower growth).
+- Let opponent provenance (static / designer / real-player) leak into the sim or renderer.
 - Commit, push, or install dependencies without explicit instruction.
 
 ## Naming conventions
@@ -42,3 +76,4 @@ Mech Bags is a browser-based HTML prototype for a Backpack Battles-style async a
 - Features: `FEAT-NNN`
 - Behaviour invariants: `BEH-NNN`
 - Architecture constraints: `ARC-NNN`
+- Work-map artifact IDs use the `KM-` prefix (e.g. `KM-DEPLOY`, `KM-PILOT-FIT`).

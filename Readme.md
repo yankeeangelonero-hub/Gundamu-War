@@ -1,69 +1,59 @@
 ---
-project: mech-bags
+project: kitbash-mecha
+repo: gundamu-war
 doc_type: readme
-status: draft
-updated: 2026-06-04
+status: active
+updated: 2026-06-06
 ---
 
-# Mech Bags
+# Kitbash Mecha
 
-> A browser-based HTML prototype for a Backpack Battles-style async autobattler where players arrange shaped mech parts across five body-part bags, upgrade individual bag sizes, then watch 2D sprite battles resolve through a paused ATB animation queue.
+Kitbash Mecha is a mech build-fighter with a pilot bond. You play the partner engineer, not
+the pilot. You kitbash a humanoid mech from a tree of snap-together parts, fit it out for a
+single persistent pilot you grow attached to, then deploy that pilot into a living war and
+watch the battle resolve on its own. You cannot touch the controls once she is out there;
+the tension is whether the machine you built and the pilot you grew can win the fight you
+sent them into.
 
-## What it is
+The pull of the game is a positive power loop. You are building toward an unstoppable ace,
+and the defining endgame is a war where your ace fights other real players' machines —
+their builds, pilots, and tactics — in a persistent, contested front. Power is never free,
+but it is potential the pilot grows into rather than a tax she suffers, and there is no
+permanent harm to the pilot; the worst outcome of a hard fight is a slower road, not a
+broken friend.
 
-Mech Bags is shamelessly inspired by Backpack Battles, but with a twist: instead of one backpack, the player's inventory is split across five mech body parts — **Head**, **Torso**, **Back**, **Left Arm**, and **Right Arm**. Each is an independent grid where shaped items can be placed freely.
+Under the surface, a build is a negotiation across three layers. Machine engineering is the
+substrate — power, heat, armor versus firepower, weight — kept lean. Pilot-machine fit is
+the star: can this pilot, at her current ability, control this machine? Build it too
+demanding and she fights the mech instead of fighting with it, expressed in combat as a sync
+that climbs toward a breakthrough when pilot and machine click. Pilot behavior is how she
+decides to fight in an async, spectated battle; it ships as smart defaults now, with an
+opt-in rule layer later. The whole thing rests on a deterministic simulation: the same build
+and seed produce the same fight every time, which is also what makes a fair, verifiable war
+against other players' stored builds possible.
 
-Bag expansions add cells to a specific body part, making expansion choices part of build strategy. Items have no anatomical restrictions; a beam rifle on the Head bag is valid.
+## Where the project is
 
-Between rounds, the player shops for new items and expansion upgrades. When ready, the battle is resolved as a deterministic ATB event sequence: simulation time advances until a weapon is ready, pauses while its animation plays, then resumes.
+The direction was reached by pivoting from an earlier backpack-style bag-packing prototype
+("Mech Bags") through a recursive socket-kitbash prototype, and then settling on the
+pilot-fit and war-front design recorded here. The intent lives in the experience wishlist at
+docs/wishlist/wishlist.md, and the plan to build it lives in the work map at
+docs/pilot-and-war-front-high-level-spec-and-work-map.md. The next test version is the
+deploy-decision prototype: the single choice of pushing the pilot for a breakthrough or
+playing a safe fit, which contains the whole pilot-fit and growth thesis in one decision.
 
-Version 0.1 is a prototype — no backend, no accounts, no real matchmaking.
+The build target is Godot 4.6 using GDScript, chosen after evaluating the engine against the
+rigged-2D kitbash, the effects pipeline, deterministic simulation, and the server-side
+re-simulation the war endgame needs; the reasoning is in
+docs/adrs/2026-06-06-build-stack-decision.md and is provisional pending a confirmation spike.
+The earlier plain-web prototype under prototype/ is kept as a reference to port, not as the
+shipping code.
 
-## Version 0.1 goal
+## Constraints that hold across the project
 
-A player can complete a short browser prototype run: buy shaped items and body-part expansions, arrange them across five unrestricted bags, launch battles against prebuilt enemy builds, and watch deterministic ATB sprite playback until a win/loss result.
-
-## Project structure
-
-```
-Mech Bags/
-├── CLAUDE.md                          # Agent instructions
-├── Readme.md                          # This file
-├── High Level Project Specifications.md
-├── Roadmap.md
-├── Version Log.md
-├── Kanban.md
-├── Current Architecture/
-│   ├── Current Architecture.md
-│   └── Actor Flows.md
-├── Research/
-│   ├── Research Catalogue.md
-│   ├── wishlist.md
-│   ├── flows/
-│   │   ├── run-loop-flow.md
-│   │   └── atb-battle-flow.md
-│   └── UI Design Requirements.md     # (produced by Design agent)
-├── Project Version/
-│   └── Version 0.1/
-│       ├── Version 0_1 Project Specifications.md
-│       └── Slices/
-│           ├── Slice-01-static-five-bag-board-shell.md
-│           ├── Slice-02-item-placement-and-rotation.md
-│           ├── Slice-03-shop-and-body-expansion-cards.md
-│           ├── Slice-04-data-driven-item-stats-and-adjacency.md
-│           ├── Slice-05-deterministic-atb-simulator.md
-│           ├── Slice-06-2d-battle-viewer-and-animation-playback.md
-│           └── Slice-07-short-run-loop-with-enemy-pool.md
-└── agent-handoffs/
-    ├── claude-design-ui-requirements.md
-    └── claude-code-vouse-scaffold-report.md
-```
-
-## Out of scope for Version 0.1
-
-- Real Gundam IP or licensed assets
-- Complex mech simulation (limb HP, heat, weight, ammo, pilots)
-- Item placement restrictions by body part
-- Networking, accounts, or real async matchmaking
-- 3D combat
-- Production-grade art pipeline
+There is no 3D and no licensed Gundam IP anywhere — no V-fin, no split twin-eye visor, no
+RX-78 silhouette or trim; original identity uses a mono-eye, a single visor band, or a
+full-face sensor plate. The near-term prototype runs locally with no backend, and opponents
+are local seeded ghost builds shaped like real-player builds; the backend the war endgame
+needs is a later addition the architecture must not preclude. The simulation stays pure,
+deterministic, and separate from the animation that plays it back.

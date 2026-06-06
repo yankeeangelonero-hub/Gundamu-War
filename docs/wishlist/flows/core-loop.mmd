@@ -1,0 +1,24 @@
+%% Core session loop: the engineer's build-deploy-watch-homecoming cycle (r2, positive valence).
+%% Granularity is "what screen am I on and what did I just do", not micro-interactions.
+flowchart TD
+    Workshop["Workshop\nkitbash the mech tree, equip pilot skills (gated by parts),\ntune the pilot-machine fit, read the sync forecast"]
+    Gamble{"Deploy gamble\n(fit readout: how she handles this frame)"}
+    Detune["Detune / fit her better\nsafe, steady growth this run"]
+    Theatre["Theatre\nread the living war, pick a front to deploy to"]
+    Deploy["Deploy\nhand the friend + machine to the war\n(point of no control)"]
+    Watch["Watch the duel\nsync climbs toward a breakthrough,\nyour mech vs an enemy mech, war shifting around it"]
+    Outcome{"Battle result"}
+    HomeWin["Homecoming — win\nXP toward skills, higher sync ceiling, salvage;\nbreakthrough if you pushed a stretch fit"]
+    HomeLoss["Homecoming — survived loss\nless XP/salvage, a harder road next;\nno harm to the pilot"]
+
+    Workshop --> Gamble
+    Gamble -->|"detune / improve fit"| Detune
+    Detune --> Workshop
+    Gamble -->|"push as-is for the breakthrough"| Theatre
+    Theatre --> Deploy
+    Deploy --> Watch
+    Watch --> Outcome
+    Outcome -->|"won"| HomeWin
+    Outcome -->|"lost but survives"| HomeLoss
+    HomeWin --> Workshop
+    HomeLoss --> Workshop

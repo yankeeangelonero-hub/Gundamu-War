@@ -1,0 +1,581 @@
+{
+  "_comment": "Kitbash Mecha \u2014 art + rig manifest. One source of truth for the art pipeline AND the engine. canvas=[w,h] px (2x working res ok). pivot=[x,y] px from sprite top-left = the point that pins to the parent hardpoint. depthPlane higher = nearer camera; engine offsets near/far by mount side. exposes = child sockets this part carries, with local anchor in this sprite's canvas. facing: single 3/4 screen-right.",
+  "facing": "three-quarter-right",
+  "frame": {
+    "sprite": "rig_frame.png",
+    "canvas": [
+      360,
+      620
+    ],
+    "skeleton": "skel_frame",
+    "clips": [
+      "idle",
+      "walk",
+      "boost",
+      "fire",
+      "melee",
+      "guard",
+      "hit"
+    ],
+    "hardpoints": [
+      {
+        "hpId": "head",
+        "type": "head",
+        "anchorNorm": [
+          0.53,
+          0.27
+        ]
+      },
+      {
+        "hpId": "torso",
+        "type": "torso",
+        "anchorNorm": [
+          0.51,
+          0.41
+        ]
+      },
+      {
+        "hpId": "shoulder.L",
+        "type": "shoulder",
+        "anchorNorm": [
+          0.39,
+          0.34
+        ],
+        "side": "far"
+      },
+      {
+        "hpId": "shoulder.R",
+        "type": "shoulder",
+        "anchorNorm": [
+          0.63,
+          0.35
+        ],
+        "side": "near"
+      },
+      {
+        "hpId": "forearm.L",
+        "type": "forearm",
+        "anchorNorm": [
+          0.34,
+          0.45
+        ],
+        "side": "far"
+      },
+      {
+        "hpId": "forearm.R",
+        "type": "forearm",
+        "anchorNorm": [
+          0.69,
+          0.46
+        ],
+        "side": "near"
+      },
+      {
+        "hpId": "hand.L",
+        "type": "hand-grip",
+        "anchorNorm": [
+          0.33,
+          0.55
+        ],
+        "side": "far"
+      },
+      {
+        "hpId": "hand.R",
+        "type": "hand-grip",
+        "anchorNorm": [
+          0.7,
+          0.56
+        ],
+        "side": "near"
+      },
+      {
+        "hpId": "leg.L",
+        "type": "leg",
+        "anchorNorm": [
+          0.43,
+          0.69
+        ],
+        "side": "far"
+      },
+      {
+        "hpId": "leg.R",
+        "type": "leg",
+        "anchorNorm": [
+          0.56,
+          0.7
+        ],
+        "side": "near"
+      },
+      {
+        "hpId": "backpack",
+        "type": "backpack",
+        "anchorNorm": [
+          0.41,
+          0.4
+        ]
+      }
+    ]
+  },
+  "parts": [
+    {
+      "defId": "head",
+      "code": "HD-2",
+      "name": "Sensor Head",
+      "category": "structure",
+      "connector": "head",
+      "sprite": "rig_head.png",
+      "canvas": [
+        120,
+        120
+      ],
+      "pivot": [
+        60,
+        108
+      ],
+      "depthPlane": 4,
+      "exposes": [],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "torso",
+      "code": "CR-1",
+      "name": "Core Torso",
+      "category": "structure",
+      "connector": "torso",
+      "sprite": "rig_torso.png",
+      "canvas": [
+        220,
+        240
+      ],
+      "pivot": [
+        110,
+        30
+      ],
+      "depthPlane": 3,
+      "exposes": [],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "pauldron",
+      "code": "SH-5",
+      "name": "Pauldron",
+      "category": "armor",
+      "connector": "shoulder",
+      "sprite": "rig_pauldron.png",
+      "canvas": [
+        130,
+        120
+      ],
+      "pivot": [
+        104,
+        28
+      ],
+      "depthPlane": 5,
+      "depthFar": 2,
+      "mirrorForFar": true,
+      "exposes": [],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "shield",
+      "code": "SD-3",
+      "name": "Tower Shield",
+      "category": "armor",
+      "connector": "shield-mount",
+      "sprite": "rig_shield.png",
+      "canvas": [
+        130,
+        220
+      ],
+      "pivot": [
+        104,
+        110
+      ],
+      "depthPlane": 6,
+      "depthFar": 2,
+      "mirrorForFar": true,
+      "exposes": [],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "forearm",
+      "code": "FA-3",
+      "name": "Vernier Forearm",
+      "category": "arms",
+      "connector": "forearm",
+      "sprite": "rig_forearm.png",
+      "canvas": [
+        100,
+        150
+      ],
+      "pivot": [
+        50,
+        14
+      ],
+      "depthPlane": 5,
+      "depthFar": 2,
+      "mirrorForFar": true,
+      "exposes": [
+        {
+          "hpId": "shield",
+          "type": "shield-mount",
+          "anchor": [
+            16,
+            80
+          ]
+        }
+      ],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "rifle",
+      "code": "BR-07",
+      "name": "Beam Rifle",
+      "category": "weapons",
+      "connector": "hand-grip",
+      "sprite": "rig_rifle.png",
+      "canvas": [
+        90,
+        280
+      ],
+      "pivot": [
+        45,
+        205
+      ],
+      "depthPlane": 6,
+      "exposes": [
+        {
+          "hpId": "scope",
+          "type": "optic",
+          "anchor": [
+            52,
+            70
+          ]
+        }
+      ],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "saber",
+      "code": "BS-04",
+      "name": "Beam Saber",
+      "category": "weapons",
+      "connector": "hand-grip",
+      "sprite": "rig_saber.png",
+      "canvas": [
+        60,
+        230
+      ],
+      "pivot": [
+        30,
+        180
+      ],
+      "depthPlane": 6,
+      "fx": "fx_saber_blade",
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "gatling",
+      "code": "GT-09",
+      "name": "Gatling Gun",
+      "category": "weapons",
+      "connector": "hand-grip",
+      "sprite": "rig_gatling.png",
+      "canvas": [
+        110,
+        170
+      ],
+      "pivot": [
+        45,
+        120
+      ],
+      "depthPlane": 6,
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "rack",
+      "code": "MR-11",
+      "name": "Missile Rack",
+      "category": "weapons",
+      "connector": "hand-grip",
+      "sprite": "rig_rack.png",
+      "canvas": [
+        180,
+        130
+      ],
+      "pivot": [
+        60,
+        95
+      ],
+      "depthPlane": 6,
+      "exposes": [
+        {
+          "hpId": "p0",
+          "type": "missile",
+          "anchor": [
+            60,
+            30
+          ]
+        },
+        {
+          "hpId": "p1",
+          "type": "missile",
+          "anchor": [
+            120,
+            30
+          ]
+        }
+      ],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "cannon",
+      "code": "CN-8",
+      "name": "Beam Cannon",
+      "category": "weapons",
+      "connector": "heavy",
+      "sprite": "rig_cannon.png",
+      "canvas": [
+        90,
+        300
+      ],
+      "pivot": [
+        45,
+        150
+      ],
+      "depthPlane": 1,
+      "fx": "fx_beam_muzzle",
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "micro",
+      "code": "MM-2",
+      "name": "Micro-Missile",
+      "category": "ordnance",
+      "connector": "missile",
+      "sprite": "rig_micro.png",
+      "canvas": [
+        50,
+        110
+      ],
+      "pivot": [
+        25,
+        96
+      ],
+      "depthPlane": "inherit+1",
+      "exposes": [
+        {
+          "hpId": "warhead",
+          "type": "warhead",
+          "anchor": [
+            25,
+            14
+          ]
+        }
+      ],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "whHE",
+      "code": "WH-H",
+      "name": "HE Warhead",
+      "category": "ordnance",
+      "connector": "warhead",
+      "sprite": "rig_whHE.png",
+      "canvas": [
+        50,
+        60
+      ],
+      "pivot": [
+        25,
+        54
+      ],
+      "depthPlane": "inherit+1",
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "whEMP",
+      "code": "WH-E",
+      "name": "EMP Warhead",
+      "category": "ordnance",
+      "connector": "warhead",
+      "sprite": "rig_whEMP.png",
+      "canvas": [
+        50,
+        60
+      ],
+      "pivot": [
+        25,
+        54
+      ],
+      "depthPlane": "inherit+1",
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "scope",
+      "code": "OP-1",
+      "name": "Targeting Scope",
+      "category": "ordnance",
+      "connector": "optic",
+      "sprite": "rig_scope.png",
+      "canvas": [
+        70,
+        50
+      ],
+      "pivot": [
+        10,
+        25
+      ],
+      "depthPlane": "inherit+1",
+      "exposes": [],
+      "provenance": "inherited-from-existing-payload"
+    },
+    {
+      "defId": "booster",
+      "code": "BP-4",
+      "name": "Booster Pack",
+      "category": "mobility",
+      "connector": "backpack",
+      "sprite": "rig_booster.png",
+      "canvas": [
+        240,
+        210
+      ],
+      "pivot": [
+        120,
+        80
+      ],
+      "depthPlane": 0,
+      "exposes": [
+        {
+          "hpId": "thL",
+          "type": "thruster",
+          "anchor": [
+            70,
+            170
+          ]
+        },
+        {
+          "hpId": "thR",
+          "type": "thruster",
+          "anchor": [
+            170,
+            170
+          ]
+        },
+        {
+          "hpId": "cannon",
+          "type": "heavy",
+          "anchor": [
+            120,
+            40
+          ]
+        }
+      ],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "thruster",
+      "code": "TH-2",
+      "name": "Vernier Thruster",
+      "category": "mobility",
+      "connector": "thruster",
+      "sprite": "rig_thruster.png",
+      "canvas": [
+        60,
+        100
+      ],
+      "pivot": [
+        30,
+        12
+      ],
+      "depthPlane": 0,
+      "fx": "fx_thruster_flame",
+      "exposes": [],
+      "provenance": "clean-sheet-crop"
+    },
+    {
+      "defId": "adapter",
+      "code": "AD-0",
+      "name": "Hardpoint Adapter",
+      "category": "connectors",
+      "connector": "hand-grip",
+      "sprite": "rig_adapter.png",
+      "canvas": [
+        80,
+        80
+      ],
+      "pivot": [
+        40,
+        60
+      ],
+      "depthPlane": "inherit",
+      "exposes": [
+        {
+          "hpId": "wild",
+          "type": "*",
+          "anchor": [
+            40,
+            16
+          ]
+        }
+      ],
+      "provenance": "inherited-from-existing-payload"
+    }
+  ],
+  "fx": [
+    {
+      "id": "fx_thruster_flame",
+      "loop": true,
+      "frames": 6
+    },
+    {
+      "id": "fx_saber_blade",
+      "loop": true,
+      "frames": 4
+    },
+    {
+      "id": "fx_beam_muzzle",
+      "loop": false,
+      "frames": 4
+    },
+    {
+      "id": "fx_ballistic_muzzle",
+      "loop": false,
+      "frames": 4
+    },
+    {
+      "id": "fx_missile_trail",
+      "loop": false,
+      "frames": 5
+    },
+    {
+      "id": "fx_hit_spark",
+      "loop": false,
+      "frames": 4
+    }
+  ],
+  "minimumSlice": [
+    "frame",
+    "head",
+    "torso",
+    "pauldron",
+    "forearm",
+    "rifle",
+    "rack",
+    "micro",
+    "whHE",
+    "booster",
+    "thruster"
+  ],
+  "_sourceApprovedHero": {
+    "imageId": "ig_038fad633a14a6dc016a22f7d162a481919002482427f0aaa1",
+    "source": "source_clean_parts_sheet_038fad.png",
+    "note": "Payload rebuilt from a clean exploded parts sheet. Parts not available on the sheet remain inherited from the previous payload."
+  }
+}

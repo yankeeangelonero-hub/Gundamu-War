@@ -1,0 +1,106 @@
+{
+  "source": "kb-art-manifest.json",
+  "note": "Attachment skeleton placeholder for this approved-design payload. Replace with Spine/DragonBones export when animation is authored.",
+  "bones": [
+    {
+      "name": "head",
+      "type": "head",
+      "x": 190.8,
+      "y": 167.4,
+      "side": null
+    },
+    {
+      "name": "torso",
+      "type": "torso",
+      "x": 183.6,
+      "y": 254.2,
+      "side": null
+    },
+    {
+      "name": "shoulder.L",
+      "type": "shoulder",
+      "x": 140.4,
+      "y": 210.8,
+      "side": "far"
+    },
+    {
+      "name": "shoulder.R",
+      "type": "shoulder",
+      "x": 226.8,
+      "y": 217.0,
+      "side": "near"
+    },
+    {
+      "name": "forearm.L",
+      "type": "forearm",
+      "x": 122.4,
+      "y": 279.0,
+      "side": "far"
+    },
+    {
+      "name": "forearm.R",
+      "type": "forearm",
+      "x": 248.4,
+      "y": 285.2,
+      "side": "near"
+    },
+    {
+      "name": "hand.L",
+      "type": "hand-grip",
+      "x": 118.8,
+      "y": 341.0,
+      "side": "far"
+    },
+    {
+      "name": "hand.R",
+      "type": "hand-grip",
+      "x": 252.0,
+      "y": 347.2,
+      "side": "near"
+    },
+    {
+      "name": "leg.L",
+      "type": "leg",
+      "x": 154.8,
+      "y": 427.8,
+      "side": "far"
+    },
+    {
+      "name": "leg.R",
+      "type": "leg",
+      "x": 201.6,
+      "y": 434.0,
+      "side": "near"
+    },
+    {
+      "name": "backpack",
+      "type": "backpack",
+      "x": 147.6,
+      "y": 248.0,
+      "side": null
+    }
+  ],
+  "clips": {
+    "idle": {
+      "loop": true
+    },
+    "walk": {
+      "loop": true
+    },
+    "boost": {
+      "loop": true
+    },
+    "fire": {
+      "loop": false
+    },
+    "melee": {
+      "loop": false
+    },
+    "guard": {
+      "loop": false
+    },
+    "hit": {
+      "loop": false
+    }
+  }
+}

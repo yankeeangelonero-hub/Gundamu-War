@@ -11,3 +11,6 @@ node_modules/
 dist/
 build/
 .cache/
+
+# Redundant zipped duplicates of art payloads already committed as directories
+output/*.zip

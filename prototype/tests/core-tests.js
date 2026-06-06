@@ -1,20 +1,7 @@
-// core-tests.js — Node.js tests for Mech Bags game-core.js
+// core-tests.js - Node.js tests for Kitbash Mecha v0.3 core.
 // Run: node prototype/tests/core-tests.js
 
-const MechBags = require('../game-core.js');
-
-const {
-  ITEMS, ENEMY_POOL, ECONOMY, PILOT_XP_TABLE,
-  CANVAS_ROWS, CANVAS_COLS, STARTING_OWNED_COORDS, THEATRE_CONFIG,
-  BAG_PIECE_DEFS,
-  makePRNG, getRotatedCells, getAbsoluteCells,
-  canPlace, canPlaceBagPiece, buildOccupiedSet,
-  getAdjacentItems, computeEffectiveStats, getActiveBonuses,
-  initBuild, buildFromEnemyData, placeItem, removeItem, addBagPiece,
-  computeHP, nextIid, simulate,
-  makeTheatreState, tickTheatre,
-  runSortie, computeSortieRewards, applyPilotRewards, makePilotState,
-} = MechBags;
+const G = require('../game-core.js');
 
 let passed = 0;
 let failed = 0;
@@ -22,567 +9,273 @@ let failed = 0;
 function assert(condition, label) {
   if (condition) {
     console.log(`  PASS  ${label}`);
-    passed++;
+    passed += 1;
   } else {
     console.error(`  FAIL  ${label}`);
-    failed++;
+    failed += 1;
   }
 }
 
-function assertEqual(a, b, label) {
-  const ok = JSON.stringify(a) === JSON.stringify(b);
+function assertEqual(actual, expected, label) {
+  const ok = JSON.stringify(actual) === JSON.stringify(expected);
   if (ok) {
     console.log(`  PASS  ${label}`);
-    passed++;
+    passed += 1;
   } else {
-    console.error(`  FAIL  ${label}  got=${JSON.stringify(a)}  want=${JSON.stringify(b)}`);
-    failed++;
+    console.error(`  FAIL  ${label}  got=${JSON.stringify(actual)}  want=${JSON.stringify(expected)}`);
+    failed += 1;
   }
 }
 
-// Helper: build an ownedCells set covering given [r,c] pairs
-function makeOwned(...coords) {
-  return new Set(coords.map(([r, c]) => `${r},${c}`));
+function section(label) {
+  console.log(`\n[${label}]`);
 }
 
-// Helper: owned cells covering a rectangle
-function ownedRect(r0, c0, rows, cols) {
-  const s = new Set();
-  for (let r = r0; r < r0 + rows; r++)
-    for (let c = c0; c < c0 + cols; c++)
-      s.add(`${r},${c}`);
-  return s;
+function mountByDef(state, defId, parentNodeId, hpId) {
+  const part = state.inventory.find(item => item.defId === defId);
+  assert(!!part, `inventory has ${defId}`);
+  const result = G.attachOwnedPart(state.tree, state.inventory, parentNodeId, hpId, part.ownedInstanceId);
+  assert(result.ok, `attach ${defId} to ${parentNodeId}/${hpId}: ${result.reason}`);
+  state.tree = result.tree;
+  state.inventory = result.inventory;
+  return { nodeId: result.nodeId, ownedInstanceId: part.ownedInstanceId };
 }
 
-// ─── 1. Rotation ─────────────────────────────────────────────────────────────
-console.log('\n[1] Rotation');
+section('1. Recursive typed build tree and canonical nodeIds');
+
+const buildState = {
+  tree: G.createBuildTree(),
+  inventory: G.makeInventory([
+    'missile-rack',
+    'micro-missile',
+    'micro-missile',
+    'he-warhead',
+    'emp-warhead',
+    'shoulder-cannon',
+    'backpack-thruster',
+    'armor-plate',
+    'targeting-sensor',
+  ], 'test-owned'),
+};
+
+const rackMount = mountByDef(buildState, 'missile-rack', 'frame', 'hand.R');
+const missile0 = mountByDef(buildState, 'micro-missile', 'frame/hand.R', 'p0');
+const he = mountByDef(buildState, 'he-warhead', 'frame/hand.R/p0', 'warhead');
+const missile1 = mountByDef(buildState, 'micro-missile', 'frame/hand.R', 'p1');
+const emp = mountByDef(buildState, 'emp-warhead', 'frame/hand.R/p1', 'warhead');
+mountByDef(buildState, 'shoulder-cannon', 'frame', 'shoulder.L');
+mountByDef(buildState, 'backpack-thruster', 'frame', 'backpack');
+mountByDef(buildState, 'armor-plate', 'frame', 'torso');
+mountByDef(buildState, 'targeting-sensor', 'frame', 'head');
+
+assertEqual(rackMount.nodeId, 'frame/hand.R', 'rack canonical nodeId is a hardpoint path');
+assertEqual(missile0.nodeId, 'frame/hand.R/p0', 'first missile nodeId uses p0');
+assertEqual(missile1.nodeId, 'frame/hand.R/p1', 'second missile nodeId uses p1');
+assertEqual(he.nodeId, 'frame/hand.R/p0/warhead', 'HE warhead reaches depth 4');
+assertEqual(emp.nodeId, 'frame/hand.R/p1/warhead', 'EMP warhead reaches depth 4');
+assert(G.getNode(buildState.tree, missile0.nodeId).defId === G.getNode(buildState.tree, missile1.nodeId).defId,
+  'duplicate micro missiles share defId');
+assert(missile0.nodeId !== missile1.nodeId, 'duplicate defIds have distinct mounted nodeIds');
+assert(G.validateTree(buildState.tree).ok, 'assembled tree validates');
+
+section('2. Owned inventory identity survives detach and remount');
+
+const rackBeforeDetach = G.getNode(buildState.tree, 'frame/hand.R');
+const mountedOwnedIds = [
+  rackBeforeDetach.ownedInstanceId,
+  rackBeforeDetach.children.p0.ownedInstanceId,
+  rackBeforeDetach.children.p1.ownedInstanceId,
+  rackBeforeDetach.children.p0.children.warhead.ownedInstanceId,
+  rackBeforeDetach.children.p1.children.warhead.ownedInstanceId,
+];
+
+const detached = G.detachNode(buildState.tree, buildState.inventory, 'frame/hand.R');
+assert(detached.ok, `detach rack subtree: ${detached.reason}`);
+assertEqual(detached.ownedPart.ownedInstanceId, mountedOwnedIds[0], 'detached root keeps ownedInstanceId');
+assertEqual(detached.ownedPart.children.p0.ownedInstanceId, mountedOwnedIds[1], 'p0 missile keeps ownedInstanceId');
+assertEqual(detached.ownedPart.children.p1.ownedInstanceId, mountedOwnedIds[2], 'p1 missile keeps ownedInstanceId');
+assertEqual(detached.ownedPart.children.p0.children.warhead.ownedInstanceId, mountedOwnedIds[3],
+  'p0 warhead keeps ownedInstanceId');
+assert(!detached.inventory.some(part => part.ownedInstanceId.startsWith('frame/')),
+  'inventory ownedInstanceIds are not mounted nodeIds');
+assertEqual(G.countOwnedSubtree(detached.ownedPart), 5, 'detached inventory entry contains full subtree');
+
+const remount = G.attachOwnedPart(
+  detached.tree,
+  detached.inventory,
+  'frame',
+  'hand.L',
+  detached.ownedPart.ownedInstanceId
+);
+assert(remount.ok, 'detached rack subtree can remount elsewhere');
+assertEqual(G.getNode(remount.tree, 'frame/hand.L').ownedInstanceId, mountedOwnedIds[0],
+  'remounted subtree keeps ownership identity');
+assertEqual(G.getNode(remount.tree, 'frame/hand.L/p0').ownedInstanceId, mountedOwnedIds[1],
+  'remounted child gets new canonical path and old owned id');
+assert(!G.getNode(remount.tree, 'frame/hand.R'), 'old mounted path is gone after detach/remount');
+
+section('3. Incompatible sockets and depth cap rejection');
 
 {
-  const base = [[0,0],[1,0],[2,0]];
-  const rot1 = getRotatedCells(base, 1);
-  const rot1Keys = rot1.map(([r,c]) => `${r},${c}`).sort().join('|');
-  assertEqual(rot1Keys, '0,0|0,1|0,2', 'beam-rifle rot1 = horizontal 1×3');
-
-  const rot4 = getRotatedCells(base, 4);
-  const rot4Keys = rot4.map(([r,c]) => `${r},${c}`).sort().join('|');
-  const baseKeys = base.map(([r,c]) => `${r},${c}`).sort().join('|');
-  assertEqual(rot4Keys, baseKeys, '4× rotation = identity');
-
-  const mg = [[0,0],[0,1],[0,2]];
-  const mgRot1 = getRotatedCells(mg, 1);
-  const mgRot1Keys = mgRot1.map(([r,c]) => `${r},${c}`).sort().join('|');
-  assertEqual(mgRot1Keys, '0,0|1,0|2,0', 'machine-gun rot1 = vertical 3×1');
+  const tree = G.createBuildTree();
+  const badInventory = G.makeInventory(['shoulder-cannon'], 'bad');
+  const bad = G.canAttach(tree, 'frame', 'hand.R', badInventory[0]);
+  assert(!bad.ok, 'shoulder cannon cannot mount directly to hand grip');
+  assert(bad.reason.includes('needs shoulder-mount') && bad.reason.includes('accepts hand-grip'),
+    'incompatible attachment reason is readable');
 }
 
-// ─── 2. Canvas placement validation ──────────────────────────────────────────
-console.log('\n[2] Canvas placement validation');
-
 {
-  const build = initBuild();
-  // Starting owned = 3×3 at (0,0)–(2,2)
-  const owned = build.canvas.ownedCells;
-
-  // beam-rifle rot1 (horizontal 1×3) fits in owned (0,0)
-  const brCells = getRotatedCells(ITEMS['beam-rifle'].shape, 1);
-  assert(canPlace(CANVAS_ROWS, CANVAS_COLS, owned, new Set(), 0, 0, brCells),
-    'Beam Rifle (rot1) fits owned canvas at (0,0)');
-
-  // beam-rifle rot0 (vertical 3×1) fits in owned col 0 rows 0-2
-  const brV = getRotatedCells(ITEMS['beam-rifle'].shape, 0);
-  assert(canPlace(CANVAS_ROWS, CANVAS_COLS, owned, new Set(), 0, 0, brV),
-    'Beam Rifle (rot0, vertical 3×1) fits in owned 3×3');
-
-  // Reject placement on unowned cell
-  const unownedCells = getRotatedCells(ITEMS['sensor'].shape, 0); // 1×1
-  assert(!canPlace(CANVAS_ROWS, CANVAS_COLS, owned, new Set(), 5, 5, unownedCells),
-    'Placement rejected on unowned cell (5,5)');
-
-  // Place sensor at (0,0)
-  const iid = nextIid();
-  const placed = placeItem(build, iid, 'sensor', 0, 0, 0);
-  assert(placed, 'placeItem succeeds on owned canvas cell');
-
-  // Overlap rejection
-  const iid2 = nextIid();
-  assert(!placeItem(build, iid2, 'sensor', 0, 0, 0), 'Overlap rejected');
-
-  // Out of bounds rejection
-  assert(!canPlace(CANVAS_ROWS, CANVAS_COLS, owned, new Set(), 10, 10, unownedCells),
-    'Out-of-bounds placement rejected');
-
-  // Remove and re-place
-  removeItem(build, iid);
-  assert(placeItem(build, nextIid(), 'sensor', 0, 0, 0), 'After removeItem, cell is free again');
-}
-
-// ─── 3. Bag piece purchase expands owned cells ────────────────────────────────
-console.log('\n[3] Bag piece — addBagPiece expands owned cells');
-
-{
-  const build = initBuild();
-  const beforeCount = build.canvas.ownedCells.size;
-
-  // Place 2×2 bag piece at (3,0) — all in bounds
-  const shape2x2 = BAG_PIECE_DEFS['bag-2x2'].shape;
-  const ok = addBagPiece(build, 3, 0, shape2x2);
-  assert(ok, 'addBagPiece returns true for in-bounds placement');
-  assert(build.canvas.ownedCells.size === beforeCount + 4, 'Owned cells grew by 4 after 2×2 bag piece');
-  assert(build.canvas.ownedCells.has('3,0'), 'Cell (3,0) now owned');
-  assert(build.canvas.ownedCells.has('4,1'), 'Cell (4,1) now owned');
-
-  // L-bag
-  const shapeL = BAG_PIECE_DEFS['bag-L'].shape;
-  const beforeL = build.canvas.ownedCells.size;
-  const okL = addBagPiece(build, 5, 0, shapeL);
-  assert(okL, 'addBagPiece (L-bag) returns true');
-  assert(build.canvas.ownedCells.size === beforeL + 4, 'Owned cells grew by 4 after L-bag');
-
-  // Out of bounds rejected
-  const outOk = addBagPiece(build, 7, 7, shape2x2);
-  assert(!outOk, 'addBagPiece rejected when shape goes out of canvas bounds');
-}
-
-// ─── 4. Placement rejected on unowned cells ───────────────────────────────────
-console.log('\n[4] Placement rejected on unowned cells');
-
-{
-  const build = initBuild();
-  // Try placing in row 5 (unowned)
-  const iid = nextIid();
-  const placed = placeItem(build, iid, 'sensor', 5, 5, 0);
-  assert(!placed, 'placeItem rejected on unowned cell (5,5)');
-
-  // After buying bag piece at (5,5), placement succeeds
-  addBagPiece(build, 5, 5, [[0,0]]);
-  const placed2 = placeItem(build, iid, 'sensor', 5, 5, 0);
-  assert(placed2, 'placeItem succeeds after addBagPiece adds (5,5) to owned');
-
-  // canPlaceBagPiece: in bounds = valid, out of bounds = invalid
-  assert(canPlaceBagPiece(CANVAS_ROWS, CANVAS_COLS, 0, 0, [[0,0],[0,1]]), 'Bag piece in-bounds valid');
-  assert(!canPlaceBagPiece(CANVAS_ROWS, CANVAS_COLS, 7, 7, [[0,0],[0,1]]), 'Bag piece out-of-bounds invalid');
-}
-
-// ─── 5. Rotation and move still work on canvas ────────────────────────────────
-console.log('\n[5] Rotation and move on canvas');
-
-{
-  const build = initBuild();
-  // Place beam-rifle rot0 (vertical) at (0,0)
-  const iid = nextIid();
-  assert(placeItem(build, iid, 'beam-rifle', 0, 0, 0), 'beam-rifle placed rot0 at (0,0)');
-
-  // Rotate in place to rot1 (horizontal 1×3) — owned 0-2 covers it
-  removeItem(build, iid);
-  const newRot = 1;
-  const rotCells = getRotatedCells(ITEMS['beam-rifle'].shape, newRot);
-  const occupied = buildOccupiedSet(build.canvas.items, null);
-  assert(canPlace(CANVAS_ROWS, CANVAS_COLS, build.canvas.ownedCells, occupied, 0, 0, rotCells),
-    'beam-rifle rot1 fits at (0,0) on owned 3×3');
-  placeItem(build, iid, 'beam-rifle', 0, 0, newRot);
-
-  // Move to different owned cell
-  const { items } = build.canvas;
-  const pi = items.find(i => i.instanceId === iid);
-  assert(pi !== undefined, 'placed item found in canvas.items');
-
-  // Move: remove then place at (1,0) rot1 — row 1 col 0,1,2 all owned
-  removeItem(build, iid);
-  const movedOccupied = buildOccupiedSet(build.canvas.items, null);
-  assert(canPlace(CANVAS_ROWS, CANVAS_COLS, build.canvas.ownedCells, movedOccupied, 1, 0, rotCells),
-    'beam-rifle rot1 can move to (1,0)');
-}
-
-// ─── 6. Adjacency bonuses (canvas-wide) ──────────────────────────────────────
-console.log('\n[6] Adjacency bonuses');
-
-{
-  const build = initBuild();
-  // Expand owned to cover more cells
-  addBagPiece(build, 3, 0, [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]);
-
-  // beam-rifle rot1 at (0,0): cells (0,0)(0,1)(0,2)
-  placeItem(build, 'br-iid', 'beam-rifle', 0, 0, 1);
-  // battery rot0 at (1,0): cells (1,0)(1,1) — adjacent to beam-rifle (0,0)
-  placeItem(build, 'bat-iid', 'battery', 1, 0, 0);
-
-  const items = build.canvas.items;
-  const brItem = items.find(i => i.itemId === 'beam-rifle');
-  const stats = computeEffectiveStats(brItem, items);
-  assert(stats.speed < ITEMS['beam-rifle'].speed, 'Battery adjacency reduces beam-rifle speed');
-  assertEqual(stats.speed, ITEMS['beam-rifle'].speed - 20, 'Battery gives exact -20 speed');
-
-  const bonuses = getActiveBonuses(items);
-  assert(bonuses.some(b => b.desc.includes('Battery')), 'getActiveBonuses lists Battery bonus');
-
-  // Moving beam-rifle away removes bonus
-  removeItem(build, 'br-iid');
-  // Expand to row 3 col 3 area
-  addBagPiece(build, 3, 3, [[0,0]]);
-  placeItem(build, 'br-iid2', 'beam-rifle', 3, 3, 0);
-  const items2 = build.canvas.items;
-  const bonuses2 = getActiveBonuses(items2);
-  assert(!bonuses2.some(b => b.desc.includes('Battery')), 'Bonus gone when beam-rifle is no longer adjacent');
-}
-
-// ─── 7. HP computation ───────────────────────────────────────────────────────
-console.log('\n[7] HP computation');
-
-{
-  const build = initBuild();
-  assertEqual(computeHP(build), 80, 'Empty canvas = base 80 HP');
-
-  placeItem(build, nextIid(), 'armor-plate', 0, 0, 0); // 2×2 at (0,0): cells (0,0)(0,1)(1,0)(1,1)
-  assertEqual(computeHP(build), 110, 'Armor Plate gives +30 HP');
-
-  // shield: 3×1 vertical — place at (0,2)… but owned is 3×3 so (0,2)(1,2)(2,2) all owned
-  placeItem(build, nextIid(), 'shield', 0, 2, 0);
-  assertEqual(computeHP(build), 120, 'Shield gives +10 HP');
-}
-
-// ─── 8. Deterministic simulation ─────────────────────────────────────────────
-console.log('\n[8] Deterministic simulation');
-
-{
-  const pBuild = initBuild();
-  addBagPiece(pBuild, 3, 0, [[0,0],[1,0],[2,0],[3,0]]);
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-  placeItem(pBuild, nextIid(), 'sensor', 3, 0, 0);
-
-  const eBuild = buildFromEnemyData(ENEMY_POOL[0]);
-  const seed = 42;
-  const r1 = simulate(pBuild, eBuild, seed);
-  const r2 = simulate(pBuild, eBuild, seed);
-
-  assert(r1.events.length > 0, 'Simulation produces events');
-  assert(r1.winner === 'player' || r1.winner === 'enemy', 'Winner is player or enemy');
-  assertEqual(r1.events.length, r2.events.length, 'Same seed → same event count');
-  assertEqual(r1.winner, r2.winner, 'Same seed → same winner');
-  assertEqual(r1.finalPlayerHP, r2.finalPlayerHP, 'Same seed → same final player HP');
-  assertEqual(r1.finalEnemyHP,  r2.finalEnemyHP,  'Same seed → same final enemy HP');
-
-  assert(JSON.stringify(r1.events) === JSON.stringify(r2.events),
-    'ARC-007: identical events list (byte-equal) with same seed');
-
-  const r3 = simulate(pBuild, eBuild, 999);
-  assert(JSON.stringify(r1.events) !== JSON.stringify(r3.events),
-    'Different seeds produce different event sequences');
-
-  let ascending = true;
-  for (let i = 1; i < r1.events.length; i++) {
-    if (r1.events[i].time < r1.events[i - 1].time) { ascending = false; break; }
-  }
-  assert(ascending, 'Events are in ascending time order');
-
-  const e0 = r1.events[0];
-  assert('time'         in e0, 'Event has time field');
-  assert('attackerSide' in e0, 'Event has attackerSide field');
-  assert('itemId'       in e0, 'Event has itemId field');
-  assert('damage'       in e0, 'Event has damage field');
-  assert(Array.isArray(e0.effects), 'Event has effects array');
-  assert('playerHP'     in e0, 'Event has playerHP field');
-  assert('enemyHP'      in e0, 'Event has enemyHP field');
-}
-
-// ─── 9. Enemy builds validity (canvas model) ──────────────────────────────────
-console.log('\n[9] Enemy builds validity');
-
-{
-  assertEqual(ENEMY_POOL.length, 10, 'ENEMY_POOL has exactly 10 builds');
-
-  for (const enemyData of ENEMY_POOL) {
-    const eBuild = buildFromEnemyData(enemyData);
-    const { items, ownedCells } = eBuild.canvas;
-    let valid = true;
-
-    const seen = new Set();
-    for (const pi of items) {
-      const cells = getAbsoluteCells(pi.row, pi.col,
-        getRotatedCells(ITEMS[pi.itemId].shape, pi.rotation));
-      for (const [r, c] of cells) {
-        const key = `${r},${c}`;
-        if (seen.has(key)) { valid = false; break; }
-        if (r < 0 || r >= CANVAS_ROWS || c < 0 || c >= CANVAS_COLS) { valid = false; break; }
-        if (!ownedCells.has(key)) { valid = false; break; }
-        seen.add(key);
-      }
-    }
-    assert(valid, `Enemy build "${enemyData.name}" has no conflicts and all items on owned cells`);
-    assert(typeof enemyData.archetype === 'string', `Enemy "${enemyData.name}" has archetype field`);
-  }
-}
-
-// ─── 10. Run threshold constants ─────────────────────────────────────────────
-console.log('\n[10] Run thresholds and economy');
-
-{
-  assertEqual(ECONOMY.WIN_THRESHOLD,  5,  'WIN_THRESHOLD = 5');
-  assertEqual(ECONOMY.LOSS_THRESHOLD, 3,  'LOSS_THRESHOLD = 3');
-  assertEqual(ECONOMY.startingGold,   10, 'startingGold = 10');
-  assertEqual(ECONOMY.winReward,      6,  'winReward = 6');
-  assertEqual(ECONOMY.lossReward,     4,  'lossReward = 4');
-  assertEqual(ECONOMY.rerollCost,     1,  'rerollCost = 1');
-}
-
-// ─── 11. Item sell prices ─────────────────────────────────────────────────────
-console.log('\n[11] Item sell prices');
-
-{
-  for (const [id, item] of Object.entries(ITEMS)) {
-    assert(Math.floor(item.cost / 2) >= 0, `${item.name} sell price >= 0`);
-  }
-}
-
-// ─── 12. Sortie resolver — determinism ────────────────────────────────────────
-console.log('\n[12] Sortie resolver — determinism');
-
-{
-  const pBuild = initBuild();
-  addBagPiece(pBuild, 3, 0, [[0,0],[1,0],[2,0]]);
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-  placeItem(pBuild, nextIid(), 'sensor', 3, 0, 0);
-
-  const seed = 42;
-  const s1 = runSortie(pBuild, ENEMY_POOL, seed);
-  const s2 = runSortie(pBuild, ENEMY_POOL, seed);
-
-  assertEqual(s1.poolSize,  10, 'Sortie resolves against all 10 enemies');
-  assertEqual(s1.results.length, 10, 'results has 10 entries');
-  assertEqual(s1.wins + s1.losses, 10, 'wins + losses = 10');
-  assertEqual(s1.sortieSeed, seed, 'Sortie preserves seed');
-  assertEqual(s1.wins,   s2.wins,   'Same seed → same wins');
-  assertEqual(s1.losses, s2.losses, 'Same seed → same losses');
-  assertEqual(
-    JSON.stringify(s1.results.map(r => ({ w: r.winner, e: r.enemyName }))),
-    JSON.stringify(s2.results.map(r => ({ w: r.winner, e: r.enemyName }))),
-    'Same seed → identical per-fight winners'
-  );
-
-  const r0 = s1.results[0];
-  assert('enemyIdx'       in r0, 'Result has enemyIdx');
-  assert('enemyName'      in r0, 'Result has enemyName');
-  assert('enemyArchetype' in r0, 'Result has enemyArchetype');
-  assert('winner'         in r0, 'Result has winner');
-  assert('finalPlayerHP'  in r0, 'Result has finalPlayerHP');
-  assert('finalEnemyHP'   in r0, 'Result has finalEnemyHP');
-  assert(Array.isArray(r0.events), 'Result has events array');
-}
-
-// ─── 13. Theatre scheduler — not instant ─────────────────────────────────────
-// ─── 13. Theatre scheduler — scaled from simulated battle time ───────────────
-console.log('\n[13] Theatre scheduler — scaled simulated battle time');
-
-{
-  const pBuild = initBuild();
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-
-  const SCALED_CONFIG = {
-    BATTLE_TIME_SCALE: 10,
-    VICTORY_DOWNTIME:  5000,
-    LOSS_DOWNTIME:    15000,
+  const state = {
+    tree: G.createBuildTree(),
+    inventory: G.makeInventory([
+      'hand-adapter',
+      'hand-adapter',
+      'hand-adapter',
+      'hand-adapter',
+      'hand-adapter',
+    ], 'depth'),
   };
-
-  const ts = makeTheatreState(42, SCALED_CONFIG);
-  assertEqual(ts.phase, 'fighting', 'Theatre starts in fighting phase');
-  assertEqual(ts.results.length, 0, 'No results yet at start');
-
-  tickTheatre(ts, pBuild, ENEMY_POOL, 0, SCALED_CONFIG);
-  const expectedFightSeed = ((ts.sortieSeed * 1000 + 0 * 137 + 1) >>> 0) || 1;
-  const expectedSim = simulate(pBuild, buildFromEnemyData(ENEMY_POOL[0]), expectedFightSeed);
-  const expectedActualBattleTime = expectedSim.events.at(-1).time;
-  assertEqual(ts.simulatedBattleTime, expectedActualBattleTime,
-    'Theatre records actual simulated battle time from event timeline');
-  assertEqual(ts.phaseDuration, expectedActualBattleTime * 10,
-    'Fight display duration is 10× actual simulated battle time');
-
-  tickTheatre(ts, pBuild, ENEMY_POOL, ts.phaseDuration - 1, SCALED_CONFIG);
-  assertEqual(ts.results.length, 0, 'No result before scaled battle duration completes');
-  assert(ts.phase === 'fighting', 'Still fighting before scaled battle duration completes');
-
-  tickTheatre(ts, pBuild, ENEMY_POOL, 1, SCALED_CONFIG);
-  assertEqual(ts.results.length, 1, 'Fight resolves when scaled battle duration completes');
-  assert(ts.phase === 'victory-downtime' || ts.phase === 'loss-downtime',
-    'In downtime phase after first fight');
+  mountByDef(state, 'hand-adapter', 'frame', 'hand.L');
+  mountByDef(state, 'hand-adapter', 'frame/hand.L', 'grip');
+  mountByDef(state, 'hand-adapter', 'frame/hand.L/grip', 'grip');
+  mountByDef(state, 'hand-adapter', 'frame/hand.L/grip/grip', 'grip');
+  const fifth = state.inventory.find(part => part.defId === 'hand-adapter');
+  const cap = G.canAttach(state.tree, 'frame/hand.L/grip/grip/grip', 'grip', fifth);
+  assert(!cap.ok, 'fifth adapter would exceed depth cap');
+  assert(cap.reason.includes('Depth cap 4'), 'depth cap rejection names the cap');
 }
 
-// ─── 14. Theatre — default timing config ──────────────────────────────────────
-console.log('\n[14] Theatre — default timing config');
+section('4. Resolve is deterministic and reports synergies and branch weight');
+
+const resolved1 = G.resolve(buildState.tree);
+const resolved2 = G.resolve(buildState.tree);
+assertEqual(resolved1, resolved2, 'resolve(tree) is byte-equal for same tree');
+assert(resolved1.totalHP > G.BASE_HP, 'armor contributes to total HP');
+assert(resolved1.branchWeights['hand.R'] > 0, 'hand.R branch weight is tracked');
+assert(typeof resolved1.balance.delta === 'number', 'balance delta is numeric');
+const rackSynergy = resolved1.activeSynergies.find(s => s.id.startsWith('rack-load:frame/hand.R'));
+assert(!!rackSynergy, 'loaded rack synergy is active');
+assertEqual(
+  rackSynergy.causingNodeIds,
+  ['frame/hand.R', 'frame/hand.R/p0', 'frame/hand.R/p1'],
+  'rack synergy lists causing nodeIds'
+);
+assert(resolved1.attackers.some(a => a.nodeId === 'frame/hand.R/p0'), 'p0 missile is an attacker');
+assert(resolved1.attackers.some(a => a.nodeId === 'frame/hand.R/p1'), 'p1 missile is an attacker');
+
+section('5. simulate() deterministic output and event payload shape');
 
 {
-  assertEqual(THEATRE_CONFIG.BATTLE_TIME_SCALE, 10, 'Default theatre uses 10× simulated battle time');
-  assertEqual(THEATRE_CONFIG.VICTORY_DOWNTIME, 5000, 'Victory downtime remains 5s');
-  assertEqual(THEATRE_CONFIG.LOSS_DOWNTIME, 15000, 'Loss downtime remains 15s');
-}
-
-// ─── 15. Theatre — victory/loss downtime values ───────────────────────────────
-console.log('\n[15] Theatre — victory/loss downtime');
-
-{
-  // Stronger build that can win some fights
-  const pBuild = initBuild();
-  addBagPiece(pBuild, 3, 0, [[0,0],[1,0]]);
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-  placeItem(pBuild, nextIid(), 'armor-plate', 0, 1, 0);
-  addBagPiece(pBuild, 0, 1, [[0,0],[0,1],[1,0],[1,1]]);
-  placeItem(pBuild, nextIid(), 'sensor', 3, 0, 0);
-
-  const SCALED_CONFIG = {
-    BATTLE_TIME_SCALE: 10,
-    VICTORY_DOWNTIME:  5000,
-    LOSS_DOWNTIME:    15000,
-  };
-
-  let sawVictoryDowntime = false;
-  let sawLossDowntime    = false;
-
-  for (let seed = 1; seed <= 50 && (!sawVictoryDowntime || !sawLossDowntime); seed++) {
-    const ts = makeTheatreState(seed, SCALED_CONFIG);
-    tickTheatre(ts, pBuild, ENEMY_POOL, 0, SCALED_CONFIG);
-    tickTheatre(ts, pBuild, ENEMY_POOL, ts.phaseDuration, SCALED_CONFIG);
-    if (ts.phase === 'victory-downtime') {
-      assertEqual(ts.phaseDuration, 5000, `Victory downtime = 5000ms (seed ${seed})`);
-      sawVictoryDowntime = true;
-    } else if (ts.phase === 'loss-downtime') {
-      assertEqual(ts.phaseDuration, 15000, `Loss downtime = 15000ms (seed ${seed})`);
-      sawLossDowntime = true;
-    }
-  }
-  assert(sawVictoryDowntime, 'Observed at least one victory downtime across seeds 1-50');
-  assert(sawLossDowntime,    'Observed at least one loss downtime across seeds 1-50');
-}
-
-// ─── 16. Theatre — loop continues until retreat ───────────────────────────────
-console.log('\n[16] Theatre — loop until retreat');
-
-{
-  const pBuild = initBuild();
-  placeItem(pBuild, nextIid(), 'beam-saber', 0, 0, 0);
-
-  const FAST_CONFIG = {
-    FIGHT_DURATION_MIN: 1,
-    FIGHT_DURATION_MAX: 1,
-    VICTORY_DOWNTIME:   1,
-    LOSS_DOWNTIME:      1,
-  };
-
-  const ts = makeTheatreState(7, FAST_CONFIG);
-  // Advance 10 fight-cycles worth of virtual time
-  for (let i = 0; i < 30; i++) {
-    tickTheatre(ts, pBuild, ENEMY_POOL, 10, FAST_CONFIG);
-  }
-  assert(ts.results.length >= 3, `Theatre ran multiple fights (got ${ts.results.length})`);
-  assert(ts.phase !== 'retreated', 'Loop still active — not retreated');
-
-  // Retreat
-  ts.phase = 'retreated';
-  const countBefore = ts.results.length;
-  tickTheatre(ts, pBuild, ENEMY_POOL, 10000, FAST_CONFIG);
-  assertEqual(ts.results.length, countBefore, 'No new fights added after retreat');
-}
-
-// ─── 17. Theatre — retreat claims accumulated results ─────────────────────────
-console.log('\n[17] Theatre — retreat claims accumulated results');
-
-{
-  const pBuild = initBuild();
-  addBagPiece(pBuild, 3, 0, [[0,0],[1,0]]);
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-  placeItem(pBuild, nextIid(), 'sensor', 3, 0, 0);
-
-  const FAST_CONFIG = {
-    FIGHT_DURATION_MIN: 1,
-    FIGHT_DURATION_MAX: 1,
-    VICTORY_DOWNTIME:   1,
-    LOSS_DOWNTIME:      1,
-  };
-
-  const ts = makeTheatreState(99, FAST_CONFIG);
-  for (let i = 0; i < 50; i++) tickTheatre(ts, pBuild, ENEMY_POOL, 10, FAST_CONFIG);
-
-  assert(ts.results.length > 0, 'Theatre accumulated results before retreat');
-  assert(ts.wins + ts.losses === ts.results.length, 'wins + losses = total fights');
-
-  // Compute rewards from accumulated results (same API as batch sortie)
-  const pilot = makePilotState();
-  const rewards = computeSortieRewards(ts, pilot);
-  assert(typeof rewards.xpGained   === 'number' && rewards.xpGained   >= 0, 'xpGained is non-negative');
-  assert(typeof rewards.lootGained === 'number' && rewards.lootGained  > 0, 'lootGained is positive');
-  assert(['Ready','Fatigued','Wounded','Out of Service'].includes(rewards.newCondition),
-    'newCondition is a valid condition');
-}
-
-// ─── 18. Loot deterministic ───────────────────────────────────────────────────
-console.log('\n[18] Loot deterministic');
-
-{
-  const pBuild = initBuild();
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-  const sortie = runSortie(pBuild, ENEMY_POOL, 55);
-  const pilot  = makePilotState();
-  const r1 = computeSortieRewards(sortie, pilot);
-  const r2 = computeSortieRewards(sortie, pilot);
-  assertEqual(r1.xpGained,     r2.xpGained,     'computeSortieRewards deterministic — xp');
-  assertEqual(r1.lootGained,   r2.lootGained,   'computeSortieRewards deterministic — loot');
-  assertEqual(r1.newCondition, r2.newCondition,  'computeSortieRewards deterministic — condition');
-}
-
-// ─── 19. Pilot XP / level / skills ───────────────────────────────────────────
-console.log('\n[19] Pilot XP, level, skills');
-
-{
-  const pBuild = initBuild();
-  placeItem(pBuild, nextIid(), 'beam-rifle', 0, 0, 0);
-
-  const pilot  = makePilotState();
-  const sortie = runSortie(pBuild, ENEMY_POOL, 77);
-  const rew    = computeSortieRewards(sortie, pilot);
-
-  assert(typeof rew.xpGained    === 'number' && rew.xpGained    >= 0, 'xpGained non-negative');
-  assert(typeof rew.lootGained  === 'number' && rew.lootGained   > 0, 'lootGained positive');
-  assert(typeof rew.newCondition === 'string', 'newCondition is string');
-  assert(typeof rew.learningSignal === 'string' && rew.learningSignal.length > 0,
-    'learningSignal non-empty');
-
-  const newPilot = applyPilotRewards(pilot, rew);
-  assert(newPilot.xp >= 0,                       'Pilot XP non-negative after rewards');
-  assert(newPilot.level >= pilot.level,           'Pilot level >= initial');
-  assert(newPilot.sorties === pilot.sorties + 1,  'Sortie count incremented');
-  assert(newPilot.condition === rew.newCondition, 'Condition matches reward');
-
-  // XP table is strictly ascending
-  for (let i = 1; i < PILOT_XP_TABLE.length; i++) {
-    assert(PILOT_XP_TABLE[i] > PILOT_XP_TABLE[i - 1], `XP table level ${i} > level ${i-1}`);
+  const enemy = G.buildEnemyTree(0);
+  const originalRandom = Math.random;
+  Math.random = () => { throw new Error('simulate used Math.random'); };
+  let sim1;
+  let sim2;
+  try {
+    sim1 = G.simulate(buildState.tree, enemy.tree, 4242);
+    sim2 = G.simulate(buildState.tree, enemy.tree, 4242);
+  } finally {
+    Math.random = originalRandom;
   }
 
-  // Level-up works
-  const levelPilot = makePilotState();
-  const bigReward  = { xpGained: PILOT_XP_TABLE[1], lootGained: 5, newCondition: 'Ready', skillProgress: {} };
-  const leveled    = applyPilotRewards(levelPilot, bigReward);
-  assertEqual(leveled.level, 2, 'Pilot levels up when XP crosses threshold');
-  assert(leveled.xp >= 0, 'Pilot XP non-negative after level-up');
+  assert(sim1.events.length > 0, 'simulation emits attack events');
+  assertEqual(sim1, sim2, 'same trees and seed produce byte-equal simulation result');
+
+  const sim3 = G.simulate(buildState.tree, enemy.tree, 4243);
+  assert(JSON.stringify(sim1.events) !== JSON.stringify(sim3.events),
+    'different seed changes deterministic hit/target/damage sequence');
+
+  const event = sim1.events[0];
+  assert(typeof event.t === 'number', 'event has t');
+  assert(['player', 'enemy'].includes(event.source.side), 'event source has side');
+  assert(typeof event.source.nodeId === 'string', 'event source has nodeId');
+  assert(['player', 'enemy'].includes(event.target.side), 'event target has side');
+  assert(typeof event.target.nodeId === 'string', 'event target has nodeId');
+  assert('sourceDefId' in event && 'targetDefId' in event, 'event carries visual def anchors');
+
+  if (event.damage > 0 && event.source.side === 'player') {
+    assertEqual(event.enemyHP, sim1.resolved.enemy.totalHP - event.damage,
+      'target.nodeId is visual only; damage applies to total enemy HP');
+  } else if (event.damage > 0 && event.source.side === 'enemy') {
+    assertEqual(event.playerHP, sim1.resolved.player.totalHP - event.damage,
+      'target.nodeId is visual only; damage applies to total player HP');
+  }
 }
 
-// ─── 20. Existing simulation determinism unchanged ────────────────────────────
-console.log('\n[20] Simulation determinism preserved');
+section('6. Same-time ATB tie-break ordering');
 
 {
-  const p = initBuild();
-  addBagPiece(p, 3, 0, [[0,0],[1,0]]);
-  placeItem(p, nextIid(), 'machine-gun',  0, 0, 0);
-  placeItem(p, nextIid(), 'ammo-box',     1, 0, 0);
-  placeItem(p, nextIid(), 'armor-plate',  0, 1, 0);
-
-  // Expand owned for armor-plate at (0,1)(0,2)(1,1)(1,2)
-  addBagPiece(p, 0, 1, [[0,0],[0,1],[1,0],[1,1]]);
-
-  const e = buildFromEnemyData(ENEMY_POOL[4]); // Saber Rush
-  const r1 = simulate(p, e, 12345);
-  const r2 = simulate(p, e, 12345);
-  assert(JSON.stringify(r1) === JSON.stringify(r2),
-    'Identical simulate() output for same seed (byte-equal)');
+  const ready = [
+    { side: 'player', nodeId: 'frame/hand.R', nextFire: 100, initiative: 10 },
+    { side: 'enemy', nodeId: 'frame/hand.L', nextFire: 100, initiative: 25 },
+    { side: 'player', nodeId: 'frame/shoulder.L', nextFire: 90, initiative: 1 },
+  ];
+  const ordered = G.orderReadyAttackers(ready, 777);
+  assertEqual(ordered.map(a => a.nodeId), ['frame/shoulder.L', 'frame/hand.L', 'frame/hand.R'],
+    'tie-break sorts by time first, then higher initiative');
 }
 
-// ─── Summary ─────────────────────────────────────────────────────────────────
-console.log(`\n${'─'.repeat(50)}`);
+{
+  const equalInit = [
+    { side: 'player', nodeId: 'frame/hand.R/p1', nextFire: 100, initiative: 10 },
+    { side: 'player', nodeId: 'frame/hand.R/p0', nextFire: 100, initiative: 10 },
+    { side: 'enemy', nodeId: 'frame/hand.R/p0', nextFire: 100, initiative: 10 },
+  ];
+  const expected = equalInit.slice().sort((a, b) => {
+    const rankDelta = G.stableRank(123, a.side, a.nodeId) - G.stableRank(123, b.side, b.nodeId);
+    if (rankDelta !== 0) return rankDelta;
+    return `${a.side}|${a.nodeId}`.localeCompare(`${b.side}|${b.nodeId}`);
+  });
+  const ordered = G.orderReadyAttackers(equalInit, 123);
+  assertEqual(ordered.map(a => `${a.side}:${a.nodeId}`), expected.map(a => `${a.side}:${a.nodeId}`),
+    'equal-time/equal-initiative order uses seeded stable rank, then lexical fallback');
+}
+
+section('7. Starter and enemy builds validate');
+
+{
+  const starter = G.createStarterState();
+  assert(G.validateTree(starter.tree).ok, 'starter build validates');
+  assert(!!G.getNode(starter.tree, 'frame/hand.R/p0/warhead'), 'starter has hand -> rack -> missile -> warhead');
+  assert(starter.inventory.every(part => part.ownedInstanceId && part.ownedInstanceId !== part.defId),
+    'starter inventory uses stable owned ids distinct from defIds');
+
+  for (let i = 0; i < G.ENEMY_POOL.length; i++) {
+    const enemy = G.buildEnemyTree(i);
+    assert(G.validateTree(enemy.tree).ok, `enemy ${enemy.name} validates`);
+  }
+}
+
+section('8. Eligible socket list exposes compatibility detail');
+
+{
+  const state = G.createStarterState();
+  const shoulder = state.inventory.find(part => part.defId === 'shoulder-cannon');
+  const sockets = G.findEligibleSockets(state.tree, shoulder);
+  assert(sockets.some(s => s.nodeId === 'frame/hand.R' && s.occupied), 'eligible list marks occupied sockets');
+  assert(sockets.some(s => s.nodeId === 'frame/hand.L' && !s.ok && s.reason.includes('needs shoulder-mount')),
+    'eligible list includes incompatible open sockets with readable reason');
+  assert(sockets.some(s => s.nodeId === 'frame/shoulder.R' && s.ok),
+    'eligible list includes compatible shoulder.R socket');
+}
+
+section('9. Shop and salvage use owned ids, not mounted nodeIds');
+
+{
+  const offers1 = G.generateShopOffers(2, 88);
+  const offers2 = G.generateShopOffers(2, 88);
+  assertEqual(offers1, offers2, 'shop offers are deterministic for round and seed');
+
+  const enemy = G.buildEnemyTree(1);
+  const salvage = G.collectSalvage(enemy.tree, 'draft');
+  assert(salvage.length > 0, 'salvage pool is produced from enemy mounted tree');
+  assert(salvage.every(part => !part.ownedInstanceId.startsWith('frame/')),
+    'salvage mints inventory ids instead of preserving enemy nodeIds');
+  assert(salvage.some(part => G.countOwnedSubtree(part) > 1), 'salvage can include nested subtrees');
+}
+
+console.log(`\n${'-'.repeat(50)}`);
 console.log(`Results: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

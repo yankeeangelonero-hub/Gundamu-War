@@ -1,47 +1,30 @@
-# Mech Bags 0.1 — Prototype
+# Kitbash Mecha Prototype v0.3
 
-Browser prototype for a Backpack Battles-style autobattler with five mech body-part bags.
+Local, no-build browser prototype for the recursive socket-tree pivot.
 
-## How to play
+## Run
 
-Open `prototype/index.html` directly in a browser. No server required.
+Open `prototype/index.html` in a browser. No backend, package install, or build step is required.
 
 ## Controls
 
-- **Buy items** — click a shop card (bottom bar) to purchase if you have enough gold
-- **Place items** — after buying, click the item in your Hand, then click a grid cell to place it
-- **Rotate** — press `R` or click the Rotate button while an item is selected
-- **Pick up** — click a placed item on the board to return it to your Hand
-- **Sell** — click the `$n` sell button next to any Hand item
-- **Reroll** — click Reroll (1 gold) to shuffle shop offers
-- **Battle** — click `Battle!` when ready
-- **Skip Battle** — instantly resolves the battle without animation
-- **Escape** — deselects the current item
+- Select an inventory part to highlight compatible sockets.
+- Use the front and rear socket panels to mount parts on the currently selected node.
+- Select mounted nodes from the blueprint, mounted tree, or player combat rig to drill into their child sockets.
+- Use `Detach` to return the selected mounted subtree to inventory with its owned part IDs preserved.
+- Use `Run Duel`, `Step`, and `Auto` to play one deterministic primary attack event at a time.
+- Buy parts from the shop and draft salvage after wins.
 
-## Files
+## Core Model
 
-| File | Purpose |
-|---|---|
-| `index.html` | Entry point — open this in browser |
-| `styles.css` | All styling |
-| `game-core.js` | Data, simulation, placement logic — no DOM |
-| `app.js` | DOM controller, shop/battle/run state |
-| `tests/core-tests.js` | Node.js test suite |
+- Mounted identity is a canonical `nodeId` path such as `frame/hand.R/p0/warhead`.
+- Owned inventory identity uses stable `ownedInstanceId` values and never uses mounted paths.
+- Attachment legality is governed by hardpoint type, part `socketTypeIn`, occupancy, and the depth cap.
+- `resolve(tree)` and `simulate(playerTree, enemyTree, seed)` are pure core functions with no DOM dependency.
+- Combat event payloads use `{side,nodeId}` for both source and target; target nodes are visual anchors while damage applies to total mech HP.
 
-## Running tests
+## Tests
 
-```
+```bash
 node prototype/tests/core-tests.js
 ```
-
-All 66 tests pass (rotation, placement, adjacency, HP, deterministic simulation, enemy build validity, run thresholds).
-
-## Rules
-
-- Five bags: Head, Torso, Back, Left Arm, Right Arm
-- Items can go in **any bag** — no anatomy restrictions
-- Placement fails only for geometry (overlap or out-of-bounds)
-- Body expansion cards add 1 row to the named bag only
-- Same-bag adjacency bonuses show with a green glow
-- Run ends at **5 wins** or **3 losses**
-- Economy: start 10g | win +6g | loss +4g | reroll 1g | sell floor(cost/2)

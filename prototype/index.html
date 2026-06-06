@@ -3,182 +3,177 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mech Bags 0.2</title>
+  <title>Kitbash Mecha v0.3</title>
   <link rel="icon" href="data:,">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260605-timingfix">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="app">
-
-  <!-- Header -->
-  <header id="header">
-    <h1>MECH BAGS</h1>
-    <div class="run-stats">
-      <span>Round <strong id="stat-round">1</strong></span>
-      <span>Wins <strong id="stat-wins">0</strong></span>
-      <span>Losses <strong id="stat-losses">0</strong></span>
-      <span>Gold <strong id="gold-display">10</strong>g</span>
-    </div>
-  </header>
-
-  <!-- Main: build board + side panel -->
-  <div id="main">
-    <div id="board-wrapper">
-      <!-- Single canvas injected by app.js -->
-      <div id="build-board"></div>
-    </div>
-
-    <div id="side-panel">
-      <div class="panel-box">
-        <h3>Hand</h3>
-        <div id="hand-list"></div>
+  <div id="app">
+    <header class="topbar">
+      <div>
+        <h1>Kitbash Mecha</h1>
+        <p>v0.3 socket-tree duel prototype</p>
       </div>
-
-      <div class="panel-box">
-        <button id="rotate-btn" disabled>&#8635; Rotate (R)</button>
+      <div class="run-stats">
+        <span>Round <strong id="stat-round">1</strong></span>
+        <span>Wins <strong id="stat-wins">0</strong></span>
+        <span>Losses <strong id="stat-losses">0</strong></span>
+        <span>Gold <strong id="stat-gold">12</strong></span>
       </div>
+    </header>
 
-      <div class="panel-box">
-        <h3>Item Info</h3>
-        <div id="info-box">Select an item to see details.</div>
-      </div>
+    <main class="workspace">
+      <section class="workshop">
+        <div class="build-column">
+          <div class="command-row">
+            <button id="select-frame-btn" class="ghost-btn">Frame</button>
+            <button id="detach-btn" class="ghost-btn danger">Detach</button>
+            <button id="reset-btn" class="ghost-btn">Reset</button>
+            <div id="status-line" class="status-line">Ready.</div>
+          </div>
 
-      <div class="panel-box" id="pilot-panel">
-        <h3>Pilot</h3>
-        <div id="pilot-info"><!-- rendered by app.js --></div>
-      </div>
-    </div>
-  </div>
+          <div class="blueprint-grid">
+            <section class="blueprint-panel">
+              <div class="panel-heading">
+                <h2>Front Sockets</h2>
+                <span id="front-node-label"></span>
+              </div>
+              <div id="front-blueprint" class="blueprint-stage" data-view="front"></div>
+            </section>
 
-  <!-- Shop -->
-  <div id="shop-area">
-    <div id="shop-controls">
-      <button class="ctrl-btn" id="reroll-btn">⟳ Reroll (1g)</button>
-      <button class="ctrl-btn primary" id="deploy-btn">⚡ Deploy</button>
-      <button class="ctrl-btn" id="battle-btn">⚔ Battle!</button>
-    </div>
-    <div id="shop-offers"><!-- rendered by app.js --></div>
-  </div>
+            <section class="blueprint-panel">
+              <div class="panel-heading">
+                <h2>Rear Sockets</h2>
+                <span id="rear-node-label"></span>
+              </div>
+              <div id="rear-blueprint" class="blueprint-stage" data-view="rear"></div>
+            </section>
+          </div>
 
-</div><!-- #app -->
-
-<!-- Battle screen (fixed overlay) -->
-<div id="battle-screen">
-  <div id="battle-arena">
-
-    <div class="combatant">
-      <div class="combatant-label">YOUR MECH</div>
-      <div class="mech-sprite" id="player-sprite">
-        <div class="mech-head" data-anchor="head">👁</div>
-        <div class="mech-torso" data-anchor="torso"></div>
-        <div class="mech-arm left" data-anchor="leftArm"></div>
-        <div class="mech-arm right" data-anchor="rightArm"></div>
-        <div class="mech-back" data-anchor="back"></div>
-      </div>
-      <div class="hp-bar-wrap">
-        <div class="hp-bar-label">
-          <span>HP</span>
-          <span id="player-hp-text">— / —</span>
+          <section class="tree-panel">
+            <div class="panel-heading">
+              <h2>Mounted Tree</h2>
+              <span id="tree-count"></span>
+            </div>
+            <div id="mounted-tree" class="mounted-tree"></div>
+          </section>
         </div>
-        <div class="hp-bar-bg">
-          <div class="hp-bar-fill" id="player-hp-fill" style="width:100%"></div>
-        </div>
-      </div>
-    </div>
 
-    <div id="battle-center">
-      <div id="event-banner">
-        <div class="banner-main" id="banner-main">Ready…</div>
-        <div class="banner-sub"  id="banner-sub"></div>
-      </div>
-      <div id="combat-log-wrap">
-        <div id="combat-log"></div>
-      </div>
-      <div id="battle-bottom">
-        <button class="ctrl-btn" id="leave-spectate-btn" style="display:none">← Leave Spectate</button>
-        <button class="ctrl-btn" id="skip-btn">⏭ Skip Battle</button>
-      </div>
-    </div>
+        <aside class="side-rail">
+          <section class="rail-panel">
+            <div class="panel-heading">
+              <h2>Inventory</h2>
+              <span id="inventory-count"></span>
+            </div>
+            <div id="inventory-list" class="inventory-list"></div>
+          </section>
 
-    <div class="combatant">
-      <div class="combatant-label" id="enemy-name-label">ENEMY</div>
-      <div class="mech-sprite" id="enemy-sprite">
-        <div class="mech-head" data-anchor="head">☠</div>
-        <div class="mech-torso" data-anchor="torso"></div>
-        <div class="mech-arm left" data-anchor="leftArm"></div>
-        <div class="mech-arm right" data-anchor="rightArm"></div>
-        <div class="mech-back" data-anchor="back"></div>
-      </div>
-      <div class="hp-bar-wrap">
-        <div class="hp-bar-label">
-          <span>HP</span>
-          <span id="enemy-hp-text">— / —</span>
-        </div>
-        <div class="hp-bar-bg">
-          <div class="hp-bar-fill" id="enemy-hp-fill" style="width:100%"></div>
-        </div>
-      </div>
-    </div>
+          <section class="rail-panel">
+            <div class="panel-heading">
+              <h2>Eligible Sockets</h2>
+              <span id="selected-part-label"></span>
+            </div>
+            <div id="eligible-list" class="eligible-list"></div>
+          </section>
 
-  </div><!-- #battle-arena -->
-</div><!-- #battle-screen -->
+          <section class="rail-panel">
+            <div class="panel-heading">
+              <h2>Selected Node</h2>
+              <span id="selected-node-label"></span>
+            </div>
+            <div id="node-inspector" class="node-inspector"></div>
+          </section>
+        </aside>
+      </section>
 
-<!-- Battle result overlay -->
-<div id="result-overlay">
-  <div id="result-box">
-    <div class="result-title" id="result-title">—</div>
-    <div class="result-subtitle" id="result-subtitle"></div>
-    <div class="result-highlights" id="result-highlights"></div>
-    <button class="ctrl-btn primary" id="result-continue-btn">Continue →</button>
+      <section class="analysis-combat">
+        <section class="analysis-panel">
+          <div class="panel-heading">
+            <h2>Resolve</h2>
+            <span id="resolve-hp"></span>
+          </div>
+          <div class="resolve-grid">
+            <div>
+              <h3>Synergies</h3>
+              <div id="synergy-list" class="synergy-list"></div>
+            </div>
+            <div>
+              <h3>Branch Weight</h3>
+              <div id="branch-list" class="branch-list"></div>
+            </div>
+            <div>
+              <h3>Attackers</h3>
+              <div id="attacker-list" class="attacker-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="combat-panel">
+          <div class="combat-header">
+            <div class="panel-heading">
+              <h2>Combat Rig</h2>
+              <span id="enemy-label">Enemy</span>
+            </div>
+            <div class="combat-controls">
+              <label class="seed-field">Seed <input id="seed-input" type="number" min="1" value="1337"></label>
+              <button id="run-duel-btn" class="primary-btn">Run Duel</button>
+              <button id="step-event-btn" class="ghost-btn">Step</button>
+              <button id="auto-play-btn" class="ghost-btn">Auto</button>
+            </div>
+          </div>
+
+          <div class="hp-row">
+            <div class="hp-block">
+              <span>Player</span>
+              <div class="hp-track"><div id="player-hp-fill" class="hp-fill player"></div></div>
+              <strong id="player-hp-text">-</strong>
+            </div>
+            <div class="hp-block">
+              <span>Enemy</span>
+              <div class="hp-track"><div id="enemy-hp-fill" class="hp-fill enemy"></div></div>
+              <strong id="enemy-hp-text">-</strong>
+            </div>
+          </div>
+
+          <div class="rig-grid">
+            <div>
+              <h3>Player</h3>
+              <div id="player-rig" class="rig-stage player-rig"></div>
+            </div>
+            <div>
+              <h3>Enemy</h3>
+              <div id="enemy-rig" class="rig-stage enemy-rig"></div>
+            </div>
+          </div>
+
+          <div class="event-strip">
+            <div id="event-banner" class="event-banner">No duel loaded.</div>
+            <div id="event-log" class="event-log"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="shop-salvage">
+        <section class="shop-panel">
+          <div class="panel-heading">
+            <h2>Shop</h2>
+            <button id="reroll-shop-btn" class="ghost-btn">Reroll 1g</button>
+          </div>
+          <div id="shop-list" class="shop-list"></div>
+        </section>
+
+        <section class="shop-panel">
+          <div class="panel-heading">
+            <h2>Salvage</h2>
+            <span id="salvage-limit"></span>
+          </div>
+          <div id="salvage-list" class="salvage-list"></div>
+        </section>
+      </section>
+    </main>
   </div>
-</div>
 
-<!-- Run end screen -->
-<div id="run-end-screen">
-  <div class="end-title" id="end-title">—</div>
-  <div class="end-stats" id="end-stats"></div>
-  <button class="ctrl-btn primary" id="new-run-btn">Start New Run</button>
-</div>
-
-<!-- Sortie screen — real-time theatre status -->
-<div id="sortie-screen">
-  <div id="sortie-inner">
-    <div class="sortie-title">WAR THEATRE</div>
-    <div class="sortie-subtitle" id="sortie-subtitle">Deploying…</div>
-
-    <!-- Real-time phase status -->
-    <div id="theatre-status">
-      <div id="theatre-phase-label">—</div>
-      <div id="theatre-progress-wrap">
-        <div id="theatre-progress-bar"></div>
-      </div>
-    </div>
-
-    <div id="sortie-fight-grid"><!-- fight chips rendered by app.js --></div>
-    <div id="sortie-tally"><!-- wins / losses --></div>
-    <div id="sortie-controls">
-      <button class="ctrl-btn" id="spectate-btn">⚔ Spectate Last Fight</button>
-      <button class="ctrl-btn primary" id="retreat-btn">↩ Retreat</button>
-    </div>
-  </div>
-</div>
-
-<!-- Retreat summary overlay -->
-<div id="retreat-overlay">
-  <div id="retreat-box">
-    <div class="retreat-title">SORTIE COMPLETE</div>
-    <div id="retreat-record"><!-- record --></div>
-    <div id="retreat-loot"><!-- loot --></div>
-    <div id="retreat-pilot"><!-- pilot changes --></div>
-    <div id="retreat-learn"><!-- learning signal --></div>
-    <button class="ctrl-btn primary" id="retreat-continue-btn">Back to Workshop →</button>
-  </div>
-</div>
-
-<script src="game-core.js?v=20260605-timingfix"></script>
-<script src="app.js?v=20260605-timingfix"></script>
+  <script src="game-core.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

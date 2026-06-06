@@ -1,6 +1,6 @@
-// game-core.js — Mech Bags 0.2
-// Pure game logic: data, simulation, placement. No DOM, no Math.random() inside simulate().
-// UMD pattern: works in Node.js (tests) and browser (global MechBags).
+// game-core.js - Kitbash Mecha v0.3
+// Pure data, build-tree, stat resolution, and deterministic ATB simulation.
+// UMD pattern: works in Node.js tests and in the browser as window.MechBags.
 
 (function (root, factory) {
   if (typeof module !== 'undefined' && module.exports) {
@@ -11,41 +11,250 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // ─── Constants ─────────────────────────────────────────────────────────────
-  const CANVAS_ROWS = 8;
-  const CANVAS_COLS = 8;
-
-  // Starting owned area: 3×3 block at top-left
-  const STARTING_OWNED_COORDS = [
-    [0,0],[0,1],[0,2],
-    [1,0],[1,1],[1,2],
-    [2,0],[2,1],[2,2],
-  ];
+  const MAX_DEPTH = 4; // levels below frame; allows hand -> rack -> missile -> warhead.
+  const BASE_HP = 120;
+  const MAX_BATTLE_TICKS = 1800;
+  const MAX_EVENTS = 120;
 
   const ECONOMY = {
-    startingGold:   10,
-    winReward:       6,
-    lossReward:      4,
-    rerollCost:      1,
-    WIN_THRESHOLD:   5,
-    LOSS_THRESHOLD:  3,
-    SHOP_SIZE:       4,
+    startingGold: 12,
+    winReward: 5,
+    lossReward: 2,
+    rerollCost: 1,
+    shopSize: 4,
+    salvageChoices: 2,
   };
 
-  const THEATRE_CONFIG = {
-    // Fight display time is derived from the authoritative simulation timeline:
-    // real theatre milliseconds = final simulated event time × BATTLE_TIME_SCALE.
-    // Example: a 400-tick simulated fight displays for ~4 seconds.
-    BATTLE_TIME_SCALE:       10,
-    VICTORY_DOWNTIME:      5000,
-    LOSS_DOWNTIME:       15000,
+  function stats(values) {
+    return Object.assign({
+      hp: 0,
+      weight: 0,
+      damage: 0,
+      cooldown: 100,
+      accuracy: 1,
+      initiative: 0,
+    }, values || {});
+  }
+
+  const PART_DEFS = {
+    frame: {
+      defId: 'frame',
+      name: 'Core Frame',
+      socketTypeIn: null,
+      hardpoints: [
+        { hpId: 'head', type: 'sensor-mount', view: 'front', schematicPos: [50, 11], rigPivot: [50, 8] },
+        { hpId: 'torso', type: 'armor-mount', view: 'front', schematicPos: [50, 36], rigPivot: [50, 38] },
+        { hpId: 'shoulder.L', type: 'shoulder-mount', view: 'front', schematicPos: [25, 28], rigPivot: [30, 28] },
+        { hpId: 'shoulder.R', type: 'shoulder-mount', view: 'front', schematicPos: [75, 28], rigPivot: [70, 28] },
+        { hpId: 'hand.L', type: 'hand-grip', view: 'front', schematicPos: [18, 63], rigPivot: [22, 64] },
+        { hpId: 'hand.R', type: 'hand-grip', view: 'front', schematicPos: [82, 63], rigPivot: [78, 64] },
+        { hpId: 'leg.L', type: 'leg-mount', view: 'front', schematicPos: [40, 86], rigPivot: [42, 84] },
+        { hpId: 'leg.R', type: 'leg-mount', view: 'front', schematicPos: [60, 86], rigPivot: [58, 84] },
+        { hpId: 'backpack', type: 'backpack-mount', view: 'rear', schematicPos: [50, 38], rigPivot: [50, 35] },
+      ],
+      stats: stats({ hp: BASE_HP, weight: 16 }),
+      tags: ['frame'],
+      token: 'FR',
+      color: '#d8dee9',
+      mountView: 'both',
+      depthPlane: 0,
+    },
+
+    'missile-rack': {
+      defId: 'missile-rack',
+      name: 'Missile Rack',
+      socketTypeIn: 'hand-grip',
+      hardpoints: [
+        { hpId: 'p0', type: 'missile', view: 'front', schematicPos: [38, 37], rigPivot: [36, 38] },
+        { hpId: 'p1', type: 'missile', view: 'front', schematicPos: [62, 37], rigPivot: [64, 38] },
+      ],
+      stats: stats({ weight: 6, initiative: 4 }),
+      tags: ['rack', 'weapon-mount'],
+      synergyRules: ['rack-load'],
+      token: 'RK',
+      color: '#f59e0b',
+      depthPlane: 2,
+    },
+
+    'micro-missile': {
+      defId: 'micro-missile',
+      name: 'Micro Missile',
+      socketTypeIn: 'missile',
+      hardpoints: [
+        { hpId: 'warhead', type: 'warhead', view: 'front', schematicPos: [50, 18], rigPivot: [50, 18] },
+      ],
+      stats: stats({ damage: 10, cooldown: 92, accuracy: 0.86, weight: 2, initiative: 8 }),
+      tags: ['weapon', 'missile'],
+      token: 'MS',
+      clip: 'fire',
+      color: '#ef4444',
+      depthPlane: 3,
+    },
+
+    'he-warhead': {
+      defId: 'he-warhead',
+      name: 'HE Warhead',
+      socketTypeIn: 'warhead',
+      hardpoints: [],
+      stats: stats({ damage: 14, weight: 1 }),
+      tags: ['payload', 'explosive'],
+      token: 'HE',
+      color: '#fb7185',
+      depthPlane: 4,
+    },
+
+    'emp-warhead': {
+      defId: 'emp-warhead',
+      name: 'EMP Warhead',
+      socketTypeIn: 'warhead',
+      hardpoints: [],
+      stats: stats({ damage: 8, weight: 1, initiative: 2 }),
+      tags: ['payload', 'emp'],
+      token: 'EM',
+      color: '#22d3ee',
+      depthPlane: 4,
+    },
+
+    'shoulder-cannon': {
+      defId: 'shoulder-cannon',
+      name: 'Shoulder Cannon',
+      socketTypeIn: 'shoulder-mount',
+      hardpoints: [],
+      stats: stats({ damage: 34, cooldown: 126, accuracy: 0.82, weight: 8, initiative: 3 }),
+      tags: ['weapon', 'ballistic'],
+      token: 'CN',
+      clip: 'fire',
+      color: '#60a5fa',
+      depthPlane: 2,
+    },
+
+    'backpack-thruster': {
+      defId: 'backpack-thruster',
+      name: 'Backpack Thruster',
+      socketTypeIn: 'backpack-mount',
+      hardpoints: [
+        { hpId: 'aux.L', type: 'utility-mount', view: 'rear', schematicPos: [36, 64], rigPivot: [35, 66] },
+        { hpId: 'aux.R', type: 'utility-mount', view: 'rear', schematicPos: [64, 64], rigPivot: [65, 66] },
+      ],
+      stats: stats({ weight: 6, initiative: 12 }),
+      tags: ['mobility', 'rear'],
+      synergyRules: ['balanced-thrust'],
+      token: 'TH',
+      color: '#34d399',
+      mountView: 'rear',
+      depthPlane: -1,
+    },
+
+    'hand-adapter': {
+      defId: 'hand-adapter',
+      name: 'Hand Adapter',
+      socketTypeIn: 'hand-grip',
+      hardpoints: [
+        { hpId: 'mount', type: 'shoulder-mount', view: 'front', schematicPos: [50, 40], rigPivot: [50, 39] },
+        { hpId: 'grip', type: 'hand-grip', view: 'front', schematicPos: [50, 70], rigPivot: [50, 70] },
+      ],
+      stats: stats({ weight: 2 }),
+      tags: ['adapter'],
+      isAdapter: true,
+      token: 'AD',
+      color: '#a78bfa',
+      depthPlane: 2,
+    },
+
+    'armor-plate': {
+      defId: 'armor-plate',
+      name: 'Armor Plate',
+      socketTypeIn: 'armor-mount',
+      hardpoints: [],
+      stats: stats({ hp: 38, weight: 7 }),
+      tags: ['armor'],
+      token: 'AR',
+      color: '#94a3b8',
+      depthPlane: 1,
+    },
+
+    'targeting-sensor': {
+      defId: 'targeting-sensor',
+      name: 'Targeting Sensor',
+      socketTypeIn: 'sensor-mount',
+      hardpoints: [],
+      stats: stats({ weight: 2, initiative: 6 }),
+      tags: ['sensor'],
+      token: 'SN',
+      color: '#2dd4bf',
+      depthPlane: 2,
+    },
+
+    'pulse-blade': {
+      defId: 'pulse-blade',
+      name: 'Pulse Blade',
+      socketTypeIn: 'hand-grip',
+      hardpoints: [],
+      stats: stats({ damage: 22, cooldown: 92, accuracy: 0.93, weight: 5, initiative: 24 }),
+      tags: ['weapon', 'melee'],
+      token: 'BL',
+      clip: 'melee',
+      color: '#f472b6',
+      depthPlane: 3,
+    },
   };
 
-  const BASE_HP            = 80;
-  const MAX_BATTLE_TICKS   = 30000;
-  const CRIT_MULTIPLIER    = 1.5;
+  const BUYABLE_DEF_IDS = [
+    'missile-rack',
+    'micro-missile',
+    'he-warhead',
+    'emp-warhead',
+    'shoulder-cannon',
+    'backpack-thruster',
+    'hand-adapter',
+    'armor-plate',
+    'targeting-sensor',
+    'pulse-blade',
+  ];
 
-  // ─── Seeded PRNG (LCG) ────────────────────────────────────────────────────
+  const ENEMY_POOL = [
+    {
+      id: 'racked-line',
+      name: 'Rack Line Test Frame',
+      plan: [
+        { parentNodeId: 'frame', hpId: 'hand.R', defId: 'missile-rack' },
+        { parentNodeId: 'frame/hand.R', hpId: 'p0', defId: 'micro-missile' },
+        { parentNodeId: 'frame/hand.R/p0', hpId: 'warhead', defId: 'he-warhead' },
+        { parentNodeId: 'frame/hand.R', hpId: 'p1', defId: 'micro-missile' },
+        { parentNodeId: 'frame/hand.R/p1', hpId: 'warhead', defId: 'emp-warhead' },
+        { parentNodeId: 'frame', hpId: 'shoulder.L', defId: 'shoulder-cannon' },
+        { parentNodeId: 'frame', hpId: 'torso', defId: 'armor-plate' },
+      ],
+    },
+    {
+      id: 'adapter-gunner',
+      name: 'Adapter Gunner Frame',
+      plan: [
+        { parentNodeId: 'frame', hpId: 'hand.L', defId: 'hand-adapter' },
+        { parentNodeId: 'frame/hand.L', hpId: 'mount', defId: 'shoulder-cannon' },
+        { parentNodeId: 'frame', hpId: 'hand.R', defId: 'pulse-blade' },
+        { parentNodeId: 'frame', hpId: 'backpack', defId: 'backpack-thruster' },
+        { parentNodeId: 'frame', hpId: 'head', defId: 'targeting-sensor' },
+      ],
+    },
+  ];
+
+  const STARTER_PLAN = [
+    { parentNodeId: 'frame', hpId: 'hand.R', defId: 'missile-rack' },
+    { parentNodeId: 'frame/hand.R', hpId: 'p0', defId: 'micro-missile' },
+    { parentNodeId: 'frame/hand.R/p0', hpId: 'warhead', defId: 'he-warhead' },
+    { parentNodeId: 'frame/hand.R', hpId: 'p1', defId: 'micro-missile' },
+    { parentNodeId: 'frame/hand.R/p1', hpId: 'warhead', defId: 'emp-warhead' },
+    { parentNodeId: 'frame', hpId: 'shoulder.L', defId: 'shoulder-cannon' },
+    { parentNodeId: 'frame', hpId: 'backpack', defId: 'backpack-thruster' },
+    { parentNodeId: 'frame', hpId: 'torso', defId: 'armor-plate' },
+    { parentNodeId: 'frame', hpId: 'head', defId: 'targeting-sensor' },
+  ];
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
   function makePRNG(seed) {
     let s = (seed >>> 0) || 1;
     return function () {
@@ -54,843 +263,745 @@
     };
   }
 
-  // ─── Shape utilities ──────────────────────────────────────────────────────
-  function rotateCW(cells) {
-    const maxRow = Math.max(...cells.map(([r]) => r));
-    const rotated = cells.map(([r, c]) => [c, maxRow - r]);
-    const minR = Math.min(...rotated.map(([r]) => r));
-    const minC = Math.min(...rotated.map(([, c]) => c));
-    return rotated.map(([r, c]) => [r - minR, c - minC]);
-  }
-
-  function getRotatedCells(baseCells, rotation) {
-    let cells = baseCells.map(c => [...c]);
-    for (let i = 0; i < (rotation % 4); i++) cells = rotateCW(cells);
-    return cells;
-  }
-
-  function getAbsoluteCells(anchorRow, anchorCol, relativeCells) {
-    return relativeCells.map(([r, c]) => [anchorRow + r, anchorCol + c]);
-  }
-
-  // ─── Item definitions ─────────────────────────────────────────────────────
-  const ITEMS = {
-    'machine-gun': {
-      id: 'machine-gun', name: 'Machine Gun',
-      shape: [[0,0],[0,1],[0,2]],
-      cost: 3, tags: ['weapon','ballistic'],
-      damage: 8, speed: 40, accuracy: 1.0, critChance: 0.05, hp: 0,
-      desc: 'Fast repeating ballistic weapon.',
-      color: '#e84343',
-      adjacency: [
-        { requires: 'ammo-box', tagMatch: false, effect: 'damage+8', desc: 'Ammo Box: +8 dmg/shot' },
-      ],
-    },
-    'beam-rifle': {
-      id: 'beam-rifle', name: 'Beam Rifle',
-      shape: [[0,0],[1,0],[2,0]],
-      cost: 4, tags: ['weapon','beam'],
-      damage: 22, speed: 100, accuracy: 0.9, critChance: 0.05, hp: 0,
-      desc: 'Accurate beam weapon. Battery reduces charge.',
-      color: '#4da6ff',
-      adjacency: [
-        { requires: 'battery', tagMatch: false, effect: 'speed-20', desc: 'Battery: -20 charge time' },
-      ],
-    },
-    'missile-pod': {
-      id: 'missile-pod', name: 'Missile Pod',
-      shape: [[0,0],[1,0],[2,0],[2,1]],
-      cost: 5, tags: ['weapon','explosive'],
-      damage: 28, speed: 150, accuracy: 0.75, critChance: 0.05, hp: 0,
-      desc: 'Burst weapon. Low accuracy without Sensor.',
-      color: '#ff8c00',
-      adjacency: [
-        { requires: 'sensor', tagMatch: false, effect: 'accuracy+0.2', desc: 'Sensor: +20% accuracy' },
-      ],
-    },
-    'beam-saber': {
-      id: 'beam-saber', name: 'Beam Saber',
-      shape: [[0,0],[0,1]],
-      cost: 3, tags: ['weapon','melee','beam'],
-      damage: 16, speed: 60, accuracy: 0.95, critChance: 0.1, hp: 0,
-      desc: 'Fast melee beam. Booster reduces cooldown.',
-      color: '#66ccff',
-      adjacency: [
-        { requires: 'booster', tagMatch: false, effect: 'speed-15', desc: 'Booster: -15 attack time' },
-      ],
-    },
-    'heavy-cannon': {
-      id: 'heavy-cannon', name: 'Heavy Cannon',
-      shape: [[0,0],[0,1],[1,0]],
-      cost: 5, tags: ['weapon','ballistic'],
-      damage: 48, speed: 200, accuracy: 0.8, critChance: 0.05, hp: 0,
-      desc: 'Slow massive hit. Sensor improves accuracy.',
-      color: '#cc4400',
-      adjacency: [
-        { requires: 'sensor', tagMatch: false, effect: 'accuracy+0.15', desc: 'Sensor: +15% accuracy' },
-      ],
-    },
-    'battery': {
-      id: 'battery', name: 'Battery',
-      shape: [[0,0],[0,1]],
-      cost: 2, tags: ['power'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 0,
-      desc: 'Speeds up adjacent beam weapons.',
-      color: '#ffe066',
-      adjacency: [],
-    },
-    'ammo-box': {
-      id: 'ammo-box', name: 'Ammo Box',
-      shape: [[0,0],[1,0]],
-      cost: 2, tags: ['power','ballistic'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 0,
-      desc: 'Boosts adjacent ballistic weapons.',
-      color: '#cc9900',
-      adjacency: [],
-    },
-    'sensor': {
-      id: 'sensor', name: 'Sensor',
-      shape: [[0,0]],
-      cost: 2, tags: ['sensor'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 0,
-      desc: 'Improves accuracy of adjacent weapons.',
-      color: '#44cc88',
-      adjacency: [],
-    },
-    'targeting-chip': {
-      id: 'targeting-chip', name: 'Targeting Chip',
-      shape: [[0,0],[1,0]],
-      cost: 2, tags: ['sensor'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 5,
-      desc: '+15% crit chance to adjacent weapons.',
-      color: '#33bb66',
-      adjacency: [],
-    },
-    'booster': {
-      id: 'booster', name: 'Booster',
-      shape: [[0,0],[1,0],[1,1]],
-      cost: 3, tags: ['power'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 0,
-      desc: 'Speeds up adjacent melee weapons.',
-      color: '#ff9933',
-      adjacency: [],
-    },
-    'armor-plate': {
-      id: 'armor-plate', name: 'Armor Plate',
-      shape: [[0,0],[0,1],[1,0],[1,1]],
-      cost: 4, tags: ['armor'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 30,
-      desc: '+30 max HP. Buffs adjacent Shield block.',
-      color: '#888888',
-      adjacency: [
-        { requires: 'shield', tagMatch: false, effect: 'blockChance+0.2', desc: 'Shield: +20% block' },
-      ],
-    },
-    'shield': {
-      id: 'shield', name: 'Shield',
-      shape: [[0,0],[1,0],[2,0]],
-      cost: 3, tags: ['armor'],
-      damage: 0, speed: 0, accuracy: 1.0, critChance: 0, hp: 10,
-      desc: 'Periodically blocks incoming damage.',
-      color: '#aaaaaa',
-      blockChance: 0.3,
-      blockCooldown: 120,
-      adjacency: [],
-    },
-  };
-
-  // ─── Bag piece definitions ────────────────────────────────────────────────
-  // Buyable canvas expansions: add owned cells to the player's canvas.
-  const BAG_PIECE_DEFS = {
-    'bag-2x2': {
-      id: 'bag-2x2', name: 'Small Bag (2×2)',
-      shape: [[0,0],[0,1],[1,0],[1,1]],
-      cost: 4, desc: 'Adds a 2×2 patch of owned canvas space.',
-    },
-    'bag-1x3': {
-      id: 'bag-1x3', name: 'Strip Bag (1×3)',
-      shape: [[0,0],[0,1],[0,2]],
-      cost: 3, desc: 'Adds a 1×3 horizontal strip of owned space.',
-    },
-    'bag-L': {
-      id: 'bag-L', name: 'L-Bag',
-      shape: [[0,0],[1,0],[2,0],[2,1]],
-      cost: 3, desc: 'Adds an L-shaped patch of owned canvas space.',
-    },
-  };
-
-  // ─── Enemy pool (10 builds, canvas coordinates) ───────────────────────────
-  const ENEMY_POOL = [
-    {
-      name: 'Starter Balanced',
-      archetype: 'ballistic',
-      items: [
-        { itemId: 'machine-gun',  row: 0, col: 0, rotation: 1 },  // vertical 3×1
-        { itemId: 'armor-plate',  row: 0, col: 2, rotation: 0 },  // 2×2
-        { itemId: 'sensor',       row: 3, col: 3, rotation: 0 },
-      ],
-    },
-    {
-      name: 'Missile Backpack',
-      archetype: 'missile',
-      items: [
-        { itemId: 'missile-pod',  row: 0, col: 0, rotation: 0 },  // L: (0,0)(1,0)(2,0)(2,1)
-        { itemId: 'sensor',       row: 2, col: 2, rotation: 0 },  // adjacent to (2,1) → accuracy bonus
-        { itemId: 'beam-saber',   row: 4, col: 0, rotation: 0 },
-      ],
-    },
-    {
-      name: 'Beam Head Goblin',
-      archetype: 'beam',
-      items: [
-        { itemId: 'beam-rifle',     row: 0, col: 0, rotation: 1 }, // horizontal 1×3
-        { itemId: 'battery',        row: 1, col: 0, rotation: 0 }, // adjacent to beam-rifle → speed bonus
-        { itemId: 'targeting-chip', row: 2, col: 0, rotation: 0 },
-      ],
-    },
-    {
-      name: 'Shield Turtle',
-      archetype: 'defense',
-      items: [
-        { itemId: 'shield',       row: 0, col: 0, rotation: 0 },  // 3×1 vertical
-        { itemId: 'armor-plate',  row: 0, col: 1, rotation: 0 },  // adjacent to shield → block bonus
-        { itemId: 'heavy-cannon', row: 3, col: 0, rotation: 0 },
-      ],
-    },
-    {
-      name: 'Saber Rush',
-      archetype: 'melee',
-      items: [
-        { itemId: 'beam-saber',     row: 0, col: 0, rotation: 0 },
-        { itemId: 'beam-saber',     row: 0, col: 3, rotation: 0 },
-        { itemId: 'booster',        row: 1, col: 0, rotation: 0 }, // adjacent to first saber → speed bonus
-        { itemId: 'targeting-chip', row: 1, col: 3, rotation: 0 }, // adjacent to second saber → crit bonus
-      ],
-    },
-    {
-      name: 'Heavy Cannon Glass Cannon',
-      archetype: 'ballistic',
-      items: [
-        { itemId: 'heavy-cannon',   row: 0, col: 0, rotation: 0 }, // L: (0,0)(0,1)(1,0)
-        { itemId: 'targeting-chip', row: 0, col: 2, rotation: 0 }, // adjacent to (0,1) → crit bonus
-        { itemId: 'sensor',         row: 2, col: 0, rotation: 0 }, // adjacent to (1,0) → accuracy bonus
-      ],
-    },
-    {
-      name: 'Ammo Blitz',
-      archetype: 'ballistic',
-      items: [
-        { itemId: 'machine-gun',  row: 0, col: 0, rotation: 1 }, // vertical 3×1
-        { itemId: 'ammo-box',     row: 0, col: 1, rotation: 0 }, // adjacent to machine-gun → damage bonus
-        { itemId: 'heavy-cannon', row: 3, col: 0, rotation: 0 },
-        { itemId: 'sensor',       row: 5, col: 0, rotation: 0 }, // adjacent to heavy-cannon (4,0)→ accuracy bonus
-      ],
-    },
-    {
-      name: 'Dual Beam Arms',
-      archetype: 'beam',
-      items: [
-        { itemId: 'beam-rifle',  row: 0, col: 0, rotation: 0 }, // vertical 3×1
-        { itemId: 'beam-rifle',  row: 0, col: 2, rotation: 0 }, // vertical 3×1
-        { itemId: 'beam-saber',  row: 3, col: 0, rotation: 0 },
-        { itemId: 'battery',     row: 4, col: 0, rotation: 0 }, // adjacent to saber → speed bonus
-      ],
-    },
-    {
-      name: 'Sniper Pack',
-      archetype: 'ballistic',
-      items: [
-        { itemId: 'heavy-cannon',   row: 0, col: 0, rotation: 0 }, // L: (0,0)(0,1)(1,0)
-        { itemId: 'targeting-chip', row: 0, col: 2, rotation: 0 }, // adjacent to (0,1) → crit bonus
-        { itemId: 'sensor',         row: 2, col: 0, rotation: 0 }, // adjacent to (1,0) → accuracy bonus
-        { itemId: 'shield',         row: 3, col: 0, rotation: 0 },
-      ],
-    },
-    {
-      name: 'Missile Blitz',
-      archetype: 'missile',
-      items: [
-        { itemId: 'missile-pod',    row: 0, col: 0, rotation: 0 }, // L: (0,0)(1,0)(2,0)(2,1)
-        { itemId: 'sensor',         row: 2, col: 2, rotation: 0 }, // adjacent to (2,1) → accuracy bonus
-        { itemId: 'beam-saber',     row: 4, col: 0, rotation: 0 },
-        { itemId: 'targeting-chip', row: 4, col: 2, rotation: 0 }, // adjacent to saber (4,1)→ crit bonus
-      ],
-    },
-  ];
-
-  // ─── Canvas placement helpers ─────────────────────────────────────────────
-
-  // Placement valid only on owned cells with no overlap or out-of-bounds.
-  function canPlace(canvasRows, canvasCols, ownedCells, occupiedSet, anchorRow, anchorCol, relativeCells) {
-    for (const [r, c] of getAbsoluteCells(anchorRow, anchorCol, relativeCells)) {
-      if (r < 0 || r >= canvasRows || c < 0 || c >= canvasCols) return false;
-      if (!ownedCells.has(`${r},${c}`)) return false;
-      if (occupiedSet.has(`${r},${c}`)) return false;
+  function hashString(value) {
+    const text = String(value);
+    let hash = 2166136261 >>> 0;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619) >>> 0;
     }
-    return true;
+    return hash >>> 0;
   }
 
-  // Bag piece placement valid if all cells are in canvas bounds (can overlap owned or unowned).
-  function canPlaceBagPiece(canvasRows, canvasCols, anchorRow, anchorCol, relativeCells) {
-    for (const [r, c] of getAbsoluteCells(anchorRow, anchorCol, relativeCells)) {
-      if (r < 0 || r >= canvasRows || c < 0 || c >= canvasCols) return false;
-    }
-    return true;
+  function stableRank(seed, side, nodeId) {
+    return hashString(`${seed}|${side}|${nodeId}`);
   }
 
-  function buildOccupiedSet(canvasItems, excludeId) {
-    const set = new Set();
-    for (const pi of canvasItems) {
-      if (pi.instanceId === excludeId) continue;
-      const cells = getAbsoluteCells(pi.row, pi.col, getRotatedCells(ITEMS[pi.itemId].shape, pi.rotation));
-      for (const [r, c] of cells) set.add(`${r},${c}`);
-    }
-    return set;
+  let ownedCounter = 0;
+  function nextOwnedInstanceId(prefix) {
+    ownedCounter += 1;
+    return `${prefix || 'owned'}-${ownedCounter}`;
   }
 
-  // ─── Adjacency helpers ────────────────────────────────────────────────────
-  // Adjacency now works across all canvas items (not per-bag).
-  function getAdjacentItems(canvasItems, targetItem) {
-    const targetCells = getAbsoluteCells(
-      targetItem.row, targetItem.col,
-      getRotatedCells(ITEMS[targetItem.itemId].shape, targetItem.rotation)
-    );
-    const neighborKeys = new Set();
-    for (const [r, c] of targetCells) {
-      neighborKeys.add(`${r - 1},${c}`);
-      neighborKeys.add(`${r + 1},${c}`);
-      neighborKeys.add(`${r},${c - 1}`);
-      neighborKeys.add(`${r},${c + 1}`);
-    }
-    const selfKeys = new Set(targetCells.map(([r, c]) => `${r},${c}`));
+  function getDef(defId) {
+    return PART_DEFS[defId] || null;
+  }
 
-    return canvasItems.filter(pi => {
-      if (pi.instanceId === targetItem.instanceId) return false;
-      const cells = getAbsoluteCells(pi.row, pi.col, getRotatedCells(ITEMS[pi.itemId].shape, pi.rotation));
-      return cells.some(([r, c]) => neighborKeys.has(`${r},${c}`) && !selfKeys.has(`${r},${c}`));
+  function requireDef(defId) {
+    const def = getDef(defId);
+    if (!def) throw new Error(`Unknown part definition: ${defId}`);
+    return def;
+  }
+
+  function createBuildTree() {
+    return {
+      nodeId: 'frame',
+      defId: 'frame',
+      parentHpId: null,
+      ownedInstanceId: null,
+      children: {},
+    };
+  }
+
+  function createOwnedPart(defId, ownedInstanceId, children) {
+    requireDef(defId);
+    return {
+      ownedInstanceId: ownedInstanceId || nextOwnedInstanceId('owned'),
+      defId,
+      children: children ? clone(children) : {},
+    };
+  }
+
+  function makeInventory(defIds, prefix) {
+    return defIds.map((defId, index) =>
+      createOwnedPart(defId, `${prefix || 'owned'}-${index + 1}`));
+  }
+
+  function hardpointIndex(defId, hpId) {
+    const def = requireDef(defId);
+    const idx = def.hardpoints.findIndex(hp => hp.hpId === hpId);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+  }
+
+  function sortedChildHpIds(node) {
+    return Object.keys(node.children || {}).sort((a, b) => {
+      const ai = hardpointIndex(node.defId, a);
+      const bi = hardpointIndex(node.defId, b);
+      if (ai !== bi) return ai - bi;
+      return a.localeCompare(b);
     });
   }
 
-  function applyEffect(stats, effect) {
-    const m = effect.match(/^(\w+)([+-])(\d*\.?\d+)$/);
-    if (!m) return;
-    const [, field, op, valStr] = m;
-    const val = parseFloat(valStr);
-    if (op === '+') stats[field] = (stats[field] || 0) + val;
-    else            stats[field] = Math.max(0, (stats[field] || 0) - val);
+  function pathDepth(nodeId) {
+    if (nodeId === 'frame') return 0;
+    return nodeId.split('/').length - 1;
   }
 
-  function computeEffectiveStats(placedItem, canvasItems) {
-    const def = ITEMS[placedItem.itemId];
-    const stats = {
-      damage:        def.damage,
-      speed:         def.speed,
-      accuracy:      def.accuracy,
-      critChance:    def.critChance,
-      blockChance:   def.blockChance || 0,
-      blockCooldown: def.blockCooldown || 120,
+  function getHardpoint(defOrId, hpId) {
+    const def = typeof defOrId === 'string' ? requireDef(defOrId) : defOrId;
+    return (def.hardpoints || []).find(hp => hp.hpId === hpId) || null;
+  }
+
+  function getNode(tree, nodeId) {
+    if (!tree || nodeId === undefined || nodeId === null) return null;
+    if (nodeId === 'frame') return tree.nodeId === 'frame' ? tree : null;
+    const parts = String(nodeId).split('/');
+    if (parts[0] !== 'frame') return null;
+    let node = tree;
+    for (let i = 1; i < parts.length; i++) {
+      if (!node.children || !node.children[parts[i]]) return null;
+      node = node.children[parts[i]];
+    }
+    return node;
+  }
+
+  function listNodes(tree) {
+    const out = [];
+    function walk(node) {
+      out.push(node);
+      for (const hpId of sortedChildHpIds(node)) walk(node.children[hpId]);
+    }
+    walk(tree);
+    return out;
+  }
+
+  function ownedSubtreeDepth(ownedPart) {
+    const children = ownedPart.children || {};
+    const keys = Object.keys(children);
+    if (keys.length === 0) return 0;
+    return Math.max(...keys.map(hpId => 1 + ownedSubtreeDepth(children[hpId])));
+  }
+
+  function mountedSubtreeDepth(node) {
+    const keys = Object.keys(node.children || {});
+    if (keys.length === 0) return 0;
+    return Math.max(...keys.map(hpId => 1 + mountedSubtreeDepth(node.children[hpId])));
+  }
+
+  function ownedToBuildNode(ownedPart, parentHpId, nodeId) {
+    const node = {
+      nodeId,
+      defId: ownedPart.defId,
+      parentHpId,
+      ownedInstanceId: ownedPart.ownedInstanceId,
+      children: {},
     };
+    for (const hpId of Object.keys(ownedPart.children || {})) {
+      node.children[hpId] = ownedToBuildNode(
+        ownedPart.children[hpId],
+        hpId,
+        `${nodeId}/${hpId}`
+      );
+    }
+    return node;
+  }
 
-    const adjacent = getAdjacentItems(canvasItems, placedItem);
+  function buildToOwned(node) {
+    const owned = {
+      ownedInstanceId: node.ownedInstanceId || nextOwnedInstanceId('detached'),
+      defId: node.defId,
+      children: {},
+    };
+    for (const hpId of sortedChildHpIds(node)) {
+      owned.children[hpId] = buildToOwned(node.children[hpId]);
+    }
+    return owned;
+  }
 
-    for (const rule of def.adjacency) {
-      const match = rule.tagMatch
-        ? adjacent.some(a => ITEMS[a.itemId].tags.includes(rule.requires))
-        : adjacent.some(a => a.itemId === rule.requires);
-      if (match) applyEffect(stats, rule.effect);
+  function remapOwnedIds(ownedPart, prefix) {
+    let counter = 0;
+    function walk(part, path) {
+      counter += 1;
+      const out = {
+        ownedInstanceId: `${prefix}-${counter}${path ? `-${path}` : ''}`,
+        defId: part.defId,
+        children: {},
+      };
+      for (const hpId of Object.keys(part.children || {}).sort()) {
+        out.children[hpId] = walk(part.children[hpId], hpId.replace(/[^A-Za-z0-9]/g, ''));
+      }
+      return out;
+    }
+    return walk(ownedPart, '');
+  }
+
+  function canAttach(tree, parentNodeId, hpId, ownedPart, options) {
+    const maxDepth = options && options.maxDepth !== undefined ? options.maxDepth : MAX_DEPTH;
+    const parent = getNode(tree, parentNodeId);
+    if (!parent) return { ok: false, reason: `Parent node not found: ${parentNodeId}` };
+
+    const parentDef = requireDef(parent.defId);
+    const hp = getHardpoint(parentDef, hpId);
+    if (!hp) return { ok: false, reason: `${parent.nodeId} has no hardpoint named ${hpId}.` };
+    if (parent.children && parent.children[hpId]) {
+      return { ok: false, reason: `${parent.nodeId}/${hpId} is already occupied.` };
+    }
+    if (!ownedPart) return { ok: false, reason: 'Select an owned part first.' };
+
+    const childDef = getDef(ownedPart.defId);
+    if (!childDef) return { ok: false, reason: `Unknown owned part definition: ${ownedPart.defId}` };
+    if (hp.type !== childDef.socketTypeIn) {
+      return {
+        ok: false,
+        reason: `${childDef.name} needs ${childDef.socketTypeIn}, but ${parent.nodeId}/${hpId} accepts ${hp.type}.`,
+      };
     }
 
-    if (def.id === 'shield') {
-      if (adjacent.some(a => a.itemId === 'armor-plate')) {
-        stats.blockChance = Math.min(1.0, stats.blockChance + 0.2);
+    const childDepth = pathDepth(parent.nodeId) + 1;
+    const deepest = childDepth + ownedSubtreeDepth(ownedPart);
+    if (deepest > maxDepth) {
+      return {
+        ok: false,
+        reason: `Depth cap ${maxDepth} would be exceeded by mounting ${childDef.name} at ${parent.nodeId}/${hpId}.`,
+      };
+    }
+
+    return {
+      ok: true,
+      reason: `${childDef.name} can mount at ${parent.nodeId}/${hpId}.`,
+      nodeId: `${parent.nodeId}/${hpId}`,
+      hardpoint: hp,
+    };
+  }
+
+  function attachOwnedPart(tree, inventory, parentNodeId, hpId, ownedInstanceId, options) {
+    const idx = inventory.findIndex(part => part.ownedInstanceId === ownedInstanceId);
+    if (idx === -1) return { ok: false, tree, inventory, reason: `Owned part not found: ${ownedInstanceId}` };
+
+    const ownedPart = inventory[idx];
+    const check = canAttach(tree, parentNodeId, hpId, ownedPart, options);
+    if (!check.ok) return { ok: false, tree, inventory, reason: check.reason };
+
+    const nextTree = clone(tree);
+    const nextInventory = inventory.slice(0, idx).concat(inventory.slice(idx + 1)).map(clone);
+    const parent = getNode(nextTree, parentNodeId);
+    parent.children[hpId] = ownedToBuildNode(ownedPart, hpId, `${parent.nodeId}/${hpId}`);
+    return {
+      ok: true,
+      tree: nextTree,
+      inventory: nextInventory,
+      nodeId: `${parent.nodeId}/${hpId}`,
+      reason: check.reason,
+    };
+  }
+
+  function attachPartByDef(tree, parentNodeId, hpId, defId, ownedInstanceId, options) {
+    const owned = createOwnedPart(defId, ownedInstanceId || nextOwnedInstanceId('mounted'));
+    const result = attachOwnedPart(tree, [owned], parentNodeId, hpId, owned.ownedInstanceId, options);
+    if (!result.ok) throw new Error(result.reason);
+    return result.tree;
+  }
+
+  function detachNode(tree, inventory, nodeId) {
+    if (nodeId === 'frame') return { ok: false, tree, inventory, reason: 'The core frame cannot be detached.' };
+    const mounted = getNode(tree, nodeId);
+    if (!mounted) return { ok: false, tree, inventory, reason: `Mounted node not found: ${nodeId}` };
+
+    const parts = nodeId.split('/');
+    const hpId = parts[parts.length - 1];
+    const parentNodeId = parts.slice(0, -1).join('/');
+    const nextTree = clone(tree);
+    const parent = getNode(nextTree, parentNodeId);
+    const detachedNode = parent.children[hpId];
+    delete parent.children[hpId];
+
+    const owned = buildToOwned(detachedNode);
+    const nextInventory = inventory.map(clone).concat([owned]);
+    return {
+      ok: true,
+      tree: nextTree,
+      inventory: nextInventory,
+      ownedPart: owned,
+      reason: `${requireDef(detachedNode.defId).name} detached with ${countOwnedSubtree(owned)} owned part(s).`,
+    };
+  }
+
+  function countOwnedSubtree(ownedPart) {
+    let total = 1;
+    for (const hpId of Object.keys(ownedPart.children || {})) total += countOwnedSubtree(ownedPart.children[hpId]);
+    return total;
+  }
+
+  function validateTree(tree, options) {
+    const maxDepth = options && options.maxDepth !== undefined ? options.maxDepth : MAX_DEPTH;
+    const errors = [];
+    const seen = new Set();
+
+    function walk(node, expectedNodeId, parentDef, parentHpId) {
+      const def = getDef(node.defId);
+      if (!def) errors.push(`${node.nodeId} uses unknown definition ${node.defId}.`);
+      if (node.nodeId !== expectedNodeId) {
+        errors.push(`${node.defId} has nodeId ${node.nodeId}, expected ${expectedNodeId}.`);
+      }
+      if (seen.has(node.nodeId)) errors.push(`Duplicate nodeId ${node.nodeId}.`);
+      seen.add(node.nodeId);
+      if (pathDepth(node.nodeId) > maxDepth) errors.push(`${node.nodeId} exceeds depth cap ${maxDepth}.`);
+
+      if (parentDef && parentHpId) {
+        const hp = getHardpoint(parentDef, parentHpId);
+        if (!hp) {
+          errors.push(`${expectedNodeId} is mounted on missing parent hardpoint ${parentHpId}.`);
+        } else if (def && hp.type !== def.socketTypeIn) {
+          errors.push(`${node.nodeId} needs ${def.socketTypeIn}, parent hardpoint accepts ${hp.type}.`);
+        }
+      }
+
+      if (!def) return;
+      for (const hpId of sortedChildHpIds(node)) {
+        walk(node.children[hpId], `${node.nodeId}/${hpId}`, def, hpId);
       }
     }
 
-    if (def.tags.includes('weapon')) {
-      if (adjacent.some(a => a.itemId === 'targeting-chip')) {
-        stats.critChance = Math.min(1.0, stats.critChance + 0.15);
+    walk(tree, 'frame', null, null);
+    return { ok: errors.length === 0, errors };
+  }
+
+  function findEligibleSockets(tree, ownedPart, options) {
+    const sockets = [];
+    for (const node of listNodes(tree)) {
+      const def = requireDef(node.defId);
+      for (const hp of def.hardpoints) {
+        if (node.children && node.children[hp.hpId]) {
+          sockets.push({
+            parentNodeId: node.nodeId,
+            hpId: hp.hpId,
+            nodeId: `${node.nodeId}/${hp.hpId}`,
+            view: hp.view,
+            type: hp.type,
+            ok: false,
+            occupied: true,
+            reason: 'Socket already occupied.',
+          });
+        } else {
+          const check = canAttach(tree, node.nodeId, hp.hpId, ownedPart, options);
+          sockets.push({
+            parentNodeId: node.nodeId,
+            hpId: hp.hpId,
+            nodeId: `${node.nodeId}/${hp.hpId}`,
+            view: hp.view,
+            type: hp.type,
+            ok: check.ok,
+            occupied: false,
+            reason: check.reason,
+          });
+        }
+      }
+    }
+    return sockets;
+  }
+
+  function statValue(def, field) {
+    return def.stats && typeof def.stats[field] === 'number' ? def.stats[field] : 0;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function collectTags(node) {
+    const tags = new Set();
+    function walk(n) {
+      for (const tag of requireDef(n.defId).tags || []) tags.add(tag);
+      for (const hpId of sortedChildHpIds(n)) walk(n.children[hpId]);
+    }
+    walk(node);
+    return Array.from(tags).sort();
+  }
+
+  function sumSubtreeStat(node, field) {
+    const def = requireDef(node.defId);
+    let total = statValue(def, field);
+    for (const hpId of sortedChildHpIds(node)) total += sumSubtreeStat(node.children[hpId], field);
+    return total;
+  }
+
+  function topBranch(nodeId) {
+    const parts = nodeId.split('/');
+    return parts[1] || 'frame';
+  }
+
+  function resolve(tree) {
+    const nodeStats = {};
+    const activeSynergies = [];
+    const actionModifiers = {};
+    const nodes = listNodes(tree);
+
+    function ensureModifier(nodeId) {
+      if (!actionModifiers[nodeId]) actionModifiers[nodeId] = { cooldownMult: 1, damageBonus: 0, accuracyBonus: 0 };
+      return actionModifiers[nodeId];
+    }
+
+    function aggregate(node) {
+      const def = requireDef(node.defId);
+      let hp = statValue(def, 'hp');
+      let weight = statValue(def, 'weight');
+      let damage = statValue(def, 'damage');
+      let initiative = statValue(def, 'initiative');
+
+      for (const hpId of sortedChildHpIds(node)) {
+        const child = aggregate(node.children[hpId]);
+        hp += child.hp;
+        weight += child.weight;
+        damage += child.damage;
+        initiative += child.initiative;
+      }
+
+      nodeStats[node.nodeId] = {
+        nodeId: node.nodeId,
+        defId: node.defId,
+        name: def.name,
+        hp,
+        weight,
+        damage,
+        initiative,
+        tags: collectTags(node),
+      };
+      return nodeStats[node.nodeId];
+    }
+
+    aggregate(tree);
+
+    for (const node of nodes) {
+      const def = requireDef(node.defId);
+
+      if (def.synergyRules && def.synergyRules.includes('rack-load')) {
+        const missileChildren = sortedChildHpIds(node)
+          .map(hpId => node.children[hpId])
+          .filter(child => (requireDef(child.defId).tags || []).includes('missile'));
+        if (missileChildren.length > 0) {
+          for (const child of missileChildren) ensureModifier(child.nodeId).cooldownMult *= 0.7;
+          activeSynergies.push({
+            id: `rack-load:${node.nodeId}`,
+            name: 'Loaded rack rails',
+            description: 'Direct missiles mounted under this rack fire 30% faster.',
+            causingNodeIds: [node.nodeId].concat(missileChildren.map(child => child.nodeId)),
+          });
+        }
       }
     }
 
-    return stats;
-  }
-
-  function getActiveBonuses(canvasItems) {
-    const bonuses = [];
-    for (const pi of canvasItems) {
-      const def = ITEMS[pi.itemId];
-      const adjacent = getAdjacentItems(canvasItems, pi);
-
-      for (const rule of def.adjacency) {
-        const match = rule.tagMatch
-          ? adjacent.some(a => ITEMS[a.itemId].tags.includes(rule.requires))
-          : adjacent.some(a => a.itemId === rule.requires);
-        if (match) bonuses.push({ sourceId: pi.instanceId, sourceName: def.name, desc: rule.desc });
-      }
-
-      if (def.id === 'shield' && adjacent.some(a => a.itemId === 'armor-plate')) {
-        bonuses.push({ sourceId: pi.instanceId, sourceName: def.name, desc: 'Armor Plate: +20% block' });
-      }
-      if (def.tags.includes('weapon') && adjacent.some(a => a.itemId === 'targeting-chip')) {
-        bonuses.push({ sourceId: pi.instanceId, sourceName: def.name, desc: 'Targeting Chip: +15% crit' });
-      }
+    const frameDef = requireDef('frame');
+    const branchWeights = {};
+    for (const hp of frameDef.hardpoints) branchWeights[hp.hpId] = 0;
+    for (const hpId of sortedChildHpIds(tree)) {
+      branchWeights[hpId] = nodeStats[tree.children[hpId].nodeId].weight;
     }
-    return bonuses;
-  }
 
-  // ─── Build helpers ────────────────────────────────────────────────────────
-  let _iidCounter = 0;
-  function nextIid() { return `iid-${++_iidCounter}`; }
+    const leftWeight = Object.keys(branchWeights)
+      .filter(hpId => hpId.endsWith('.L'))
+      .reduce((sum, hpId) => sum + branchWeights[hpId], 0);
+    const rightWeight = Object.keys(branchWeights)
+      .filter(hpId => hpId.endsWith('.R'))
+      .reduce((sum, hpId) => sum + branchWeights[hpId], 0);
+    const rearWeight = branchWeights.backpack || 0;
+    const balanceDelta = Math.abs(leftWeight - rightWeight);
 
-  function initBuild() {
-    const ownedCells = new Set(STARTING_OWNED_COORDS.map(([r, c]) => `${r},${c}`));
-    return { canvas: { rows: CANVAS_ROWS, cols: CANVAS_COLS, items: [], ownedCells } };
-  }
+    const thrusterNodes = nodes.filter(node => (requireDef(node.defId).tags || []).includes('mobility'));
+    const sensorNodes = nodes.filter(node => (requireDef(node.defId).tags || []).includes('sensor'));
+    const globalCooldownBonus = thrusterNodes.length * 5;
+    const globalAccuracyBonus = Math.min(0.12, sensorNodes.length * 0.04);
 
-  function buildFromEnemyData(enemyData) {
-    const ownedCells = new Set();
-    const items = [];
-    for (const pi of enemyData.items) {
-      const cells = getAbsoluteCells(pi.row, pi.col,
-        getRotatedCells(ITEMS[pi.itemId].shape, pi.rotation));
-      for (const [r, c] of cells) ownedCells.add(`${r},${c}`);
-      items.push({ instanceId: nextIid(), itemId: pi.itemId, row: pi.row, col: pi.col, rotation: pi.rotation });
-    }
-    return { canvas: { rows: CANVAS_ROWS, cols: CANVAS_COLS, items, ownedCells } };
-  }
-
-  // Place an item on the canvas. No bag name — canvas only.
-  function placeItem(build, instanceId, itemId, row, col, rotation) {
-    const { canvas } = build;
-    const cells = getRotatedCells(ITEMS[itemId].shape, rotation);
-    const occupied = buildOccupiedSet(canvas.items, null);
-    if (!canPlace(canvas.rows, canvas.cols, canvas.ownedCells, occupied, row, col, cells)) return false;
-    canvas.items.push({ instanceId, itemId, row, col, rotation });
-    return true;
-  }
-
-  function removeItem(build, instanceId) {
-    const idx = build.canvas.items.findIndex(i => i.instanceId === instanceId);
-    if (idx !== -1) { build.canvas.items.splice(idx, 1); return true; }
-    return false;
-  }
-
-  // Add owned cells to canvas at anchor position. Only fails if out of bounds.
-  function addBagPiece(build, anchorRow, anchorCol, relativeCells) {
-    const { canvas } = build;
-    const abs = getAbsoluteCells(anchorRow, anchorCol, relativeCells);
-    for (const [r, c] of abs) {
-      if (r < 0 || r >= canvas.rows || c < 0 || c >= canvas.cols) return false;
-    }
-    for (const [r, c] of abs) canvas.ownedCells.add(`${r},${c}`);
-    return true;
-  }
-
-  // ─── HP calculation ───────────────────────────────────────────────────────
-  function computeHP(build) {
-    let hp = BASE_HP;
-    for (const pi of build.canvas.items) hp += ITEMS[pi.itemId].hp;
-    return hp;
-  }
-
-  // ─── ATB Simulation ───────────────────────────────────────────────────────
-  function getAttackers(build, side) {
-    const attackers = [];
-    const { items } = build.canvas;
-    for (const pi of items) {
-      const def = ITEMS[pi.itemId];
-      if (def.damage <= 0) continue;
-      const stats = computeEffectiveStats(pi, items);
-      attackers.push({
-        instanceId: pi.instanceId,
-        itemId:     pi.itemId,
-        name:       def.name,
-        side,
-        stats,
-        nextFire:   stats.speed,
+    if (thrusterNodes.length > 0 && balanceDelta <= 4) {
+      activeSynergies.push({
+        id: 'balanced-thrust',
+        name: 'Balanced thrust',
+        description: 'A rear thruster with balanced arm weight trims 5 ticks from weapon cooldowns.',
+        causingNodeIds: thrusterNodes.map(node => node.nodeId),
       });
     }
-    return attackers;
+
+    const attackers = nodes
+      .filter(node => {
+        const def = requireDef(node.defId);
+        return (def.tags || []).includes('weapon') && sumSubtreeStat(node, 'damage') > 0;
+      })
+      .map(node => {
+        const def = requireDef(node.defId);
+        const modifier = ensureModifier(node.nodeId);
+        const branch = topBranch(node.nodeId);
+        const branchWeight = branchWeights[branch] || 0;
+        const branchPenalty = 1 + branchWeight * 0.01;
+        const balancedBonus = thrusterNodes.length > 0 && balanceDelta <= 4 ? globalCooldownBonus : 0;
+        const baseCooldown = statValue(def, 'cooldown') || 100;
+        const cooldown = Math.max(28, Math.round(baseCooldown * branchPenalty * modifier.cooldownMult - balancedBonus));
+        const damage = Math.max(1, sumSubtreeStat(node, 'damage') + modifier.damageBonus);
+        const accuracy = clamp((def.stats.accuracy || 1) + globalAccuracyBonus + modifier.accuracyBonus, 0.05, 0.98);
+        const initiative = Math.round((1000 / cooldown) * 1000 + statValue(def, 'initiative'));
+        const tags = collectTags(node);
+        const effects = [];
+        if (tags.includes('emp')) effects.push('emp');
+        if (tags.includes('explosive')) effects.push('blast');
+
+        return {
+          nodeId: node.nodeId,
+          defId: node.defId,
+          name: def.name,
+          damage,
+          cooldown,
+          accuracy,
+          initiative,
+          branch,
+          branchWeight,
+          clip: def.clip || 'fire',
+          effects,
+        };
+      })
+      .sort((a, b) => a.nodeId.localeCompare(b.nodeId));
+
+    const targetableNodeIds = nodes.map(node => node.nodeId);
+
+    return {
+      totalHP: nodeStats.frame.hp,
+      totalWeight: nodeStats.frame.weight,
+      branchWeights,
+      balance: {
+        leftWeight,
+        rightWeight,
+        rearWeight,
+        delta: balanceDelta,
+        label: balanceDelta <= 4 ? 'balanced' : leftWeight > rightWeight ? 'left-heavy' : 'right-heavy',
+      },
+      activeSynergies,
+      attackers,
+      nodeStats,
+      targetableNodeIds,
+      maxDepth: MAX_DEPTH,
+    };
   }
 
-  function getShields(build, side) {
-    const shields = [];
-    const { items } = build.canvas;
-    for (const pi of items) {
-      if (pi.itemId !== 'shield') continue;
-      const stats = computeEffectiveStats(pi, items);
-      shields.push({
-        instanceId:    pi.instanceId,
-        side,
-        blockChance:   stats.blockChance,
-        blockCooldown: stats.blockCooldown,
-        lastBlock:     -9999,
-      });
-    }
-    return shields;
+  function actionTime(action) {
+    if (typeof action.nextFire === 'number') return action.nextFire;
+    if (typeof action.t === 'number') return action.t;
+    if (typeof action.time === 'number') return action.time;
+    return 0;
   }
 
-  function simulate(playerBuild, enemyBuild, seed) {
+  function actionLexical(action) {
+    return `${action.side || ''}|${action.nodeId || ''}`;
+  }
+
+  function orderReadyAttackers(actions, seed) {
+    return actions.slice().sort((a, b) => {
+      const at = actionTime(a);
+      const bt = actionTime(b);
+      if (at !== bt) return at - bt;
+      if ((b.initiative || 0) !== (a.initiative || 0)) return (b.initiative || 0) - (a.initiative || 0);
+      const ar = stableRank(seed, a.side, a.nodeId);
+      const br = stableRank(seed, b.side, b.nodeId);
+      if (ar !== br) return ar - br;
+      return actionLexical(a).localeCompare(actionLexical(b));
+    });
+  }
+
+  function chooseTargetNode(resolved, seed, eventIndex, source) {
+    const ids = resolved.targetableNodeIds.length ? resolved.targetableNodeIds : ['frame'];
+    const rank = stableRank(`${seed}|target|${eventIndex}`, source.side, source.nodeId);
+    return ids[rank % ids.length];
+  }
+
+  function simulate(playerTree, enemyTree, seed) {
     const rng = makePRNG(seed);
+    const player = resolve(playerTree);
+    const enemy = resolve(enemyTree);
+    let playerHP = player.totalHP;
+    let enemyHP = enemy.totalHP;
 
-    let pHP = computeHP(playerBuild);
-    let eHP = computeHP(enemyBuild);
+    const attackers = player.attackers.map(attacker => Object.assign({}, attacker, {
+      side: 'player',
+      nextFire: attacker.cooldown,
+    })).concat(enemy.attackers.map(attacker => Object.assign({}, attacker, {
+      side: 'enemy',
+      nextFire: attacker.cooldown,
+    })));
 
-    const pAttackers = getAttackers(playerBuild, 'player');
-    const eAttackers = getAttackers(enemyBuild, 'enemy');
-    const allAttackers = [...pAttackers, ...eAttackers];
-
-    const pShields = getShields(playerBuild, 'player');
-    const eShields = getShields(enemyBuild, 'enemy');
-
-    if (allAttackers.length === 0) {
-      return { events: [], winner: 'player', finalPlayerHP: pHP, finalEnemyHP: eHP };
+    if (attackers.length === 0) {
+      return {
+        events: [],
+        winner: playerHP >= enemyHP ? 'player' : 'enemy',
+        finalPlayerHP: playerHP,
+        finalEnemyHP: enemyHP,
+        resolved: { player, enemy },
+      };
     }
 
     const events = [];
     let clock = 0;
 
-    while (pHP > 0 && eHP > 0 && clock < MAX_BATTLE_TICKS && events.length < 500) {
-      let next = allAttackers[0];
-      for (const a of allAttackers) {
-        if (a.nextFire < next.nextFire) next = a;
-      }
-      clock = next.nextFire;
+    while (playerHP > 0 && enemyHP > 0 && clock <= MAX_BATTLE_TICKS && events.length < MAX_EVENTS) {
+      const liveAttackers = attackers.filter(attacker =>
+        attacker.side === 'player' ? enemyHP > 0 : playerHP > 0);
+      const nextTime = Math.min(...liveAttackers.map(attacker => attacker.nextFire));
+      const ready = liveAttackers.filter(attacker => attacker.nextFire === nextTime);
+      const ordered = orderReadyAttackers(ready, seed);
 
-      const hitRoll = rng();
-      const hit = hitRoll < next.stats.accuracy;
-      let damage = 0;
-      const effects = [];
+      for (const attacker of ordered) {
+        if (playerHP <= 0 || enemyHP <= 0) break;
+        clock = attacker.nextFire;
 
-      if (hit) {
-        const critRoll = rng();
-        const isCrit = critRoll < next.stats.critChance;
-        damage = Math.floor(next.stats.damage * (isCrit ? CRIT_MULTIPLIER : 1.0));
-        if (isCrit) effects.push('crit');
+        const targetSide = attacker.side === 'player' ? 'enemy' : 'player';
+        const targetResolved = targetSide === 'player' ? player : enemy;
+        const targetTree = targetSide === 'player' ? playerTree : enemyTree;
+        const targetNodeId = chooseTargetNode(targetResolved, seed, events.length, attacker);
+        const targetNode = getNode(targetTree, targetNodeId) || getNode(targetTree, 'frame');
 
-        const defShields = next.side === 'player' ? eShields : pShields;
-        let blocked = false;
-        for (const sh of defShields) {
-          if (clock - sh.lastBlock >= sh.blockCooldown) {
-            if (rng() < sh.blockChance) {
-              blocked = true;
-              sh.lastBlock = clock;
-              effects.push('blocked');
-              break;
-            }
-          }
-        }
-
-        if (!blocked) {
-          if (next.side === 'player') eHP = Math.max(0, eHP - damage);
-          else                         pHP = Math.max(0, pHP - damage);
+        const hit = rng() <= attacker.accuracy;
+        let damage = 0;
+        const effects = [];
+        if (hit) {
+          const variance = 0.92 + rng() * 0.16;
+          damage = Math.max(1, Math.round(attacker.damage * variance));
+          for (const effect of attacker.effects) effects.push(effect);
+          if (effects.includes('emp')) effects.push('slow');
+          if (targetSide === 'player') playerHP = Math.max(0, playerHP - damage);
+          else enemyHP = Math.max(0, enemyHP - damage);
         } else {
-          damage = 0;
+          effects.push('miss');
+          rng(); // consume the variance slot so hit/miss branches remain stable in shape.
         }
-      } else {
-        effects.push('miss');
-        rng(); // consume crit roll slot for determinism
+
+        events.push({
+          t: clock,
+          source: { side: attacker.side, nodeId: attacker.nodeId },
+          target: { side: targetSide, nodeId: targetNode.nodeId },
+          clip: attacker.clip,
+          damage,
+          hit,
+          effects,
+          playerHP,
+          enemyHP,
+          sourceDefId: attacker.defId,
+          sourceName: attacker.name,
+          targetDefId: targetNode.defId,
+        });
+
+        attacker.nextFire += attacker.cooldown;
       }
-
-      events.push({
-        time:         clock,
-        attackerSide: next.side,
-        itemId:       next.itemId,
-        itemName:     next.name,
-        damage,
-        effects,
-        playerHP:     pHP,
-        enemyHP:      eHP,
-      });
-
-      next.nextFire += next.stats.speed;
-
-      if (pHP <= 0 || eHP <= 0) break;
     }
 
-    const winner = pHP > 0 ? 'player' : 'enemy';
-    return { events, winner, finalPlayerHP: pHP, finalEnemyHP: eHP };
-  }
-
-  // ─── Theatre scheduler ────────────────────────────────────────────────────
-  // Virtual-time tick-based scheduler. Real-time UI drives it with setInterval.
-  // Tests drive it with large dt values.
-
-  function _fightDuration(sortieSeed, fightIdx, config) {
-    const rng = makePRNG(((sortieSeed ^ (fightIdx * 1000007)) >>> 0) || 1);
-    return config.FIGHT_DURATION_MIN +
-      Math.floor(rng() * (config.FIGHT_DURATION_MAX - config.FIGHT_DURATION_MIN));
-  }
-
-  function makeTheatreState(sortieSeed, config) {
-    config = config || THEATRE_CONFIG;
     return {
-      phase:         'fighting',   // 'fighting' | 'victory-downtime' | 'loss-downtime' | 'retreated'
-      fightIdx:      0,
-      elapsed:       0,
-      phaseDuration: config.BATTLE_TIME_SCALE !== undefined ? 0 : _fightDuration(sortieSeed, 0, config),
-      simulatedBattleTime: null,
-      pendingFight:  null,
-      results:       [],
-      sortieSeed,
-      wins:          0,
-      losses:        0,
+      events,
+      winner: playerHP === enemyHP ? 'draw' : playerHP > enemyHP ? 'player' : 'enemy',
+      finalPlayerHP: playerHP,
+      finalEnemyHP: enemyHP,
+      resolved: { player, enemy },
     };
   }
 
-  function _prepareCurrentFight(state, playerBuild, enemyPool, config) {
-    if (state.pendingFight) return;
-
-    const enemyIdx   = state.fightIdx % enemyPool.length;
-    const fightSeed  = ((state.sortieSeed * 1000 + state.fightIdx * 137 + 1) >>> 0) || 1;
-    const enemyBuild = buildFromEnemyData(enemyPool[enemyIdx]);
-    const simResult  = simulate(playerBuild, enemyBuild, fightSeed);
-    const finalEvent = simResult.events[simResult.events.length - 1];
-    const simulatedBattleTime = finalEvent ? finalEvent.time : 0;
-
-    state.pendingFight = {
-      enemyIdx,
-      enemyName:      enemyPool[enemyIdx].name,
-      enemyArchetype: enemyPool[enemyIdx].archetype,
-      winner:         simResult.winner,
-      finalPlayerHP:  simResult.finalPlayerHP,
-      finalEnemyHP:   simResult.finalEnemyHP,
-      events:         simResult.events,
-    };
-    state.simulatedBattleTime = simulatedBattleTime;
-
-    if (config.BATTLE_TIME_SCALE !== undefined) {
-      state.phaseDuration = Math.max(1, simulatedBattleTime) * config.BATTLE_TIME_SCALE;
-    } else {
-      // Backward-compatible test hook for callers that still pass fixed/random durations.
-      state.phaseDuration = _fightDuration(state.sortieSeed, state.fightIdx, config);
-    }
+  function buildTreeFromPlan(plan, prefix) {
+    let tree = createBuildTree();
+    plan.forEach((step, index) => {
+      tree = attachPartByDef(
+        tree,
+        step.parentNodeId,
+        step.hpId,
+        step.defId,
+        step.ownedInstanceId || `${prefix || 'plan'}-${index + 1}`
+      );
+    });
+    return tree;
   }
 
-  // Advance theatre by dtMs. Mutates state in place.
-  function tickTheatre(state, playerBuild, enemyPool, dtMs, config) {
-    if (state.phase === 'retreated') return;
-    config = config || THEATRE_CONFIG;
-
-    if (state.phase === 'fighting') _prepareCurrentFight(state, playerBuild, enemyPool, config);
-
-    state.elapsed += dtMs;
-
-    if (state.phase === 'fighting' && state.elapsed >= state.phaseDuration) {
-      const fightResult = state.pendingFight;
-
-      state.results.push(fightResult);
-      state.fightIdx++;
-
-      if (fightResult.winner === 'player') {
-        state.wins++;
-        state.phase         = 'victory-downtime';
-        state.phaseDuration = config.VICTORY_DOWNTIME;
-      } else {
-        state.losses++;
-        state.phase         = 'loss-downtime';
-        state.phaseDuration = config.LOSS_DOWNTIME;
-      }
-      state.elapsed = 0;
-      state.pendingFight = null;
-      return;
-    }
-
-    if ((state.phase === 'victory-downtime' || state.phase === 'loss-downtime')
-        && state.elapsed >= state.phaseDuration) {
-      state.phase         = 'fighting';
-      state.elapsed       = 0;
-      state.phaseDuration = config.BATTLE_TIME_SCALE !== undefined ? 0 : _fightDuration(state.sortieSeed, state.fightIdx, config);
-      state.simulatedBattleTime = null;
-      state.pendingFight  = null;
-      if (config.BATTLE_TIME_SCALE !== undefined) {
-        _prepareCurrentFight(state, playerBuild, enemyPool, config);
-      }
-    }
-  }
-
-  // ─── Pilot system ────────────────────────────────────────────────────────
-  const PILOT_CONDITIONS = ['Ready', 'Fatigued', 'Wounded', 'Out of Service'];
-
-  const PILOT_XP_TABLE = [0, 100, 220, 380, 580, 820];
-
-  function makePilotState() {
+  function buildEnemyTree(index) {
+    const enemy = ENEMY_POOL[index % ENEMY_POOL.length];
     return {
-      name:      'Aki',
-      level:     1,
-      xp:        0,
-      condition: 'Ready',
-      skills: {
-        missilePatternReader: { name: 'Missile Pattern Reader', progress: 0, max: 5 },
-        saberDuelSense:       { name: 'Saber Duel Sense',       progress: 0, max: 5 },
-        emergencyEgress:      { name: 'Emergency Egress',       progress: 0, max: 5 },
-      },
-      sorties: 0,
+      id: enemy.id,
+      name: enemy.name,
+      tree: buildTreeFromPlan(enemy.plan, `enemy-${enemy.id}`),
     };
   }
 
-  // ─── Sortie resolver (batch mode — used for V0.1 Battle and reward calc) ──
-  function runSortie(playerBuild, enemyPool, sortieSeed) {
-    const results = [];
-    for (let i = 0; i < enemyPool.length; i++) {
-      const fightSeed = ((sortieSeed * 1000 + i * 137 + 1) >>> 0) || 1;
-      const enemyData = enemyPool[i];
-      const enemyBuild = buildFromEnemyData(enemyData);
-      const simResult = simulate(playerBuild, enemyBuild, fightSeed);
-      results.push({
-        enemyIdx:       i,
-        enemyName:      enemyData.name,
-        enemyArchetype: enemyData.archetype || 'unknown',
-        winner:         simResult.winner,
-        finalPlayerHP:  simResult.finalPlayerHP,
-        finalEnemyHP:   simResult.finalEnemyHP,
-        events:         simResult.events,
+  function createStarterState() {
+    return {
+      round: 1,
+      wins: 0,
+      losses: 0,
+      gold: ECONOMY.startingGold,
+      tree: buildTreeFromPlan(STARTER_PLAN, 'starter-mounted'),
+      inventory: makeInventory([
+        'missile-rack',
+        'micro-missile',
+        'he-warhead',
+        'emp-warhead',
+        'hand-adapter',
+        'hand-adapter',
+        'hand-adapter',
+        'hand-adapter',
+        'hand-adapter',
+        'shoulder-cannon',
+        'pulse-blade',
+        'armor-plate',
+      ], 'owned'),
+      shop: generateShopOffers(1, 101),
+    };
+  }
+
+  function generateShopOffers(round, seed) {
+    const baseSeed = (seed === undefined ? 1 : seed) + round * 1009;
+    return BUYABLE_DEF_IDS
+      .slice()
+      .sort((a, b) => stableRank(baseSeed, 'shop', a) - stableRank(baseSeed, 'shop', b))
+      .slice(0, ECONOMY.shopSize)
+      .map((defId, index) => {
+        const def = requireDef(defId);
+        return {
+          offerId: `shop-${round}-${index}-${defId}`,
+          defId,
+          name: def.name,
+          cost: def.cost || Math.max(2, Math.ceil((statValue(def, 'damage') + statValue(def, 'hp') / 8 + statValue(def, 'weight')) / 6)),
+        };
       });
-    }
-    const wins   = results.filter(r => r.winner === 'player').length;
-    const losses = results.filter(r => r.winner === 'enemy').length;
-    return { results, wins, losses, sortieSeed, poolSize: enemyPool.length };
   }
 
-  function computeSortieRewards(sortieResult, pilot) {
-    const { results, wins, losses } = sortieResult;
-
-    const xpBase     = 20;
-    const xpPerWin   = 15;
-    const xpSurvival = results.filter(r => r.finalPlayerHP > 0).length * 3;
-    const xpGained   = xpBase + wins * xpPerWin + xpSurvival;
-
-    const lootGained = 3 + wins * 2 + Math.floor(losses * 0.5);
-
-    const lossRatio = losses / Math.max(1, results.length);
-    let newCondition;
-    if (pilot.condition === 'Out of Service') {
-      newCondition = 'Wounded';
-    } else if (lossRatio >= 0.7) {
-      newCondition = 'Wounded';
-    } else if (lossRatio >= 0.4) {
-      newCondition = 'Fatigued';
-    } else {
-      newCondition = 'Ready';
-    }
-
-    const missileEncounters = results.filter(r =>
-      r.events.some(ev => ev.itemId === 'missile-pod' && ev.attackerSide === 'enemy')
-    ).length;
-    const saberEncounters = results.filter(r =>
-      r.events.some(ev => ev.itemId === 'beam-saber' && ev.attackerSide === 'enemy')
-    ).length;
-
-    const skillProgress = {};
-    if (missileEncounters >= 3) skillProgress.missilePatternReader = 1;
-    if (saberEncounters   >= 2) skillProgress.saberDuelSense       = 1;
-
-    const lossCounts = {};
-    for (const r of results) {
-      if (r.winner === 'enemy') {
-        lossCounts[r.enemyArchetype] = (lossCounts[r.enemyArchetype] || 0) + 1;
-      }
-    }
-    const hardestArchetype = Object.entries(lossCounts).sort((a, b) => b[1] - a[1])[0];
-    const learningSignal = hardestArchetype
-      ? `Struggled against ${hardestArchetype[0]} enemies (${hardestArchetype[1]} losses). Counter their pattern before redeploying.`
-      : wins === results.length && results.length > 0
-        ? 'Swept the pool. The theatre will adapt — consider changing your build.'
-        : 'Solid sortie. Keep refining the build based on close fights.';
-
-    return { xpGained, lootGained, newCondition, skillProgress, learningSignal };
+  function collectSalvage(tree, prefix) {
+    return listNodes(tree)
+      .filter(node => node.nodeId !== 'frame')
+      .map((node, index) => remapOwnedIds(buildToOwned(node), `${prefix || 'salvage'}-${index + 1}`));
   }
 
-  function applyPilotRewards(pilot, rewards) {
-    const p = JSON.parse(JSON.stringify(pilot));
-    const { xpGained, newCondition, skillProgress } = rewards;
-
-    p.condition = newCondition;
-    p.xp        += xpGained;
-    p.sorties   += 1;
-
-    while (p.level < PILOT_XP_TABLE.length && p.xp >= PILOT_XP_TABLE[p.level]) {
-      p.xp    -= PILOT_XP_TABLE[p.level];
-      p.level += 1;
-    }
-    if (p.level >= PILOT_XP_TABLE.length) {
-      p.xp = Math.min(p.xp, PILOT_XP_TABLE[PILOT_XP_TABLE.length - 1] - 1);
-    }
-
-    for (const [key, delta] of Object.entries(skillProgress)) {
-      if (p.skills[key]) {
-        p.skills[key].progress = Math.min(p.skills[key].max, p.skills[key].progress + delta);
-      }
-    }
-
-    return p;
-  }
-
-  // ─── Shop generation ──────────────────────────────────────────────────────
-  function generateShopOffers(round) {
-    const itemIds = Object.keys(ITEMS);
-    const shuffled = itemIds.slice().sort(() => Math.random() - 0.5);
-    const items = shuffled.slice(0, ECONOMY.SHOP_SIZE - 1).map(id => ({
-      offerId: `offer-${Math.random().toString(36).slice(2)}`,
-      type:    'item',
-      itemId:  id,
-      cost:    ITEMS[id].cost,
-    }));
-    const bagPieceIds = Object.keys(BAG_PIECE_DEFS);
-    const bpId = bagPieceIds[Math.floor(Math.random() * bagPieceIds.length)];
-    const bp   = BAG_PIECE_DEFS[bpId];
-    return [...items, {
-      offerId:    `bp-offer-${Math.random().toString(36).slice(2)}`,
-      type:       'bag-piece',
-      bagPieceId: bpId,
-      name:       bp.name,
-      desc:       bp.desc,
-      cost:       bp.cost,
-      shape:      bp.shape,
-    }];
-  }
-
-  // ─── Public API ───────────────────────────────────────────────────────────
   return {
-    CANVAS_ROWS,
-    CANVAS_COLS,
-    STARTING_OWNED_COORDS,
-    ECONOMY,
-    THEATRE_CONFIG,
+    MAX_DEPTH,
     BASE_HP,
-    ITEMS,
-    BAG_PIECE_DEFS,
+    MAX_BATTLE_TICKS,
+    MAX_EVENTS,
+    ECONOMY,
+    PART_DEFS,
+    BUYABLE_DEF_IDS,
     ENEMY_POOL,
-    PILOT_CONDITIONS,
-    PILOT_XP_TABLE,
+    STARTER_PLAN,
 
+    clone,
     makePRNG,
-    rotateCW,
-    getRotatedCells,
-    getAbsoluteCells,
-    canPlace,
-    canPlaceBagPiece,
-    buildOccupiedSet,
+    hashString,
+    stableRank,
+    nextOwnedInstanceId,
 
-    getAdjacentItems,
-    computeEffectiveStats,
-    getActiveBonuses,
+    getDef,
+    getHardpoint,
+    createBuildTree,
+    createOwnedPart,
+    makeInventory,
+    getNode,
+    listNodes,
+    pathDepth,
+    ownedSubtreeDepth,
+    mountedSubtreeDepth,
+    countOwnedSubtree,
 
-    initBuild,
-    buildFromEnemyData,
-    placeItem,
-    removeItem,
-    addBagPiece,
-    computeHP,
-    nextIid,
+    canAttach,
+    attachOwnedPart,
+    attachPartByDef,
+    detachNode,
+    validateTree,
+    findEligibleSockets,
 
+    resolve,
+    orderReadyAttackers,
     simulate,
-    makeTheatreState,
-    tickTheatre,
-    runSortie,
-    computeSortieRewards,
-    applyPilotRewards,
-    makePilotState,
+
+    buildTreeFromPlan,
+    buildEnemyTree,
+    createStarterState,
     generateShopOffers,
+    collectSalvage,
   };
 });

@@ -1,0 +1,5 @@
+[
+	{"t": 0,  "source": "player", "target": "enemy",  "clip": "melee_saber"},
+	{"t": 30, "source": "enemy",  "target": "player", "clip": "hit_spark"},
+	{"t": 60, "source": "player", "target": "enemy",  "clip": "melee_saber"}
+]

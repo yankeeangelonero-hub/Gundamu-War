@@ -1,7 +1,8 @@
 # Pilot, Pilot-Fit, and War-Front — High-Level Specification and Spec Work Map
 
-Status: Draft refreshed 2026-06-06 (r2). The vision is locked (see wishlist r2) and the
-build stack is provisionally chosen (Godot 4.6 + GDScript, pending a confirmation spike).
+Status: Draft refreshed 2026-06-06 (r3). The vision is locked (see wishlist r2); release
+framing is Steam PC first, mobile-app compatible second, web optional; and the build stack
+is provisionally chosen (Godot 4.6 + GDScript, pending a confirmation spike).
 The recommended next test version is the deploy-decision prototype (KM-DEPLOY). No child
 spec enters implementation planning until the per-slice gates in §11 pass.
 Created: 2026-06-06
@@ -24,8 +25,9 @@ real players' stored builds in a living, contested war. Full intent is in the wi
 
 Mixed: new system, integration, and a platform port. The pilot, pilot-fit, and war layers
 are new systems; they integrate into the existing deterministic duel core; and the project
-moves from the plain-web JavaScript prototype to a Godot 4.6 / GDScript build, so the
-existing prototype becomes a reference to port rather than the shipping codebase.
+moves from the plain-web JavaScript prototype to a Steam-first/mobile-compatible Godot 4.6 /
+GDScript build, so the existing prototype becomes a reference to port rather than the shipping
+codebase. Web export is optional for demos/playtests, not the product target.
 
 ## 3. Current pain
 
@@ -62,8 +64,9 @@ all building toward an ace proven against other real players.
 
 ## 6. Allowed changes
 
-- CHG-001 — The renderer and runtime move to Godot 4.6 / GDScript; the JS prototype is
-  ported, not extended in place. The single-duel UI is reframed into the loop screens.
+- CHG-001 — The renderer and runtime move to Godot 4.6 / GDScript for a Steam-first,
+  mobile-compatible product; the JS prototype is ported, not extended in place. The
+  single-duel UI is reframed into the loop screens. Web export is optional.
 - CHG-002 — resolve may take pilot and fit input; simulate may admit pilot abilities and
   fit/sync effects as deterministic events, provided BEH-D01 and BEH-004 hold.
 - CHG-003 — The enemy provision becomes an injected opponent-build source: seeded ghost
@@ -85,9 +88,9 @@ all building toward an ace proven against other real players.
 - ARC-D04 — Determinism is the PvP enabler: a result must be reproducible from {builds, seed}
   so a headless re-simulation can verify it. The sim avoids float nondeterminism (integer/
   fixed-point logic, seeded PCG RNG).
-- ARC-D05 — Build target is Godot 4.6 + GDScript; GDScript specifically to preserve web
-  export (Godot 4 cannot export C# to the web). C++ via GDExtension is the only sanctioned
-  perf escape hatch.
+- ARC-D05 — Product target is Steam PC first and mobile-app compatible second. Build target
+  is Godot 4.6 + GDScript; web export is optional for demos/playtests, not a primary release
+  platform. C++ via GDExtension is the only sanctioned perf escape hatch.
 - ARC-D06 — Part, skill, gate, fit, ghost-build, and war-front definitions are data, not code.
 - ARC-D07 — No backend in the near-term prototype; opponents are local seeded ghosts. The
   architecture must not preclude the backend the war endgame needs. No 3D. No Gundam IP.
@@ -174,6 +177,9 @@ all building toward an ace proven against other real players.
 - [RESOLVED 2026-06-06] STACK-ADR-01 — Build stack. Resolved provisionally: Godot 4.6 +
   GDScript, pending the confirmation spike in the ADR §6. Evidence:
   docs/adrs/2026-06-06-build-stack-decision.md.
+- [RESOLVED 2026-06-06] OQ-006 — Release framing. Resolved: Steam PC is the primary release
+  target, mobile app compatibility is secondary, and web export is optional for demos/playtests
+  only. This strengthens the Godot choice and removes web as a release gate.
 - OQ-003 (non-blocking) — Minimal near-term war-state model (drift inputs; what it biases).
   Owner accepts it is a provisional grinder. Resolve thin inside KM-WAR.
 - OQ-004 (non-blocking) — How active pilot abilities and sync effects slot into ATB
@@ -190,7 +196,7 @@ docs/adrs/2026-06-06-build-stack-decision.md; the local Godot 4.6 docs corpus.
 
 | Spec ID | Title | Purpose | Type | Owns surfaces | Depends on | Risk | Initial decision |
 |---|---|---|---|---|---|---|---|
-| STACK-ADR-01 | Build stack | Confirm Godot 4.6 + GDScript via the §6 spike. | decision spike | — | none | high | keep (confirmation pending) |
+| STACK-ADR-01 | Build stack | Confirm Godot 4.6 + GDScript for Steam PC primary / mobile-compatible release via the §6 spike. | decision spike | — | none | high | keep (next build) |
 | KM-CORE-PORT | Sim core port | Port game-core.js to a pure deterministic GDScript core (tree, resolve, simulate, seeded PCG). | foundation contract | SURF-D09 | STACK-ADR-01 | high | keep |
 | KM-PILOT | Pilot record + growth | Pilot identity, XP/level, skills, sync ceiling, growth history; outcome transitions. | foundation contract | SURF-D06 | KM-CORE-PORT | high | keep |
 | KM-PILOT-FIT | Pilot-machine fit + sync | Layer 2: capacity vs demand, the fit readout, in-fight sync climbing to breakthrough; deterministic. The differentiator. | foundation contract | SURF-D07 | KM-PILOT, KM-DET | high | keep |
@@ -199,7 +205,7 @@ docs/adrs/2026-06-06-build-stack-decision.md; the local Godot 4.6 docs corpus.
 | KM-DET | Determinism + verify | Reaffirm BEH-D01/INV-D02 for new paths; the determinism + headless re-sim test contract. | cross-cutting contract | SURF-D09 | KM-CORE-PORT | high | parent-owned |
 | KM-OPP | Opponent-build source | The injected interface; seeded ghost builds near-term, network-shaped for later. | foundation contract | SURF-D10 | KM-CORE-PORT | med | keep |
 | KM-WAR | Local war-state | Thin provisional war-state: drift + what it biases. | foundation contract | SURF-D03 (data) | none | med | keep |
-| KM-DEPLOY | Deploy-decision test slice | The next test version: fit readout, the detune-vs-push gamble with projected sync/growth, a legible watched fight, a growth readout. | vertical feature spec | SURF-D02 | KM-PILOT-FIT, KM-ENG, KM-CORE-PORT | high | keep (next slice) |
+| KM-DEPLOY | Deploy-decision test slice | The next test version: a tiny editable-parts workshop (2–3 choices), fit readout, the detune-vs-push gamble with projected sync/growth, a legible watched fight, and a growth readout. | vertical feature spec | SURF-D01, SURF-D02 | KM-PILOT-FIT, KM-ENG, KM-CORE-PORT | high | keep (next playable slice) |
 | KM-WORKSHOP | Workshop fit-out journey | Kitbash + equip skills with gate feedback + fit/sync forecast; port/extend v0.4. | vertical feature spec | SURF-D01 | KM-PILOT-FIT, KM-GATE | med | keep |
 | KM-WATCH | Duel-watch journey | Wrap the duel with sync viz, pilot presence, war context; legibility-critical. | vertical feature spec | SURF-D04, SURF-D11 | KM-PILOT-FIT, KM-OPP, STACK-ADR-01 | high | keep |
 | KM-HOME | Homecoming/growth journey | Outcomes: XP/sync/skills, breakthroughs, salvage→fit; positive valence. | vertical feature spec | SURF-D05 | KM-PILOT, KM-PILOT-FIT | med | keep |
@@ -222,7 +228,7 @@ docs/adrs/2026-06-06-build-stack-decision.md; the local Godot 4.6 docs corpus.
 | KM-ENG | KM-CORE-PORT | Engineering budget lives in the core; feeds fit demand. |
 | KM-GATE | KM-PILOT | Gating consumes pilot skills/abilities. |
 | KM-OPP | KM-CORE-PORT | Opponent source feeds builds to the core. |
-| KM-DEPLOY | KM-PILOT-FIT, KM-ENG | The gamble is the fit/sync forecast over the engineering budget. |
+| KM-DEPLOY | KM-PILOT-FIT, KM-ENG | The gamble is the fit/sync forecast over a small editable part set and engineering budget. |
 | KM-WORKSHOP | KM-PILOT-FIT, KM-GATE | Fit-out renders fit/sync + gate feedback. |
 | KM-WATCH | KM-PILOT-FIT, KM-OPP, STACK-ADR-01 | Needs sync events, an opponent, and the confirmed renderer. |
 | KM-HOME | KM-PILOT, KM-PILOT-FIT | Growth writes the pilot record. |
@@ -279,7 +285,7 @@ flowchart LR
 | KM-DEPLOY | KM-HOME | KM-WATCH, KM-WORKSHOP | Shared fit/sim/render assumptions; settle fit first. |
 | KM-WATCH | KM-THEATRE | KM-DEPLOY, KM-WORKSHOP, KM-HOME | All touch combat/render surfaces. |
 
-Recommended wave 0: STACK-ADR-01 confirmation spike.
+Recommended wave 0: STACK-ADR-01 confirmation spike (next build; Steam PC + mobile compatibility, optional web).
 Recommended wave 1: KM-CORE-PORT only.
 Recommended wave 2: KM-PILOT, KM-ENG, KM-OPP, KM-WAR (parallel where §15 allows).
 Recommended wave 3: KM-DET, KM-GATE, then KM-PILOT-FIT.
@@ -315,7 +321,8 @@ recommended decision) and does not continue until the orchestrator accepts a dec
 ## 19. Recommended downstream artifact order
 
 1. STACK-ADR-01 — run the confirmation spike (Godot 4.6 + GDScript cutout rig, runtime
-   part-swap, FX, seeded sim, headless diff, web export). Unblocks the renderer-facing specs.
+   part-swap, FX, seeded sim, headless diff, Windows/Steam-PC smoke, mobile compatibility
+   smoke, optional web export). Unblocks the renderer-facing specs.
 2. KM-CORE-PORT — port the deterministic core to GDScript. (foundation)
 3. KM-PILOT, KM-ENG, KM-OPP, KM-WAR — foundations that depend only on the core. (foundation)
 4. KM-DET — determinism + verify contract. (cross-cutting)

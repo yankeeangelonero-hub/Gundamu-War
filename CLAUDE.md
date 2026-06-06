@@ -27,10 +27,10 @@ for intent and the work map for the plan before doing design or build work.
 
 ## Context for agents
 
-- The build target is Godot 4.6 using GDScript. GDScript specifically, because Godot 4
-  cannot export C# to the web and web playtest sharing is wanted. C++ via GDExtension is
-  the only sanctioned performance escape hatch. The choice is recorded in the stack ADR and
-  is provisional pending a confirmation spike.
+- The product target is Steam PC first and mobile-app compatible second. The build target is
+  Godot 4.6 using GDScript; web export is optional for demos/playtests, not the primary
+  product platform. C++ via GDExtension is the only sanctioned performance escape hatch. The
+  choice is recorded in the stack ADR and is provisional pending a confirmation spike.
 - The earlier prototype under `prototype/` is plain-web JavaScript (`game-core.js` is a
   pure deterministic core, `app.js` is a DOM renderer). It is a reference to port into the
   Godot build, not the shipping codebase.
@@ -53,15 +53,17 @@ for intent and the work map for the plan before doing design or build work.
 | `docs/wishlist/flows/` | Core-loop and homecoming user-flow diagrams. |
 | `docs/pilot-and-war-front-high-level-spec-and-work-map.md` | The high-level spec + decomposition (work map) — the build plan and invariants. |
 | `docs/adrs/2026-06-06-build-stack-decision.md` | Stack decision (Godot 4.6 + GDScript), provisional pending a confirmation spike. |
-| `agent-handoffs/Kitbash - Mechanics Handoff.md` | Owner's v0.4 mechanics design handoff (source for the three-layer model and the next test). |
-| `agent-handoffs/Kitbash - Art Handoff.md`, `agent-handoffs/kb-art-manifest.json` | Art direction and the part/anchor manifest. |
+| `docs/slices/KM-STACK-SPIKE-godot-platform-confirmation.md` | Ready slice spec for the first Godot confirmation spike. |
+| `agent-handoffs/claude-godot-km-stack-spike-prompt.md` | Claude Code implementation prompt for the Godot confirmation spike. |
+| `output/kitbash-approved-0e22-payload/kb-art-manifest.json` | Current part/anchor manifest and sprite payload for the spike. |
 | `Version Log.md`, `Roadmap.md`, `Kanban.md` | Version history, milestones, slice status. |
 
 ## Agents should not
 
 - Add a backend, database, or network endpoint in the near-term prototype. Architect so the
   later backend is not precluded, but do not build it now.
-- Use C# (it forecloses web export); use GDScript. Do not introduce 3D.
+- Use C# in the v0.4 spike/near-term build, or introduce 3D. Current direction is GDScript;
+  C# can only be re-opened by a later stack decision if optional web export is fully abandoned.
 - Add real Gundam IP, licensed names, or lore. Specifically no V-fin antenna, no split
   twin-eye visor, no RX-78 silhouette or trim. Original identity uses a mono-eye, a single
   visor band, or a full-face sensor plate.

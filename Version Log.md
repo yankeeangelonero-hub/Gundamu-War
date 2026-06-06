@@ -26,8 +26,9 @@ governed by a three-layer constraint model (machine engineering, pilot-machine f
 behavior) with pilot-fit as the star, expressed in combat as sync climbing toward a
 breakthrough rather than stress toward a breakdown.
 
-**Build target:** Godot 4.6 + GDScript (provisional; see the stack ADR). The earlier
-plain-web prototype is a reference to port.
+**Build target:** Godot 4.6 + GDScript (provisional; see the stack ADR). Product framing is
+Steam PC first and mobile-app compatible second; web export is optional for demos/playtests.
+The earlier plain-web prototype is a reference to port.
 
 **Design record:** docs/wishlist/wishlist.md (r2), docs/wishlist/flows/,
 docs/pilot-and-war-front-high-level-spec-and-work-map.md (r2),

@@ -17,7 +17,8 @@ until the per-slice gates in the work map (§11) pass.
 
 ### [KM-STACK-SPIKE] Godot 4.6 + GDScript confirmation spike
 Cutout rig from existing part sprites, runtime part-swap, one authored clip + one FX strip,
-seeded deterministic sim, headless re-sim diff, web export. Confirms the stack ADR.
+seeded deterministic sim, headless re-sim diff, Windows/Steam-PC smoke, mobile-compatibility
+smoke, optional web export. Confirms the stack ADR.
 
 ### [KM-CORE-PORT] Port the deterministic core to GDScript
 Tree, resolve, simulate, seeded PCG — the pure renderer-agnostic core, ported from
@@ -39,7 +40,8 @@ Inert-state semantics; already prototyped as ability chips.
 Injected; seeded ghost builds now, network-shaped for later.
 
 ### [KM-DEPLOY] Deploy-decision test version (next slice)
-The deploy gamble + legible watched fight + growth readout. The first v0.4 playable test.
+The tiny editable-parts workshop + deploy gamble + legible watched fight + growth readout. The
+first v0.4 playable test; includes 2–3 editable part choices because kitbashing must be playable.
 
 ### [KM-WORKSHOP] / [KM-WATCH] / [KM-HOME] / [KM-THEATRE]
 The loop screens around the test, sequenced after KM-DEPLOY per the work map.

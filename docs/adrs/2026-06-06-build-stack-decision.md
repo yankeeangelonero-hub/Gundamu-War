@@ -1,11 +1,13 @@
 # Build Stack for Rigged 2D + Relationship + War-Front Layers — Decision Spike / ADR
 
-Status: Active — provisional lean to Godot 4.6 + GDScript after reading the 4.6 docs
-against the hardened vision. Evidence is now strong enough to lead with Godot; a focused
-confirmation spike (§6) remains before it is final.
+Status: Active — product target confirmed as Steam PC first, mobile-app compatible second,
+with optional web demos/playtests. Godot 4.6 + GDScript is the lead stack after reading the
+4.6 docs against the hardened vision; a focused confirmation spike (§6) remains before it is
+final.
 Created: 2026-06-06
 Revised: 2026-06-06 (evidence pass against the local Godot 4.6 docs corpus; vision
-hardened to async-PvP endgame; recommendation flipped from web-native lean to Godot lean)
+hardened to async-PvP endgame; release framing confirmed as Steam PC primary / mobile-app
+compatible / web optional; recommendation flipped from web-native lean to Godot lean)
 Blocker ID: STACK-ADR-01 (to be registered in the root work map at
 docs/pilot-and-war-front-high-level-spec-and-work-map.md)
 
@@ -22,7 +24,7 @@ renderer-agnostic, deterministic module regardless of stack.
 
 The stack determines how the kitbash tree maps onto a 2D rig, how parts swap at runtime,
 how attack animations and hit effects are authored, the art pipeline the art handoff
-targets, the deploy/playtest-sharing story, whether the existing pure JS sim is reused or
+targets, the Steam/mobile build story, whether the existing pure JS sim is reused or
 ported, and — newly load-bearing — how the deterministic sim is run server-side to verify
 async-PvP results. The duel-watch spec (KM-WATCH) and the rig half of the workshop spec
 (KM-WORKSHOP) cannot be written concretely until this is settled. It does not block the
@@ -76,18 +78,20 @@ docs.godotengine.org/en/4.6):
   (tutorials/networking/http_request_class.md.)
 - FACT-012 — Web export works (WebAssembly + WebGL 2.0 / Compatibility renderer);
   single-threaded web export is the default since 4.3 and is compatible with itch.io/Poki/
-  CrazyGames. (tutorials/export/exporting_for_web.md.)
-- FACT-013 — Godot 4 C# projects CANNOT be exported to the web. To keep web playtest
-  sharing open, the project must use GDScript, not C#. (tutorials/export/exporting_for_web.md.)
+  CrazyGames. Web is now optional for demos/playtests rather than the main product target.
+  (tutorials/export/exporting_for_web.md.)
+- FACT-013 — Godot 4 C# projects CANNOT be exported to the web. Since web remains a useful
+  optional demo/playtest path, GDScript is preferred; if web is fully abandoned later, C# can
+  be re-evaluated but is not the current direction. (tutorials/export/exporting_for_web.md.)
 - FACT-014 — Multiple languages are available (GDScript, C#, C/C++ via GDExtension); C++
   GDExtension is the performance escape hatch if a hot path needs it.
   (getting_started/step_by_step/scripting_languages.md.)
 
 Assumptions:
 
-- ASSUMPTION-001 — Web playtest sharing is wanted near-term (lightweight build links) and a
-  web client is plausible long-term. If web is firmly never needed, the C# constraint
-  (FACT-013) stops mattering.
+- ASSUMPTION-001 — Product framing is Steam PC first and mobile-app compatible second. Web
+  export is optional for demos/playtests; it should not drive the product architecture or
+  become a release gate unless the owner re-promotes web.
 - ASSUMPTION-002 — The combat sim is a turn/ATB logic sim, not a physics sim, so float
   cross-platform nondeterminism is avoidable by integer/fixed-point logic and a seeded PRNG.
 
@@ -95,7 +99,7 @@ Assumptions:
 
 | Option | Description | What it enables | Main risk |
 |---|---|---|---|
-| A — Godot 4.6 + GDScript (lean) | Native cutout Sprite2D rig = the kitbash tree; AnimatedSprite2D/particles/shaders for FX; AnimationTree + procedural code for juice; seeded PCG sim ported to deterministic GDScript; --headless for server re-sim verification; HTTPRequest for backend; web + native export. | Native coverage of the central rig/FX requirement and the full PvP-infra requirement (determinism, headless verify, HTTP) in one engine that matches the existing art pipeline. | UI-heavy meta layers less ergonomic than web; web build heavier than a web app; must port the JS sim to GDScript; C# foreclosed if web is kept. |
+| A — Godot 4.6 + GDScript (lean) | Native cutout Sprite2D rig = the kitbash tree; AnimatedSprite2D/particles/shaders for FX; AnimationTree + procedural code for juice; seeded PCG sim ported to deterministic GDScript; --headless for server re-sim verification; HTTPRequest for backend; Steam/mobile/native export; optional web export. | Native coverage of the central rig/FX requirement, Steam/mobile product targets, and the full PvP-infra requirement (determinism, headless verify, HTTP) in one engine that matches the existing art pipeline. | UI-heavy meta layers less ergonomic than web; must port the JS sim to GDScript; mobile ergonomics/performance still need proof; web build is optional but heavier than a web app. |
 | B — Web-native (Pixi + skeletal runtime + component UI) | Reuse the JS sim; render rig/effects with PixiJS + DragonBones/Spine/own bone-tree; meta UI in React/Svelte; Node server re-runs the JS sim to verify PvP. | Best meta-UI ergonomics; lightest web sharing; one language (JS) on client and verify-server; reuses game-core.js. | You assemble the rig + skeletal + procedural-juice + FX systems yourself — exactly the part Godot gives natively and the art pipeline already targets. |
 | C — Unity (2D) | Sprite Library/Resolver for swappable parts; strong live-service backend ecosystem; mature effects; C#. | Best-in-class swappable-part rigging and live-service tooling. | Heaviest; slow iteration; licensing; poor lightweight web sharing; full sim rewrite to C#; overkill now. |
 | D — Phaser + skeletal runtime | Lighter web game framework with a Spine/DragonBones plugin. | Simpler than hand-assembling Pixi; stays web. | Weaker than B for the heavy meta-UI and weaker than A for the action/FX/procedural layer; middle option that wins nothing outright. |
@@ -114,7 +118,9 @@ renderer-agnostic core, and opponent builds are an injected data source (static 
 | Authored clips + procedural juice + flipbook FX | Yes | The watch-with-stakes experience; matches existing art. | Native (FACT-007/008) | Build it |
 | Sim ⊥ animation separation | Yes | Skippable/replayable battles. | Yes (sim is pure) | Yes |
 | Strong UI for relationship + macro layers | Yes | Those layers are half the game. | Control nodes (workable) | React/Svelte (best) |
-| Web playtest sharing | Preferred | Frequent playtest; possible web client. | Yes, GDScript only (FACT-012/013) | Best (native web) |
+| Steam PC release path | Yes | Primary product target. | Native desktop export | Wrapper/Electron or separate shell needed |
+| Mobile app compatibility | Yes | Secondary product target. | Native Android/iOS export path; touch UI still must be designed | Wrapper/Capacitor or custom native shell |
+| Optional web demo/playtest | Nice-to-have | Useful for fast sharing, no longer primary. | Yes, GDScript only (FACT-012/013), heavier | Best (native web) |
 | Backend/REST for stored builds + matchmaking | Preferred | The endgame. | HTTPRequest (FACT-011) | fetch + Node |
 | Matches the existing art pipeline | Preferred | Art already produced as cutout parts + FX strips. | Direct (FACT-003/007) | Adapter work |
 | License/cost | Preferred | — | Free/OSS | Free (Spine paid if used) |
@@ -134,17 +140,21 @@ Run STACK-ADR-01 as a bounded, throwaway Godot 4.6 (GDScript) spike:
 | 2 | Swap a part at runtime (e.g. saber → rifle on the hand anchor) driven by a small kitbash-tree structure. | Confirms runtime part-swap ergonomics. |
 | 3 | Play one authored attack clip + one flipbook FX strip (fx_saber_blade / fx_hit_spark) with a little procedural juice. | Confirms the animation + FX + juice pipeline. |
 | 4 | Drive the scene from a canned deterministic event list and a seeded RandomNumberGenerator; run the same script with --headless and diff the result. | Confirms determinism + headless server-verify parity. |
-| 5 | Single-threaded web export of the spike. | Confirms web playtest-sharing build. |
+| 5 | Export or at least runnable-build smoke the spike for Windows desktop, with fullscreen/window scaling checked. | Confirms Steam PC product path. |
+| 6 | Mobile compatibility check: Android export if templates/devices are available, otherwise a portrait/landscape touch-target smoke inside the Godot project plus a documented blocker. | Confirms mobile-app path enough for this stage. |
+| 7 | Optional single-threaded web export. | Nice-to-have only; does not block if Steam/mobile evidence passes. |
 
 Keep it throwaway. Do not productionize without explicit approval.
 
 ## 7. Recommendation
 
 Recommendation: Decide now to build on Godot 4.6 + GDScript (provisional pending the §6
-confirmation spike). Keep the simulation a pure, deterministic, renderer-agnostic core.
-Confidence: high that Godot covers every load-bearing requirement natively; medium-high on
-the overall choice pending the spike's ergonomics check; high that, if Godot, the language
-must be GDScript (C# forecloses web export, FACT-013).
+confirmation spike), with Steam PC as the primary release target, mobile app compatibility
+as the secondary target, and web as an optional demo/playtest export. Keep the simulation a
+pure, deterministic, renderer-agnostic core. Confidence: high that Godot covers every
+load-bearing requirement natively; medium-high on the overall choice pending the spike's
+ergonomics check; high that GDScript is the right first language because it is Godot-native
+and preserves optional web export.
 
 Why this flips my earlier web-native lean: the vision hardened in two ways that web-native
 no longer answers best. First, the experience now centers on a rich animated rigged-2D +
@@ -154,18 +164,20 @@ skeletal runtime yourself. Second, the endgame is async PvP whose fairness rests
 deterministic re-simulation server-side — Godot does this natively with seeded PCG RNG and
 --headless (FACT-009/010), and HTTPRequest covers the backend (FACT-011). Web-native's two
 real advantages — best meta-UI ergonomics and lightest web sharing — remain true but no
-longer outweigh native coverage of the harder requirements, especially since Godot also
-exports to the web (GDScript) (FACT-012).
+longer outweigh native coverage of the harder requirements, especially now that the product
+target is Steam PC first and mobile-app compatible second rather than web-first.
 
 Costs accepted: porting the small game-core.js to a deterministic GDScript core (tractable,
 and arguably needed for client/server parity anyway); less ergonomic data-heavy UI in
 Control nodes than in a web component framework; a heavier web build than a plain web app;
-and committing to GDScript over C# to preserve web export (with C++ GDExtension as the perf
-escape hatch). None touch a load-bearing requirement.
+and committing to GDScript over C# for tight Godot iteration while keeping optional web export
+(with C++ GDExtension as the perf escape hatch). None touch a load-bearing requirement.
 
-Fallback: if the §6 spike shows runtime part-swap ergonomics or the data-heavy UI are worse
-in practice than the docs imply, fall back to Option B (web-native), reusing game-core.js
-directly. Options C and D are not recommended.
+Fallback: if the §6 spike shows runtime part-swap ergonomics, mobile/desktop export, or the
+data-heavy UI are worse in practice than the docs imply, re-open the stack decision. For a
+Steam/mobile product, the likely fallback is still a game engine or a web-native build wrapped
+for desktop/mobile; Option B only wins if UI iteration dominates the rigged-combat requirement.
+Options C and D are not recommended yet.
 
 ## 8. Consequences
 
@@ -174,14 +186,16 @@ KM-WORKSHOP once the spike confirms ergonomics, and lets the art handoff target 
 Sprite2D pipeline with the manifest anchors it already has.
 
 The pure logic/data contracts in the work map — KM-PILOT, KM-DET, KM-GATE, KM-WAR,
-KM-GHOST — stay largely stack-independent; only their presentation waits on this. The
+KM-OPP — stay largely stack-independent; only their presentation waits on this. The
 existing game-core.js becomes a reference to port, not the shipping core.
 
 New constraints to add to the root spec: (1) the simulation stays a pure, deterministic,
 renderer-agnostic core; (2) opponent builds are an injected data source behind one
-interface; (3) if Godot is confirmed, the project language is GDScript to preserve web
-export. The near-term "no backend" rule stands for the prototype but is explicitly
-near-term; the endgame adds a backend the architecture must not preclude.
+interface; (3) if Godot is confirmed, the product target is Steam PC first and mobile-app
+compatible second, with web export optional; (4) the project language is GDScript unless a
+later spike proves a stronger reason to switch. The near-term "no backend" rule stands for
+the prototype but is explicitly near-term; the endgame adds a backend the architecture must
+not preclude.
 
 Risk accepted: a short confirmation spike before rendering specs, and a one-time sim port.
 
@@ -191,8 +205,9 @@ The experience-mockup pass is unaffected and continues in parallel.
 
 - Non-blocking: confirm the §6 spike result before finalizing (ergonomics of manifest-driven
   part-swap and data-heavy Control UI). Owner/build session.
-- Non-blocking: confirm web playtest sharing is actually wanted — it is the main reason to
-  prefer GDScript over C#. If web is firmly out, C# reopens (but loses web). Owner.
+- [RESOLVED 2026-06-06] OQ-PLATFORM — Product target. Resolved by owner: Steam PC first,
+  mobile-app compatible second, web optional for demos/playtests. This strengthens Godot and
+  removes web export as a primary release gate.
 - Non-blocking: where the PvP verify-server runs headless Godot (own host vs managed) —
   a backend/ops question for the endgame, not the near-term renderer. Owner; can wait.
 - Resolved by evidence: C# is not viable if web export is wanted (FACT-013) → GDScript.
@@ -213,7 +228,7 @@ pending the §6 confirmation spike.
 Artifacts unblocked once the spike confirms: KM-WATCH and the rig half of KM-WORKSHOP, plus
 the art-pipeline target (cutout Sprite2D + manifest anchors).
 
-Artifacts independent of this regardless: KM-PILOT, KM-DET, KM-GATE, KM-WAR, KM-GHOST.
+Artifacts independent of this regardless: KM-PILOT, KM-DET, KM-GATE, KM-WAR, KM-OPP.
 
 ## 11. ADR self-check
 

@@ -188,19 +188,23 @@ about earning ascent.
 
 ## Technology the owner is committing to
 
-These are stated as wishes because they are settled anchors, not derived choices. The build
-target is Godot 4.6 using GDScript, chosen after evaluating the engine against the rigged-2D
-kitbash, the effects pipeline, deterministic simulation, and the server-side re-simulation
-the PvP endgame needs; GDScript specifically because Godot 4 cannot export C# to the web and
-web playtest sharing is wanted. The reasoning is recorded in
+These are stated as wishes because they are settled anchors, not derived choices. The product
+target is Steam PC first and mobile-app compatible second, with optional web demos/playtests.
+The build target is Godot 4.6 using GDScript, chosen after evaluating the engine against the
+rigged-2D kitbash, the effects pipeline, deterministic simulation, native desktop/mobile
+release paths, and the server-side re-simulation the PvP endgame needs. GDScript remains the
+near-term language because it is Godot-native and preserves optional web export; C# is not
+part of the v0.4 spike. The reasoning is recorded in
 docs/adrs/2026-06-06-build-stack-decision.md and remains provisional pending a confirmation
 spike. The simulation is kept a pure, deterministic, renderer-agnostic core, separate from
 the animation that plays it back, so a fight can be skipped, replayed, or re-simulated
 server-side from the same build and seed. Part definitions are data, not code. There is no
 3D. No licensed Gundam IP appears anywhere — specifically no V-fin antenna, no split
 twin-eye visor, no RX-78 silhouette or trim; original identity uses a mono-eye, a single
-visor band, or a full-face sensor plate. The prototype runs locally with no backend; the
-backend that the war endgame needs is a later addition the architecture must not preclude.
+visor band, or a full-face sensor plate. The product target is Steam PC first and mobile-app
+compatible second. Web export is optional for demos/playtests rather than the primary product
+platform. The prototype runs locally with no backend; the backend that the war endgame needs
+is a later addition the architecture must not preclude.
 
 ## Where the rest of the wishlist lives
 

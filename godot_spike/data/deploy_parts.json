@@ -1,0 +1,143 @@
+{
+	"seed": 40406,
+	"pilot": {
+		"id": "pilot_ari_voss",
+		"name": "Ari Voss",
+		"capacity": 48,
+		"sync_ceiling": 100,
+		"xp": 0,
+		"breakthrough_progress": 20
+	},
+	"base_mech": {
+		"id": "base_kiteframe",
+		"name": "Kiteframe-01",
+		"damage": 24,
+		"defense": 12,
+		"initiative": 10,
+		"dodge": 8,
+		"sync_gain": 6,
+		"demand": 24
+	},
+	"ghost_opponent": {
+		"id": "ghost_redline",
+		"name": "Redline Ghost",
+		"hp": 165,
+		"damage": 30,
+		"defense": 11,
+		"initiative": 10,
+		"dodge": 9,
+		"sync_pressure": 6
+	},
+	"slots": [
+		{
+			"id": "weapon",
+			"label": "Weapon",
+			"default": "light_rifle",
+			"parts": ["light_rifle", "heavy_saber"]
+		},
+		{
+			"id": "booster",
+			"label": "Booster",
+			"default": "stable_thruster",
+			"parts": ["stable_thruster", "high_output_booster"]
+		},
+		{
+			"id": "armor",
+			"label": "Armor",
+			"default": "light_plating",
+			"parts": ["light_plating", "heavy_shield"]
+		}
+	],
+	"parts": [
+		{
+			"id": "light_rifle",
+			"slot": "weapon",
+			"label": "Light Rifle",
+			"description": "Clean fire pattern, low fit demand.",
+			"visual": "rifle",
+			"demand": 4,
+			"combat": {
+				"damage": 10,
+				"defense": 0,
+				"initiative": 3,
+				"dodge": 0,
+				"sync_gain": 2
+			}
+		},
+		{
+			"id": "heavy_saber",
+			"slot": "weapon",
+			"label": "Heavy Saber",
+			"description": "High-output close weapon, harder to synchronize.",
+			"visual": "saber",
+			"demand": 16,
+			"combat": {
+				"damage": 24,
+				"defense": -1,
+				"initiative": -2,
+				"dodge": 0,
+				"sync_gain": 5
+			}
+		},
+		{
+			"id": "stable_thruster",
+			"slot": "booster",
+			"label": "Stable Thruster",
+			"description": "Predictable handling and clean sync ramps.",
+			"visual": "stat",
+			"demand": 5,
+			"combat": {
+				"damage": 0,
+				"defense": 0,
+				"initiative": 4,
+				"dodge": 3,
+				"sync_gain": 2
+			}
+		},
+		{
+			"id": "high_output_booster",
+			"slot": "booster",
+			"label": "High Booster",
+			"description": "More opening speed, more fit demand.",
+			"visual": "stat",
+			"demand": 18,
+			"combat": {
+				"damage": 0,
+				"defense": -2,
+				"initiative": 10,
+				"dodge": 5,
+				"sync_gain": 4
+			}
+		},
+		{
+			"id": "light_plating",
+			"slot": "armor",
+			"label": "Light Plating",
+			"description": "Low-burden armor that keeps movement readable.",
+			"visual": "stat",
+			"demand": 4,
+			"combat": {
+				"damage": 0,
+				"defense": 5,
+				"initiative": 0,
+				"dodge": 1,
+				"sync_gain": 1
+			}
+		},
+		{
+			"id": "heavy_shield",
+			"slot": "armor",
+			"label": "Heavy Shield",
+			"description": "More protection, slower handling.",
+			"visual": "stat",
+			"demand": 13,
+			"combat": {
+				"damage": -1,
+				"defense": 13,
+				"initiative": -1,
+				"dodge": -2,
+				"sync_gain": 1
+			}
+		}
+	]
+}

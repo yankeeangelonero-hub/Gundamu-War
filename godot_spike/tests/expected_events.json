@@ -1,0 +1,17 @@
+{
+	"_note": "Reference output for the determinism proof. Generate by running deterministic_check.gd once, then use as the diff baseline.",
+	"_status": "NOT YET GENERATED — Godot 4.6 executable required.",
+	"_instructions": [
+		"1. Install Godot 4.6 (https://godotengine.org/download/)",
+		"2. Open the project once in the editor to trigger asset import:",
+		"   $GODOT --editor --path godot_spike",
+		"3. Generate run 1:",
+		"   $GODOT --headless --path godot_spike --script res://scripts/deterministic_check.gd -- --out res://tmp/events_run1.json",
+		"4. Generate run 2:",
+		"   $GODOT --headless --path godot_spike --script res://scripts/deterministic_check.gd -- --out res://tmp/events_run2.json",
+		"5. Diff:",
+		"   diff godot_spike/tmp/events_run1.json godot_spike/tmp/events_run2.json",
+		"6. Expected result: no diff output => PASS deterministic event log identical",
+		"7. Copy godot_spike/tmp/events_run1.json here as the authoritative reference."
+	]
+}

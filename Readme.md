@@ -42,12 +42,13 @@ docs/pilot-and-war-front-high-level-spec-and-work-map.md. The next test version 
 deploy-decision prototype: the single choice of pushing the pilot for a breakthrough or
 playing a safe fit, which contains the whole pilot-fit and growth thesis in one decision.
 
-The build target is Godot 4.6 using GDScript, chosen after evaluating the engine against the
-rigged-2D kitbash, the effects pipeline, deterministic simulation, and the server-side
-re-simulation the war endgame needs; the reasoning is in
+The product target is Steam PC first and mobile-app compatible second. The build target is
+Godot 4.6 using GDScript, chosen after evaluating the engine against the rigged-2D kitbash,
+the effects pipeline, deterministic simulation, native desktop/mobile release paths, and the
+server-side re-simulation the war endgame needs; the reasoning is in
 docs/adrs/2026-06-06-build-stack-decision.md and is provisional pending a confirmation spike.
-The earlier plain-web prototype under prototype/ is kept as a reference to port, not as the
-shipping code.
+Web export is optional for demos/playtests, not the main product target. The earlier plain-web
+prototype under prototype/ is kept as a reference to port, not as the shipping code.
 
 ## Constraints that hold across the project
 
@@ -55,5 +56,6 @@ There is no 3D and no licensed Gundam IP anywhere — no V-fin, no split twin-ey
 RX-78 silhouette or trim; original identity uses a mono-eye, a single visor band, or a
 full-face sensor plate. The near-term prototype runs locally with no backend, and opponents
 are local seeded ghost builds shaped like real-player builds; the backend the war endgame
-needs is a later addition the architecture must not preclude. The simulation stays pure,
+needs is a later addition the architecture must not preclude. Web-first product constraints
+are out of scope unless explicitly re-promoted. The simulation stays pure,
 deterministic, and separate from the animation that plays it back.

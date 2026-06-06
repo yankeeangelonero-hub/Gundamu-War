@@ -122,9 +122,10 @@ designer, or a real player. Provenance never leaks into the sim or the renderer.
 Parts, skills, gates, fits, ghost builds, and war fronts are data, not code.
 
 ### ARC-004 — Stack and platform
-The build target is Godot 4.6 with GDScript (GDScript to preserve web export). No 3D. No
-backend in the near-term prototype, but the architecture must not preclude the backend the
-war endgame needs.
+The product target is Steam PC first and mobile-app compatible second. The build target is
+Godot 4.6 with GDScript; web export is optional for demos/playtests, not the primary product
+platform. No 3D. No backend in the near-term prototype, but the architecture must not
+preclude the backend the war endgame needs.
 
 ### ARC-005 — No licensed IP
 No Gundam names, factions, lore, or trademarked silhouettes — specifically no V-fin antenna,
@@ -133,8 +134,9 @@ single visor band, or a full-face sensor plate.
 
 ## What is out of near-term scope
 
-Recorded so it is not mistaken for the next build: the networked backend and real-player
-opponents; the two-faction, game-master-steered live war with developer events; a stable of
+Recorded so it is not mistaken for the next build: web-first product support, the networked
+backend and real-player opponents; the two-faction, game-master-steered live war with
+developer events; a stable of
 multiple pilots; slice-of-life relationship activities; the opt-in pilot-behaviour rule layer
 and any visual AI beyond it; grunts in the field; and research as a second use for salvage.
 These are wanted later; the wishlist holds them as deferred wishes.

@@ -1,0 +1,22 @@
+{
+	"_comment": "Minimal subset of kb-art-manifest.json for KM-STACK-SPIKE. Values are exact copies from the manifest.",
+	"frame": {
+		"sprite": "rig_frame.png",
+		"canvas": [360, 620],
+		"hardpoints": {
+			"torso":      [0.51, 0.41],
+			"forearm_r":  [0.69, 0.46],
+			"hand_r":     [0.70, 0.56]
+		}
+	},
+	"parts": {
+		"torso":   { "sprite": "rig_torso.png",   "pivot": [110, 30],  "depthPlane": 3 },
+		"forearm": { "sprite": "rig_forearm.png",  "pivot": [50,  14],  "depthPlane": 5 },
+		"saber":   { "sprite": "rig_saber.png",    "pivot": [30,  180], "depthPlane": 6 },
+		"rifle":   { "sprite": "rig_rifle.png",    "pivot": [45,  205], "depthPlane": 6 }
+	},
+	"fx": {
+		"saber_blade": { "frames": 4, "fps": 8,  "loop": true  },
+		"hit_spark":   { "frames": 4, "fps": 12, "loop": false }
+	}
+}

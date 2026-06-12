@@ -2,10 +2,13 @@ extends Node3D
 
 const CityBuilder := preload("res://scripts/city_builder.gd")
 const MechActor := preload("res://scripts/mech_actor.gd")
+const Director := preload("res://scripts/director.gd")
+const FightLog := preload("res://scripts/fight_log.gd")
 
 var camera: Camera3D
 var mech_a: Node3D
 var mech_b: Node3D
+var director: Node3D
 
 func _ready() -> void:
 	CityBuilder.build_environment(self)
@@ -33,3 +36,13 @@ func _ready() -> void:
 		img.save_png("res://tmp/still.png")
 		print("still saved")
 		get_tree().quit()
+		return
+	var events := FightLog.load_events("res://data/fight_log.json")
+	var dur := FightLog.duration_sec(events)
+	var shots := Director.build_shot_list(events, dur)
+	director = Director.new()
+	add_child(director)
+	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
+	director.fight_over.connect(func():
+		await get_tree().create_timer(1.0).timeout
+		get_tree().quit())

@@ -13,6 +13,7 @@ func check(cond: bool, label: String) -> void:
 func _initialize() -> void:
 	_check_fight_log()
 	_check_shot_list()
+	_check_variant_loader()
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)
 
@@ -82,3 +83,22 @@ func _check_shot_list() -> void:
 	check(shots[-1].mode == "orbit", "final shot is the wreck orbit")
 	var normal := shots.filter(func(s): return s.mode != "killcam")
 	check(normal.all(func(s): return absf(float(s.time_scale) - 1.0) < 0.001), "only killcam changes time_scale")
+
+func _check_variant_loader() -> void:
+	var FightLog := load("res://scripts/fight_log.gd")
+	var Director := load("res://scripts/director.gd")
+	var Cinematic := load("res://scripts/directors/cinematic.gd")
+	check(Cinematic != null, "cinematic variant script loads")
+	var events: Array = FightLog.load_events("res://data/fight_log.json")
+	var dur: float = FightLog.duration_sec(events)
+	var base: Array = Director.build_shot_list(events, dur)
+	var variant: Array = Cinematic.build_shot_list(events, dur)
+	check(variant.size() == base.size(), "cinematic shot list same size as base (%d vs %d)" % [variant.size(), base.size()])
+	var same := variant.size() == base.size()
+	if same:
+		for i in base.size():
+			if variant[i].mode != base[i].mode \
+					or absf(float(variant[i].t0) - float(base[i].t0)) > 0.001 \
+					or absf(float(variant[i].t1) - float(base[i].t1)) > 0.001:
+				same = false
+	check(same, "cinematic shot list identical to base (modes in order, t0/t1 within 0.001)")

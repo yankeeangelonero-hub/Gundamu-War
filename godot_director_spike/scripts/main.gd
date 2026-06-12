@@ -2,7 +2,6 @@ extends Node3D
 
 const CityBuilder := preload("res://scripts/city_builder.gd")
 const MechActor := preload("res://scripts/mech_actor.gd")
-const Director := preload("res://scripts/director.gd")
 const FightLog := preload("res://scripts/fight_log.gd")
 const Garnish := preload("res://scripts/garnish.gd")
 const SpikeAudio := preload("res://scripts/spike_audio.gd")
@@ -19,6 +18,16 @@ func _process(_delta: float) -> void:
 		_fps_samples.append(Performance.get_monitor(Performance.TIME_FPS))
 
 func _ready() -> void:
+	var director_name := "cinematic"
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--director="):
+			director_name = arg.trim_prefix("--director=")
+	var director_path := "res://scripts/directors/%s.gd" % director_name
+	if not ResourceLoader.exists(director_path):
+		push_error("Unknown director variant '%s': %s does not exist" % [director_name, director_path])
+		get_tree().quit(1)
+		return
+	var DirectorScript: GDScript = load(director_path)
 	CityBuilder.build_environment(self)
 	CityBuilder.build(self)
 	mech_a = MechActor.new()
@@ -41,8 +50,8 @@ func _ready() -> void:
 		await get_tree().create_timer(2.0).timeout
 		var img := get_viewport().get_texture().get_image()
 		DirAccess.make_dir_recursive_absolute("res://tmp")
-		img.save_png("res://tmp/still.png")
-		print("still saved")
+		img.save_png("res://tmp/still_%s.png" % director_name)
+		print("still saved: tmp/still_%s.png" % director_name)
 		get_tree().quit()
 		return
 	var layer := CanvasLayer.new()
@@ -53,8 +62,8 @@ func _ready() -> void:
 	layer.add_child(_fade)
 	var events := FightLog.load_events("res://data/fight_log.json")
 	var dur := FightLog.duration_sec(events)
-	var shots := Director.build_shot_list(events, dur)
-	director = Director.new()
+	var shots: Array = DirectorScript.build_shot_list(events, dur)
+	director = DirectorScript.new()
 	add_child(director)
 	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
 	var garnish := Garnish.new()

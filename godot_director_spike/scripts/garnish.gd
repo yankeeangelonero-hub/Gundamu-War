@@ -20,7 +20,7 @@ func _on_event(e: Dictionary) -> void:
 		"fire_burst":
 			_burst(shooter, target, e.payload)
 		"destroyed":
-			_explosion(target.position + Vector3(0, 9, 0))
+			_explosion(shooter.position + Vector3(0, 9, 0))
 
 func _other(a: String) -> String:
 	return "B" if a == "A" else "A"

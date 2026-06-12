@@ -11,6 +11,12 @@ var camera: Camera3D
 var mech_a: Node3D
 var mech_b: Node3D
 var director: Node3D
+var _fps_samples: Array[float] = []
+var _fade: ColorRect
+
+func _process(_delta: float) -> void:
+	if Engine.get_process_frames() % 30 == 0:
+		_fps_samples.append(Performance.get_monitor(Performance.TIME_FPS))
 
 func _ready() -> void:
 	CityBuilder.build_environment(self)
@@ -39,6 +45,12 @@ func _ready() -> void:
 		print("still saved")
 		get_tree().quit()
 		return
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 0)
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(_fade)
 	var events := FightLog.load_events("res://data/fight_log.json")
 	var dur := FightLog.duration_sec(events)
 	var shots := Director.build_shot_list(events, dur)
@@ -52,5 +64,11 @@ func _ready() -> void:
 	add_child(audio)
 	audio.wire(director)
 	director.fight_over.connect(func():
-		await get_tree().create_timer(1.0).timeout
+		create_tween().tween_property(_fade, "color:a", 1.0, 2.0)
+		await get_tree().create_timer(2.2).timeout
+		_fps_samples.sort()
+		if _fps_samples.size() > 2:
+			print("FPS min=%d  p5=%d  avg=%d" % [int(_fps_samples[0]),
+				int(_fps_samples[_fps_samples.size() / 20]),
+				int(_fps_samples.reduce(func(a, b): return a + b) / _fps_samples.size())])
 		get_tree().quit())

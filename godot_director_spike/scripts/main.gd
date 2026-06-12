@@ -5,6 +5,7 @@ const MechActor := preload("res://scripts/mech_actor.gd")
 const Director := preload("res://scripts/director.gd")
 const FightLog := preload("res://scripts/fight_log.gd")
 const Garnish := preload("res://scripts/garnish.gd")
+const SpikeAudio := preload("res://scripts/spike_audio.gd")
 
 var camera: Camera3D
 var mech_a: Node3D
@@ -47,6 +48,9 @@ func _ready() -> void:
 	var garnish := Garnish.new()
 	add_child(garnish)
 	garnish.setup({"A": mech_a, "B": mech_b}, director)
+	var audio := SpikeAudio.new()
+	add_child(audio)
+	audio.wire(director)
 	director.fight_over.connect(func():
 		await get_tree().create_timer(1.0).timeout
 		get_tree().quit())

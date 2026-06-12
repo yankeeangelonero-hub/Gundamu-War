@@ -1,0 +1,22 @@
+config_version=5
+
+[application]
+
+config/name="KM-DIRECTOR-SPIKE"
+config/features=PackedStringArray("4.6", "Forward Plus")
+run/main_scene="res://scenes/main.tscn"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+
+[editor]
+
+movie_writer/mjpeg_quality=0.9
+movie_writer/movie_file="tmp/money-shot.avi"
+movie_writer/fps=60
+
+[rendering]
+
+renderer/rendering_method="forward_plus"

@@ -4,6 +4,7 @@ const CityBuilder := preload("res://scripts/city_builder.gd")
 const MechActor := preload("res://scripts/mech_actor.gd")
 const Director := preload("res://scripts/director.gd")
 const FightLog := preload("res://scripts/fight_log.gd")
+const Garnish := preload("res://scripts/garnish.gd")
 
 var camera: Camera3D
 var mech_a: Node3D
@@ -43,6 +44,9 @@ func _ready() -> void:
 	director = Director.new()
 	add_child(director)
 	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
+	var garnish := Garnish.new()
+	add_child(garnish)
+	garnish.setup({"A": mech_a, "B": mech_b}, director)
 	director.fight_over.connect(func():
 		await get_tree().create_timer(1.0).timeout
 		get_tree().quit())

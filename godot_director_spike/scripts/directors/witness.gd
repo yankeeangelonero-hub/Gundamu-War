@@ -80,39 +80,45 @@ func _update_camera(_delta: float) -> void:
 		"duck":
 			aim = f.position + Vector3(0, 9.5, 0)
 		"kill_gaze":
-			aim = _w_aim_lock
+			# tracking stare: the victim may be sprinting through the slow-mo
+			aim = actors[_other(str(s.focus))].position + Vector3(0, 11, 0)
 		"aftermath":
 			var p := clampf((t - float(s.t0)) / (float(s.t1) - float(s.t0)), 0.0, 1.0)
 			pos = _w_anchor.lerp(_w_push_to, p)
 			aim = f.position + Vector3(0, lerpf(8.0, 14.0, p), 0)  # end tilted up
+	_roll = 0.0
 	if s.mode != "kill_gaze":  # the kill is a locked-off stare; everything else is handheld
 		var amp := 0.06 + shake_strength * 0.5 + _fire_proximity() * 0.3
 		pos += Vector3(_sway(0.0), _sway(1.3), _sway(2.7)) * amp * 0.4
-		aim += Vector3(_sway(4.1), _sway(5.6), 0.0) * amp * 2.0
-	camera.position = pos
-	camera.look_at(aim, Vector3.UP)
+		aim += Vector3(_sway(4.1), _sway(5.6), 0.0) * amp * 0.8
+		_roll = _sway(7.7) * 0.018
+	_set_focus(pos.distance_to(aim) if s.mode != "street_wide" else -1.0,
+		0.1 if s.mode == "kill_gaze" else 0.06)
+	camera.position = _resolve_occlusion(pos, aim)
+	_apply_aim(aim, _delta, 6.0)
 
 func _take_position(s: Dictionary) -> void:
+	_aim_init = false
 	var f: Node3D = actors[s.focus] if s.focus != "" else actors["A"]
 	var side := 1.0 if _w_idx % 2 == 0 else -1.0  # alternate sidewalks between shots
 	var fov := 60.0
 	match s.mode:
 		"street_wide":
 			# planted past the near giant, looking up and down the street at it
-			_w_anchor = Vector3(f.position.x - 12.0, 2.0, 15.0)
+			_w_anchor = Vector3(f.position.x - 12.0, 2.0, 12.0)
 			fov = 66
 		"track":
-			_w_anchor = Vector3(f.position.x + 4.0, 2.2, side * 15.5)
+			_w_anchor = Vector3(f.position.x + 4.0, 2.2, side * 12.0)
 			fov = 56
 		"cower":
-			_w_anchor = Vector3(f.position.x + 5.0, 1.7, side * 17.0)
+			_w_anchor = Vector3(f.position.x + 5.0, 1.7, side * 12.0)
 			fov = 68
 		"duck":
-			_w_anchor = Vector3(f.position.x - 7.0, 1.7, side * 13.5)
+			_w_anchor = Vector3(f.position.x - 7.0, 1.7, side * 11.0)
 			fov = 58
 		"kill_gaze":
 			var victim: Node3D = actors[_other(str(s.focus))]
-			_w_anchor = Vector3(victim.position.x - 16.0, 1.9, 13.0)
+			_w_anchor = Vector3(victim.position.x - 16.0, 1.9, 11.0)
 			_w_aim_lock = victim.position + Vector3(0, 11, 0)
 			fov = 52
 		"aftermath":
@@ -125,7 +131,7 @@ func _take_position(s: Dictionary) -> void:
 ## Layered incommensurate sines: smooth handheld sway, not per-frame noise.
 func _sway(phase: float) -> float:
 	return sin(_wt * 1.9 + phase) * 0.55 + sin(_wt * 5.1 + phase * 2.0) * 0.3 \
-		+ sin(_wt * 11.7 + phase * 3.0) * 0.15
+		+ sin(_wt * 11.7 + phase * 3.0) * 0.05
 
 ## 0..1, rising as the clock nears any fire event — the witness flinches.
 func _fire_proximity() -> float:

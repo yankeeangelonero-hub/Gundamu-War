@@ -81,6 +81,8 @@ var _event_idx := 0
 var _shot_idx := -1
 var shake_strength := 0.0
 var _dur := 0.0
+var _smooth_aim := Vector3.ZERO
+var _aim_init := false
 
 func start(p_events: Array, p_shots: Array, p_camera: Camera3D, p_actors: Dictionary, dur: float) -> void:
 	events = p_events
@@ -88,7 +90,30 @@ func start(p_events: Array, p_shots: Array, p_camera: Camera3D, p_actors: Dictio
 	camera = p_camera
 	actors = p_actors
 	_dur = dur
+	# It's a duel: each mech keeps its aim on the other, so movement strafes.
+	if actors.has("A") and actors.has("B"):
+		actors["A"].combat_face = actors["B"]
+		actors["B"].combat_face = actors["A"]
+		actors["A"].director = self
+		actors["B"].director = self
 	playing = true
+
+## A footfall/landing thud, felt as camera shake scaled by proximity — a
+## pedestrian-level lens close to a stomping giant rumbles; the high iso eye
+## barely feels it. Mechs call this; the camera reads shake_strength.
+func ground_shake(world_pos: Vector3, base: float) -> void:
+	if camera == null:
+		return
+	var d := camera.global_position.distance_to(world_pos)
+	shake_strength = maxf(shake_strength, base * clampf(45.0 / maxf(d, 10.0), 0.0, 1.0))
+
+## Hard-hide any cullable clutter (buildings, rubble, debris) within `radius` of
+## the lens, restoring everything beyond it. Call with radius 0 to show all.
+## Clears the foreground on close-ups so debris never blocks the subject.
+func _cull_near(cam_pos: Vector3, radius: float) -> void:
+	for n in get_tree().get_nodes_in_group("kb_near_cull"):
+		var node := n as Node3D
+		node.visible = cam_pos.distance_to(node.global_position) > radius
 
 func _process(delta: float) -> void:
 	if not playing:
@@ -111,17 +136,46 @@ func _dispatch(e: Dictionary) -> void:
 	match e.kind:
 		"advance":
 			var dur := (float(e.payload.end_tick) - float(e.tick)) * TICK
-			actor.walk_to(float(e.payload.to_x), dur)
+			actor.walk_to(float(e.payload.to_x), float(e.payload.get("to_y", 0.0)),
+				float(e.payload.get("to_z", actor.position.z)), dur,
+				bool(e.payload.get("boost", false)))
 		"fire_beam":
+			actor.face_toward(target.position)
 			actor.recoil()
 			if e.payload.get("blocked", false):
 				target.block_pose()
 			elif e.payload.get("hit", false):
 				target.flinch(float(e.payload.damage) > 25.0)
 		"fire_burst":
+			actor.face_toward(target.position)
 			actor.recoil()
 			if int(e.payload.hits) > 0:
 				target.flinch(false)
+		"fire_missiles":
+			actor.face_toward(target.position)
+			actor.recoil()
+			if int(e.payload.get("hits", 0)) > 0:
+				target.flinch(true)
+		"fire_buster":
+			actor.face_toward(target.position)
+			# the heavy recoil/knockback + impact fire after the charge, in garnish
+		"melee":
+			actor.face_toward(target.position)
+			actor.melee_strike(target.position, str(e.payload.get("style", "cleave")))
+			target.face_toward(actor.position)
+			var away: Vector3 = target.position - actor.position
+			if e.payload.get("blocked", false):
+				target.parry()          # defender draws + catches
+				if str(e.payload.get("result", "lock")) == "knockback":
+					actor.clash_lock(0.6)               # attacker drives through
+					target.knockback(away, 40.0)        # defender shoved back
+				else:
+					actor.clash_lock(0.8)               # blades lock — both planted, straining
+					target.clash_lock(0.8)
+			elif e.payload.get("hit", false):
+				target.flinch(true)
+				target.knockback(away, 34.0)            # a connecting blow drives them back
+			shake_strength = maxf(shake_strength, 1.0)
 		"destroyed":
 			actor.die()
 			shake_strength = 1.0
@@ -131,6 +185,13 @@ func _update_shot() -> void:
 	while _shot_idx + 1 < shots.size() and float(shots[_shot_idx + 1].t0) <= t:
 		_shot_idx += 1
 		Engine.time_scale = float(shots[_shot_idx].time_scale)
+
+## The time scale the current shot wants — what a hitstop restores to, so a
+## transient freeze can never leave time stuck in slow-mo.
+func current_time_scale() -> float:
+	if _shot_idx >= 0 and _shot_idx < shots.size():
+		return float(shots[_shot_idx].time_scale)
+	return 1.0
 
 func _update_camera(delta: float) -> void:
 	if _shot_idx < 0:
@@ -142,33 +203,47 @@ func _update_camera(delta: float) -> void:
 	var pos: Vector3
 	var aim: Vector3
 	var fov := 50.0
+	var dof := false   # shallow focus on close coverage, deep focus on plates
+	_roll = 0.0
 	match s.mode:
 		"wide":
 			pos = Vector3(0, 45, 90)
 			aim = mid
 			fov = 55
 		"dolly":
+			# Leading shot: planted up the street ahead of the advancing mech.
 			var f: Node3D = actors[s.focus]
-			pos = f.position + Vector3(0, 6, 24)
-			aim = f.position + Vector3(0, 12, 0)
-			fov = 45
-		"two_shot":
-			var zside := 1.0 if s.focus == "A" else -1.0
-			pos = mid + Vector3(0, 6, 34 * zside)
-			aim = mid
+			var o: Node3D = actors[_other(str(s.focus))]
+			var dirx := signf(o.position.x - f.position.x)
+			pos = f.position + Vector3(dirx * 16.0, 8, 12)
+			aim = f.position + Vector3(0, 11, 0)
 			fov = 48
+			dof = true
+		"two_shot":
+			# Raking shot down the duel axis: focus mech foreground, opponent centered.
+			var f2: Node3D = actors[s.focus]
+			var o2: Node3D = actors[_other(str(s.focus))]
+			var d2 := (o2.position - f2.position).normalized()
+			var zside := 1.0 if s.focus == "A" else -1.0
+			pos = f2.position - d2 * 14.0 + Vector3(0, 12, 10 * zside)
+			aim = o2.position + Vector3(0, 10, 0)
+			fov = 50
+			dof = true
 		"over_shoulder":
 			var os_shooter: Node3D = actors[s.focus]
 			var os_victim: Node3D = actors[_other(str(s.focus))]
 			var os_dir := (os_victim.position - os_shooter.position).normalized()
-			pos = os_shooter.position - os_dir * 12.0 + os_dir.cross(Vector3.UP) * 5.0 + Vector3(0, 13, 0)
-			aim = os_victim.position + Vector3(0, 11, 0)
-			fov = 42
+			pos = os_shooter.position - os_dir * 18.0 + os_dir.cross(Vector3.UP) * 8.0 + Vector3(0, 16, 0)
+			aim = os_victim.position + Vector3(0, 10, 0)
+			fov = 40
+			dof = true
 		"punch_in":
 			var f: Node3D = actors[s.focus]
-			pos = f.position + Vector3(0, 13, 16 * (1.0 if f.position.x < 0 else -1.0))
+			pos = f.position + Vector3(0, 13, 12 * (1.0 if f.position.x < 0 else -1.0))
 			aim = f.position + Vector3(0, 13, 0)
 			fov = 32
+			dof = true
+			_roll = 0.03
 		"killcam":
 			var shooter: Node3D = actors[s.focus]
 			var victim: Node3D = actors[_other(str(s.focus))]
@@ -177,16 +252,103 @@ func _update_camera(delta: float) -> void:
 			pos = shooter.position - dir * 10.0 + perp * 7.0 + Vector3(0, 15, 0)
 			aim = victim.position + Vector3(0, 10, 0)
 			fov = 38
+			dof = true
+			_roll = -0.04
 		"orbit":
 			var wreck: Node3D = actors["B"] if actors["B"].dead else actors["A"]
 			var ang := (t - float(s.t0)) * 0.35
-			pos = wreck.position + Vector3(cos(ang) * 32.0, 16, sin(ang) * 32.0)
+			pos = wreck.position + Vector3(cos(ang) * 30.0, 22, sin(ang) * 10.0)
 			aim = wreck.position + Vector3(0, 6, 0)
 			fov = 45
+	pos = _resolve_occlusion(pos, aim)
+	_set_focus(pos.distance_to(aim) if dof else -1.0)
 	var k := 1.0 - exp(-5.0 * delta / maxf(Engine.time_scale, 0.05))
 	camera.position = camera.position.lerp(pos, k)
 	camera.fov = lerpf(camera.fov, fov, k)
 	if shake_strength > 0.001:
-		camera.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.7
-	if not camera.position.is_equal_approx(aim):
-		camera.look_at(aim, Vector3.UP)
+		camera.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.2
+	_apply_aim(aim, delta, 8.0)
+
+## Free-roaming mechs mean no camera pose is occlusion-safe by construction.
+## Rather than dodge buildings (which makes the camera bounce around), the lens
+## flies its intended path STRAIGHT THROUGH them, and any building between the
+## lens and the action dissolves out — a near-clip / see-through-occluder pass.
+## The camera pose is returned unchanged; only building materials react. Faded
+## buildings restore when the line clears; destroyed ones leave the group and
+## keep their collapse. Presentation only — the sim never sees this.
+const FADE_NEAR := 7.0     # lens nearer than this to a building also fades it
+const FADE_MIN := 0.1      # dithered-out alpha: see-through
+
+func _resolve_occlusion(pos: Vector3, aim: Vector3) -> Vector3:
+	for bld in get_tree().get_nodes_in_group("kb_building"):
+		var aabb: AABB = bld.get_meta("aabb")
+		var occluding := aabb.intersects_segment(pos, aim) != null \
+			or aabb.grow(FADE_NEAR).has_point(pos)
+		_fade_building(bld, FADE_MIN if occluding else 1.0)
+	return pos
+
+func _fade_building(bld: Node3D, target: float) -> void:
+	var mi := bld as MeshInstance3D
+	var mat: StandardMaterial3D = mi.mesh.material
+	var a := lerpf(mat.albedo_color.a, target, 0.18)
+	mat.albedo_color.a = a
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED if a >= 0.99 \
+		else BaseMaterial3D.TRANSPARENCY_ALPHA_HASH
+	for c in mi.get_children():       # windows pop out once mostly faded
+		if c is MeshInstance3D:
+			c.visible = a > 0.5
+
+## Keep an orbiting camera from passing directly overhead: enforce a minimum
+## horizontal distance from its center so the shot always reads as an angle.
+func _keep_lateral(pos: Vector3, center: Vector3, min_d: float) -> Vector3:
+	var off := Vector2(pos.x - center.x, pos.z - center.z)
+	if off.length() < min_d:
+		off = Vector2(min_d, 0) if off.length() < 0.01 else off.normalized() * min_d
+	return Vector3(center.x + off.x, pos.y, center.z + off.y)
+
+const SNAP_ANGLE := 0.5     # rad (~28 deg): a swing bigger than this becomes a snap cut
+const AIM_RATE_CAP := 0.9   # rad/s of wall-clock aim rotation within a shot
+
+var _roll := 0.0            # camera dutch/roll (rad), applied after look_at
+
+## Shallow-focus control. dist <= 0 disables DOF (deep-focus plates).
+func _set_focus(dist: float, strength := 0.06) -> void:
+	var attr: CameraAttributesPractical = camera.attributes
+	if attr == null:
+		return
+	if dist <= 0.0:
+		attr.dof_blur_far_enabled = false
+		attr.dof_blur_near_enabled = false
+		return
+	attr.dof_blur_amount = strength
+	attr.dof_blur_far_enabled = true
+	attr.dof_blur_far_distance = dist + 18.0
+	attr.dof_blur_far_transition = 30.0
+	attr.dof_blur_near_enabled = true
+	attr.dof_blur_near_distance = maxf(dist - 14.0, 0.5)
+	attr.dof_blur_near_transition = 8.0
+
+## Eased aim with an angular guard: small drifts ease in at a capped angular
+## rate; anything bigger than SNAP_ANGLE cuts instantly instead of swinging.
+func _apply_aim(aim: Vector3, delta: float, rate := 8.0) -> void:
+	var wall_delta := delta / maxf(Engine.time_scale, 0.01)
+	if not _aim_init:
+		_smooth_aim = aim
+		_aim_init = true
+	else:
+		var to_cur := _smooth_aim - camera.position
+		var to_new := aim - camera.position
+		var ang := 0.0
+		if to_cur.length() > 0.01 and to_new.length() > 0.01:
+			ang = to_cur.normalized().angle_to(to_new.normalized())
+		if ang > SNAP_ANGLE:
+			_smooth_aim = aim
+		else:
+			var ak := 1.0 - exp(-rate * wall_delta)
+			if ang > 0.0001:
+				ak = minf(ak, AIM_RATE_CAP * wall_delta / ang)
+			_smooth_aim = _smooth_aim.lerp(aim, ak)
+	if not camera.position.is_equal_approx(_smooth_aim):
+		camera.look_at(_smooth_aim, Vector3.UP)
+		if absf(_roll) > 0.0005:
+			camera.rotate_object_local(Vector3(0, 0, 1), _roll)

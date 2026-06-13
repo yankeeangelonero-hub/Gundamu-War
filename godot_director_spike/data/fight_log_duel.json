@@ -1,0 +1,920 @@
+{
+  "schema": "km-director-spike-fight-log-v1",
+  "tick_seconds": 0.1,
+  "events": [
+    {
+      "tick": 0,
+      "actor": "A",
+      "kind": "spawn",
+      "payload": {
+        "x": -40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 0,
+      "actor": "B",
+      "kind": "spawn",
+      "payload": {
+        "x": 40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 10,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 23.8,
+        "to_z": 14.4,
+        "end_tick": 16
+      }
+    },
+    {
+      "tick": 10,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -19.9,
+        "to_z": -12.4,
+        "end_tick": 16
+      }
+    },
+    {
+      "tick": 12,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 97
+      }
+    },
+    {
+      "tick": 18,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 15.6,
+        "to_z": 32.8,
+        "end_tick": 24
+      }
+    },
+    {
+      "tick": 18,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 3.7,
+        "to_z": -18.0,
+        "end_tick": 24
+      }
+    },
+    {
+      "tick": 20,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 97
+      }
+    },
+    {
+      "tick": 26,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 0.3,
+        "to_z": 34.4,
+        "end_tick": 32
+      }
+    },
+    {
+      "tick": 26,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 20.7,
+        "to_z": -7.8,
+        "end_tick": 32
+      }
+    },
+    {
+      "tick": 28,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 94
+      }
+    },
+    {
+      "tick": 34,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -1.4,
+        "to_z": 27.1,
+        "end_tick": 40
+      }
+    },
+    {
+      "tick": 34,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 27.6,
+        "to_z": 0.4,
+        "end_tick": 40
+      }
+    },
+    {
+      "tick": 36,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 94
+      }
+    },
+    {
+      "tick": 42,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 4.5,
+        "to_z": 19.7,
+        "end_tick": 48
+      }
+    },
+    {
+      "tick": 42,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 36.9,
+        "to_z": 5.4,
+        "end_tick": 48
+      }
+    },
+    {
+      "tick": 44,
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 12,
+        "hp_after": 91
+      }
+    },
+    {
+      "tick": 50,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 11.5,
+        "to_z": 11.9,
+        "end_tick": 56
+      }
+    },
+    {
+      "tick": 50,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 48.8,
+        "to_z": 19.0,
+        "end_tick": 56
+      }
+    },
+    {
+      "tick": 52,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 91
+      }
+    },
+    {
+      "tick": 58,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 16.1,
+        "to_z": 0.7,
+        "end_tick": 64
+      }
+    },
+    {
+      "tick": 58,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 40.8,
+        "to_z": 38.3,
+        "end_tick": 64
+      }
+    },
+    {
+      "tick": 60,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 88
+      }
+    },
+    {
+      "tick": 66,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 17.2,
+        "to_z": -13.6,
+        "end_tick": 72
+      }
+    },
+    {
+      "tick": 66,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 14.7,
+        "to_z": 37.7,
+        "end_tick": 72
+      }
+    },
+    {
+      "tick": 68,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 88
+      }
+    },
+    {
+      "tick": 74,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 18.3,
+        "to_z": -23.1,
+        "end_tick": 80
+      }
+    },
+    {
+      "tick": 74,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -1.6,
+        "to_z": 25.1,
+        "end_tick": 80
+      }
+    },
+    {
+      "tick": 76,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 85
+      }
+    },
+    {
+      "tick": 82,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 19.1,
+        "to_z": -24.1,
+        "end_tick": 88
+      }
+    },
+    {
+      "tick": 82,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -12.8,
+        "to_z": 10.1,
+        "end_tick": 88
+      }
+    },
+    {
+      "tick": 84,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 85
+      }
+    },
+    {
+      "tick": 90,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 15.2,
+        "to_z": -12.0,
+        "end_tick": 96
+      }
+    },
+    {
+      "tick": 90,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -23.6,
+        "to_z": -5.5,
+        "end_tick": 96
+      }
+    },
+    {
+      "tick": 92,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 82
+      }
+    },
+    {
+      "tick": 98,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -3.6,
+        "to_z": -2.4,
+        "end_tick": 104
+      }
+    },
+    {
+      "tick": 98,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -32.2,
+        "to_z": -23.3,
+        "end_tick": 104
+      }
+    },
+    {
+      "tick": 100,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 82
+      }
+    },
+    {
+      "tick": 106,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -20.0,
+        "to_z": -3.6,
+        "end_tick": 112
+      }
+    },
+    {
+      "tick": 106,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -33.5,
+        "to_z": -39.1,
+        "end_tick": 112
+      }
+    },
+    {
+      "tick": 108,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 79
+      }
+    },
+    {
+      "tick": 114,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -16.5,
+        "to_z": 8.3,
+        "end_tick": 120
+      }
+    },
+    {
+      "tick": 114,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -18.5,
+        "to_z": -36.8,
+        "end_tick": 120
+      }
+    },
+    {
+      "tick": 116,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 79
+      }
+    },
+    {
+      "tick": 122,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -17.1,
+        "to_z": 22.5,
+        "end_tick": 128
+      }
+    },
+    {
+      "tick": 122,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 0.7,
+        "to_z": -25.7,
+        "end_tick": 128
+      }
+    },
+    {
+      "tick": 124,
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 12,
+        "hp_after": 76
+      }
+    },
+    {
+      "tick": 130,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -26.3,
+        "to_z": 24.9,
+        "end_tick": 136
+      }
+    },
+    {
+      "tick": 130,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 19.0,
+        "to_z": -0.8,
+        "end_tick": 136
+      }
+    },
+    {
+      "tick": 132,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 76
+      }
+    },
+    {
+      "tick": 138,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -22.4,
+        "to_z": 12.3,
+        "end_tick": 144
+      }
+    },
+    {
+      "tick": 138,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 22.6,
+        "to_z": 24.6,
+        "end_tick": 144
+      }
+    },
+    {
+      "tick": 140,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 73
+      }
+    },
+    {
+      "tick": 146,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -3.6,
+        "to_z": 11.5,
+        "end_tick": 152
+      }
+    },
+    {
+      "tick": 146,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 23.9,
+        "to_z": 39.3,
+        "end_tick": 152
+      }
+    },
+    {
+      "tick": 148,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 73
+      }
+    },
+    {
+      "tick": 154,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 6.9,
+        "to_z": 15.7,
+        "end_tick": 160
+      }
+    },
+    {
+      "tick": 154,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 23.2,
+        "to_z": 47.2,
+        "end_tick": 160
+      }
+    },
+    {
+      "tick": 156,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 70
+      }
+    },
+    {
+      "tick": 162,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 9.4,
+        "to_z": 13.6,
+        "end_tick": 168
+      }
+    },
+    {
+      "tick": 162,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 10.6,
+        "to_z": 51.7,
+        "end_tick": 168
+      }
+    },
+    {
+      "tick": 164,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 70
+      }
+    },
+    {
+      "tick": 170,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 14.8,
+        "to_z": 11.4,
+        "end_tick": 176
+      }
+    },
+    {
+      "tick": 170,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -14.7,
+        "to_z": 45.9,
+        "end_tick": 176
+      }
+    },
+    {
+      "tick": 171,
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "damage": 0
+      }
+    },
+    {
+      "tick": 172,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 67
+      }
+    },
+    {
+      "tick": 178,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 21.2,
+        "to_z": 17.1,
+        "end_tick": 184
+      }
+    },
+    {
+      "tick": 178,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -30.0,
+        "to_z": 22.5,
+        "end_tick": 184
+      }
+    },
+    {
+      "tick": 180,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 67
+      }
+    },
+    {
+      "tick": 186,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 20.2,
+        "to_z": 25.4,
+        "end_tick": 192
+      }
+    },
+    {
+      "tick": 186,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -28.5,
+        "to_z": 6.9,
+        "end_tick": 192
+      }
+    },
+    {
+      "tick": 188,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 64
+      }
+    },
+    {
+      "tick": 194,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 11.5,
+        "to_z": 29.4,
+        "end_tick": 200
+      }
+    },
+    {
+      "tick": 194,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -25.1,
+        "to_z": 0.8,
+        "end_tick": 200
+      }
+    },
+    {
+      "tick": 196,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 64
+      }
+    },
+    {
+      "tick": 202,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -5.1,
+        "to_z": 30.5,
+        "end_tick": 208
+      }
+    },
+    {
+      "tick": 202,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -20.7,
+        "to_z": -5.3,
+        "end_tick": 208
+      }
+    },
+    {
+      "tick": 204,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 61
+      }
+    },
+    {
+      "tick": 210,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -17.8,
+        "to_z": 22.7,
+        "end_tick": 216
+      }
+    },
+    {
+      "tick": 210,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": -5.3,
+        "to_z": -10.4,
+        "end_tick": 216
+      }
+    },
+    {
+      "tick": 212,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 61
+      }
+    },
+    {
+      "tick": 218,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -20.2,
+        "to_z": 10.5,
+        "end_tick": 224
+      }
+    },
+    {
+      "tick": 218,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 13.5,
+        "to_z": -7.4,
+        "end_tick": 224
+      }
+    },
+    {
+      "tick": 220,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 58
+      }
+    },
+    {
+      "tick": 226,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -20.2,
+        "to_z": 3.1,
+        "end_tick": 232
+      }
+    },
+    {
+      "tick": 226,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 25.2,
+        "to_z": 0.1,
+        "end_tick": 232
+      }
+    },
+    {
+      "tick": 228,
+      "actor": "B",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 9,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 58
+      }
+    },
+    {
+      "tick": 230,
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 64,
+        "hp_after": -14,
+        "lethal": true,
+        "overkill": true
+      }
+    },
+    {
+      "tick": 235,
+      "actor": "B",
+      "kind": "destroyed",
+      "payload": {}
+    }
+  ]
+}

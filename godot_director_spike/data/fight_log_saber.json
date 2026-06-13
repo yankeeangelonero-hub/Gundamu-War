@@ -1,0 +1,298 @@
+{
+  "schema": "km-director-spike-fight-log-v1",
+  "tick_seconds": 0.1,
+  "events": [
+    {
+      "tick": 0,
+      "actor": "A",
+      "kind": "spawn",
+      "payload": {
+        "x": -40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 0,
+      "actor": "B",
+      "kind": "spawn",
+      "payload": {
+        "x": 40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 8,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -7.0,
+        "to_y": 0.0,
+        "to_z": 0.0,
+        "end_tick": 34,
+        "boost": false
+      }
+    },
+    {
+      "tick": 8,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 7.0,
+        "to_y": 0.0,
+        "to_z": 0.0,
+        "end_tick": 34,
+        "boost": false
+      }
+    },
+    {
+      "tick": 46,
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 10,
+        "hp_after": 50
+      }
+    },
+    {
+      "tick": 58,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -2.0,
+        "to_y": 0.0,
+        "to_z": 4.0,
+        "end_tick": 68,
+        "boost": true
+      }
+    },
+    {
+      "tick": 58,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 6.0,
+        "to_y": 0.0,
+        "to_z": 4.0,
+        "end_tick": 68,
+        "boost": false
+      }
+    },
+    {
+      "tick": 72,
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "style": "clash",
+        "result": "lock",
+        "damage": 0,
+        "hp_after": 60
+      }
+    },
+    {
+      "tick": 86,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 2.0,
+        "to_y": 0.0,
+        "to_z": -4.0,
+        "end_tick": 98,
+        "boost": true
+      }
+    },
+    {
+      "tick": 86,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -6.0,
+        "to_y": 0.0,
+        "to_z": -3.0,
+        "end_tick": 98,
+        "boost": false
+      }
+    },
+    {
+      "tick": 102,
+      "actor": "B",
+      "kind": "melee",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "style": "clash",
+        "result": "knockback",
+        "damage": 0,
+        "hp_after": 60
+      }
+    },
+    {
+      "tick": 112,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -1.0,
+        "to_y": 0.0,
+        "to_z": 5.0,
+        "end_tick": 126,
+        "boost": true
+      }
+    },
+    {
+      "tick": 112,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 7.0,
+        "to_y": 0.0,
+        "to_z": 5.0,
+        "end_tick": 126,
+        "boost": false
+      }
+    },
+    {
+      "tick": 130,
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "style": "clash",
+        "result": "lock",
+        "damage": 0,
+        "hp_after": 60
+      }
+    },
+    {
+      "tick": 150,
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 10,
+        "hp_after": 50
+      }
+    },
+    {
+      "tick": 150,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 1.0,
+        "to_y": 0.0,
+        "to_z": -5.0,
+        "end_tick": 166,
+        "boost": true
+      }
+    },
+    {
+      "tick": 150,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -7.0,
+        "to_y": 0.0,
+        "to_z": -4.0,
+        "end_tick": 166,
+        "boost": false
+      }
+    },
+    {
+      "tick": 168,
+      "actor": "B",
+      "kind": "melee",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "style": "clash",
+        "result": "knockback",
+        "damage": 0,
+        "hp_after": 60
+      }
+    },
+    {
+      "tick": 180,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -1.0,
+        "to_y": 0.0,
+        "to_z": 3.0,
+        "end_tick": 196,
+        "boost": true
+      }
+    },
+    {
+      "tick": 180,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 6.0,
+        "to_y": 0.0,
+        "to_z": 3.0,
+        "end_tick": 196,
+        "boost": false
+      }
+    },
+    {
+      "tick": 198,
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "hit": false,
+        "blocked": true,
+        "style": "clash",
+        "result": "lock",
+        "damage": 0,
+        "hp_after": 60
+      }
+    },
+    {
+      "tick": 214,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": 3.0,
+        "to_y": 0.0,
+        "to_z": 2.0,
+        "end_tick": 228,
+        "boost": true
+      }
+    },
+    {
+      "tick": 214,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 7.0,
+        "to_y": 0.0,
+        "to_z": 2.0,
+        "end_tick": 228,
+        "boost": false
+      }
+    },
+    {
+      "tick": 230,
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "hit": true,
+        "style": "cleave",
+        "damage": 64,
+        "hp_after": -14,
+        "lethal": true,
+        "overkill": true
+      }
+    },
+    {
+      "tick": 235,
+      "actor": "B",
+      "kind": "destroyed",
+      "payload": {}
+    }
+  ]
+}

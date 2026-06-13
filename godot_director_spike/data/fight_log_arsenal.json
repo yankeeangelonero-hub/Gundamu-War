@@ -1,0 +1,227 @@
+{
+  "schema": "km-director-spike-fight-log-v1",
+  "tick_seconds": 0.1,
+  "events": [
+    {
+      "tick": 0,
+      "actor": "A",
+      "kind": "spawn",
+      "payload": {
+        "x": -40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 0,
+      "actor": "B",
+      "kind": "spawn",
+      "payload": {
+        "x": 40.0,
+        "z": 0.0,
+        "hp": 100
+      }
+    },
+    {
+      "tick": 8,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -26.0,
+        "to_y": 0.0,
+        "to_z": 0.0,
+        "end_tick": 40,
+        "boost": false
+      }
+    },
+    {
+      "tick": 8,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 26.0,
+        "to_y": 0.0,
+        "to_z": 0.0,
+        "end_tick": 40,
+        "boost": false
+      }
+    },
+    {
+      "tick": 46,
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 10,
+        "hp_after": 55
+      }
+    },
+    {
+      "tick": 66,
+      "actor": "B",
+      "kind": "fire_missiles",
+      "payload": {
+        "count": 12,
+        "hits": 8,
+        "damage": 24,
+        "hp_after": 50
+      }
+    },
+    {
+      "tick": 70,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -30.0,
+        "to_y": 0.0,
+        "to_z": 16.0,
+        "end_tick": 96,
+        "boost": true
+      }
+    },
+    {
+      "tick": 70,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 30.0,
+        "to_y": 0.0,
+        "to_z": -12.0,
+        "end_tick": 96,
+        "boost": false
+      }
+    },
+    {
+      "tick": 100,
+      "actor": "A",
+      "kind": "fire_buster",
+      "payload": {
+        "hit": true,
+        "damage": 26,
+        "hp_after": 40
+      }
+    },
+    {
+      "tick": 118,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 34.0,
+        "to_y": 0.0,
+        "to_z": 18.0,
+        "end_tick": 150,
+        "boost": true
+      }
+    },
+    {
+      "tick": 118,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -34.0,
+        "to_y": 0.0,
+        "to_z": -14.0,
+        "end_tick": 150,
+        "boost": false
+      }
+    },
+    {
+      "tick": 140,
+      "actor": "A",
+      "kind": "fire_missiles",
+      "payload": {
+        "count": 14,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 50
+      }
+    },
+    {
+      "tick": 165,
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": true,
+        "damage": 10,
+        "hp_after": 55
+      }
+    },
+    {
+      "tick": 168,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 26.0,
+        "to_y": 0.0,
+        "to_z": -16.0,
+        "end_tick": 205,
+        "boost": true
+      }
+    },
+    {
+      "tick": 168,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -26.0,
+        "to_y": 0.0,
+        "to_z": 12.0,
+        "end_tick": 205,
+        "boost": false
+      }
+    },
+    {
+      "tick": 195,
+      "actor": "A",
+      "kind": "fire_burst",
+      "payload": {
+        "rounds": 8,
+        "hits": 3,
+        "damage": 6,
+        "hp_after": 40
+      }
+    },
+    {
+      "tick": 208,
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "to_x": -20.0,
+        "to_y": 0.0,
+        "to_z": 2.0,
+        "end_tick": 228,
+        "boost": false
+      }
+    },
+    {
+      "tick": 208,
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "to_x": 22.0,
+        "to_y": 0.0,
+        "to_z": 2.0,
+        "end_tick": 228,
+        "boost": false
+      }
+    },
+    {
+      "tick": 228,
+      "actor": "A",
+      "kind": "fire_buster",
+      "payload": {
+        "hit": true,
+        "damage": 64,
+        "hp_after": -14,
+        "lethal": true,
+        "overkill": true
+      }
+    },
+    {
+      "tick": 236,
+      "actor": "B",
+      "kind": "destroyed",
+      "payload": {}
+    }
+  ]
+}

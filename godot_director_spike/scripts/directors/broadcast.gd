@@ -61,6 +61,7 @@ func _update_camera(delta: float) -> void:
 	if _shot_idx != _cam_shot:
 		_cam_shot = _shot_idx
 		_wall = 0.0
+		_aim_init = false
 	_wall += delta / maxf(Engine.time_scale, 0.01)
 	var s: Dictionary = shots[_shot_idx]
 	var a: Node3D = actors["A"]
@@ -77,32 +78,36 @@ func _update_camera(delta: float) -> void:
 			aim = target + Vector3(0, 10, 0)
 			fov = 16
 		"drone_orbit":
-			# Street-hugging elliptical arc: wide in x, shallow in z to stay out of buildings.
-			var ang := float(s.t0) * 0.7 + _wall * 0.45
-			pos = mid + Vector3(cos(ang) * 50.0, 30.0 + sin(ang) * 6.0, sin(ang) * 16.0)
+			# Alternating mid/long helicopter plates for distance variance; the
+			# long plate arcs slower with a tighter lens (compressed, weighty).
+			var long_plate := int(floor(float(s.t0))) % 2 == 0
+			var rad := 80.0 if long_plate else 45.0
+			var ang := float(s.t0) * 0.7 + _wall * (0.22 if long_plate else 0.4)
+			pos = _keep_lateral(mid + Vector3(cos(ang) * rad, (45.0 if long_plate else 28.0) + sin(ang) * 5.0, sin(ang) * 10.0), mid, 26.0)
 			aim = mid + Vector3(0, 9, 0)
-			fov = 40
+			fov = 24.0 if long_plate else 38.0
 		"cut_in":
 			# Hard cut to a tight 3/4 on the focused actor, slow push-in.
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var toward := signf(o.position.x - f.position.x)
 			var zside := 1.0 if s.focus == "A" else -1.0
-			pos = f.position + Vector3(toward * 7.0, 13.5, zside * (15.0 - _wall * 1.0))
+			pos = f.position + Vector3(toward * 7.0, 13.5, zside * (10.0 - _wall * 0.5))
 			aim = f.position + Vector3(0, 12, 0)
 			fov = 32
 		"bullet_time":
-			# Frozen-moment sweep: 270-degree street-hugging ellipse around the
-			# kill tableau, progressed on wall-clock so it arcs through the slow-mo.
+			# Frozen-moment sweep: 270-degree street-hugging ellipse anchored on
+			# the victim — the frame holds the mech taking the hit, pulled back
+			# to fill it — progressed on wall-clock so it arcs through the slow-mo.
 			var shooter: Node3D = actors[s.focus]
 			var victim: Node3D = actors[_other(str(s.focus))]
-			var center := shooter.position.lerp(victim.position, 0.55) + Vector3(0, 11, 0)
+			var center := victim.position.lerp(shooter.position, 0.2) + Vector3(0, 10, 0)
 			var wall_len := (float(s.t1) - float(s.t0)) / BT_SCALE
 			var p := clampf(_wall / wall_len, 0.0, 1.0)
 			var ang := PI + p * TAU * 0.75
-			pos = center + Vector3(cos(ang) * 24.0, 7.0 + p * 9.0, sin(ang) * 15.0)
+			pos = center + Vector3(cos(ang) * 32.0, 8.0 + p * 9.0, sin(ang) * 14.0)
 			aim = center
-			fov = 42
+			fov = 48
 		"aerial_pullback":
 			# Rising crane: straight up over the wreck, city revealed below.
 			var wreck: Node3D = actors["B"] if actors["B"].dead else actors["A"]
@@ -110,9 +115,17 @@ func _update_camera(delta: float) -> void:
 			pos = wreck.position + Vector3(-12.0 - p * 30.0, 12.0 + p * 75.0, 6.0 + p * 10.0)
 			aim = wreck.position + Vector3(0, 4, 0)
 			fov = 42
+	pos = _resolve_occlusion(pos, aim)
 	if shake_strength > 0.001:
-		pos += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.4
+		pos += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.15
 	camera.position = pos
 	camera.fov = fov
-	if not camera.position.is_equal_approx(aim):
-		camera.look_at(aim, Vector3.UP)
+	_roll = 0.0
+	match s.mode:
+		"cut_in", "bullet_time":
+			_set_focus(pos.distance_to(aim), 0.07)
+		"long_lens":
+			_set_focus(pos.distance_to(aim), 0.04)   # telephoto compression haze
+		_:
+			_set_focus(-1.0)
+	_apply_aim(aim, delta, 10.0)

@@ -2,7 +2,7 @@
 ## This file's schema doubles as the assumed future sim event contract.
 
 const REQUIRED := ["tick", "actor", "kind", "payload"]
-const KINDS := ["spawn", "advance", "fire_beam", "fire_burst", "destroyed"]
+const KINDS := ["spawn", "advance", "fire_beam", "fire_burst", "fire_missiles", "fire_buster", "melee", "destroyed"]
 
 static func load_events(path: String) -> Array:
 	var f := FileAccess.open(path, FileAccess.READ)

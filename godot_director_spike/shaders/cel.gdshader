@@ -5,6 +5,9 @@ shader_type spatial;
 // An inverted-hull outline (cel_outline.gdshader) is attached via next_pass.
 
 uniform vec4 color : source_color = vec4(0.6, 0.6, 0.66, 1.0);
+uniform sampler2D albedo_tex : source_color, hint_default_white;   // textured meshes; white when absent
+uniform bool use_albedo_tex = false;   // off for flat-colour block-out, on for the textured Gundam
+uniform float albedo_tex_strength : hint_range(0.0, 1.0) = 1.0;   // fade texture toward clean flat colour
 uniform sampler2D diffuse_curve : repeat_disable;   // banded ramp, supplied in code
 uniform vec4 specular : source_color = vec4(0.6, 0.6, 0.65, 0.5);
 uniform float specular_smoothness : hint_range(0.0, 1.0) = 0.1;
@@ -28,7 +31,10 @@ float is_lit(vec3 light, vec3 normal, float attenuation) {
 }
 
 void fragment() {
-	ALBEDO = color.rgb;
+	vec3 tex_rgb = use_albedo_tex
+			? mix(vec3(1.0), texture(albedo_tex, UV).rgb, albedo_tex_strength)
+			: vec3(1.0);
+	ALBEDO = color.rgb * tex_rgb;
 	EMISSION = emission * emission_energy;
 	// Flat — no PBR environment reflection (the cel sheen is done in light()).
 	SPECULAR = 0.0;

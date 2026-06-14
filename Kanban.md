@@ -50,7 +50,12 @@ The loop screens around the test, sequenced after KM-DEPLOY per the work map.
 
 ## In Progress
 
-<!-- Nothing in progress; v0.4 is in planning -->
+### [spike] Director / combat-viewer visual track (godot_director_spike)
+Exploratory render + camera spike, separate from the v0.4 slices. The real Gundam Mk-II mesh
+(~20 m, textured) is now viewable in PBR and cel through the `--gundam` viewer with turntable,
+pedestrian, and hero-crane framings. Look decision made: realistic PBR over cel. Next is the
+mech animation set — see agent-handoffs/handoff-2026-06-14-km-mech-minimum-animation-set.md for
+the minimum pose/clip list and the Blender retarget plan.
 
 ---
 

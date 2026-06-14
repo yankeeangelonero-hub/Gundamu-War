@@ -19,6 +19,11 @@ const BAND_LIT := Color(0.92, 0.92, 0.9)      # bright, but not pure white
 const BAND_SHADOW_THRESHOLD := 0.42   # N·L below this = shadow band
 const BAND_MID_THRESHOLD := 0.72      # N·L below this = mid, above = lit
 
+# ---- Textured meshes (Gundam) — how strongly the albedo texture is sampled in
+#      cel. 1.0 = full texture (all the baked wear/grime); lower fades the texture
+#      toward clean flat colour, so 0.0 drops the wear (and colour) entirely. ----
+const ALBEDO_TEX_STRENGTH := 1.0
+
 # ---- Scene surfaces (off-white / muted, never pure white) ----
 const BUILDING_COLOR := Color(0.56, 0.58, 0.60)  # muted cool grey concrete (NOT white)
 const WINDOW_COLOR := Color(0.28, 0.35, 0.46)    # dark glass bands (daytime, not glowing)

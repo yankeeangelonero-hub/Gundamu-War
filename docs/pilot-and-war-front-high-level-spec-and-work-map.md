@@ -1,10 +1,37 @@
 # Pilot, Pilot-Fit, and War-Front — High-Level Specification and Spec Work Map
 
-Status: Draft refreshed 2026-06-06 (r3). The vision is locked (see wishlist r2); release
-framing is Steam PC first, mobile-app compatible second, web optional; and the build stack
-is provisionally chosen (Godot 4.6 + GDScript, pending a confirmation spike).
-The recommended next test version is the deploy-decision prototype (KM-DEPLOY). No child
-spec enters implementation planning until the per-slice gates in §11 pass.
+## Rescope note (2026-06-14) — read first
+
+The version line was rebooted. The authoritative design for the next version (v0.1) is now
+docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md, which reshapes the
+engineering layer of this contract. This document below remains the record for the pilot-fit
+and war-front direction, which is deferred to v0.2+. What changed:
+
+- The build model flips from the kitbash part-tree to a single unified spatial grid (a
+  backpack). This supersedes the part-tree assumption in BEH-D03; the deterministic core
+  (BEH-D01) and the sim-versus-render separation still hold — only the build surface changes.
+- KM-ENG is no longer "a lean Layer-1 budget." It becomes the central system — grid + power
+  battery economy + adjacency-transforming supports + bag expansions + recipes — and is
+  decomposed in the Kanban as KM-BACKPACK-GRID, KM-SYNERGY, and KM-GRID-MECH (high risk).
+- Layer 2 (pilot-fit / sync — KM-PILOT-FIT) is deferred to v0.2+. For v0.1 the pilot is only a
+  source of unique items; the in-fight sync meter re-enters later as item behaviour.
+- The next version is the backpack engineering gauntlet, not KM-DEPLOY. KM-DEPLOY, the
+  persistent KM-PILOT, KM-WORKSHOP, KM-HOME, and KM-THEATRE move to v0.2+.
+- KM-WATCH and STACK-ADR-01 are effectively satisfied: the Godot director spike confirmed the
+  stack and produced the proven combat viewer (the locked guide is fight_log_everything +
+  --director=hybrid). KM-CORE-PORT (build-driven deterministic sim) remains the open
+  prerequisite for the gauntlet.
+
+The wishlist (r2) vision is unchanged; only the build order moved.
+
+---
+
+Status: Draft refreshed 2026-06-06 (r3); rescoped header 2026-06-14 (see above). The vision is
+locked (see wishlist r2); release framing is Steam PC first, mobile-app compatible second, web
+optional; the stack is confirmed in practice (Godot 4.6 + GDScript, via the director spike).
+The next version is the v0.1 backpack engineering gauntlet (see the rescope note); the
+pilot-fit material below is the v0.2+ record. No child spec enters implementation planning
+until the per-slice gates in §11 pass.
 Created: 2026-06-06
 Working title: Kitbash Mecha (no licensed Gundam IP in any product/code/doc copy)
 Upstream intent: docs/wishlist/wishlist.md (r2) and docs/wishlist/flows/

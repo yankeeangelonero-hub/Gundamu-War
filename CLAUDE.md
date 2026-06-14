@@ -9,9 +9,9 @@ pilot-fit + war-front direction on 2026-06-06.
 ## What this project is
 
 Kitbash Mecha is a mech build-fighter with a pilot bond. The player is the partner
-engineer, not the pilot: you kitbash a humanoid mech from a tree of snap-together parts,
-fit it out for a single persistent pilot you grow attached to, then deploy that pilot into
-a living war and watch the deterministic duel resolve. The fantasy is a positive power
+engineer, not the pilot: you kitbash a humanoid mech by slotting shaped parts into a single
+spatial grid (a backpack), fit it out for a single persistent pilot you grow attached to,
+then deploy that pilot into a living war and watch the deterministic duel resolve. The fantasy is a positive power
 loop — building a feared ace — and the defining endgame is async PvP where your ace fights
 other real players' stored builds in a contested war.
 
@@ -25,12 +25,24 @@ suffers — there is no permanent harm to the pilot.
 This file is a pointer to the live design record, not the record itself. Read the wishlist
 for intent and the work map for the plan before doing design or build work.
 
+## Current build (v0.1, rebooted 2026-06-14)
+
+The version line was rebooted for the Godot build. v0.1 is the backpack engineering gauntlet
+over the proven 3D combat: the build is one unified spatial grid (not a part-tree), driven by
+a single power battery economy with adjacency-transforming supports, bag expansions, and
+recipes — the proven Backpack-Battles loop. The pilot-fit / sync layer that the vision above
+calls the star is deliberately deferred to v0.2+; for v0.1 the pilot only supplies unique
+items. The 3D combat viewer is proven and locked (guide: `fight_log_everything` +
+`--director=hybrid`). Authoritative v0.1 design:
+`docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md`. The vision above is
+unchanged — only the build order moved.
+
 ## Context for agents
 
 - The product target is Steam PC first and mobile-app compatible second. The build target is
   Godot 4.6 using GDScript; web export is optional for demos/playtests, not the primary
   product platform. C++ via GDExtension is the only sanctioned performance escape hatch. The
-  choice is recorded in the stack ADR and is provisional pending a confirmation spike.
+  choice is recorded in the stack ADR and is confirmed in practice via the Godot director spike.
 - The earlier prototype under `prototype/` is plain-web JavaScript (`game-core.js` is a
   pure deterministic core, `app.js` is a DOM renderer). It is a reference to port into the
   Godot build, not the shipping codebase.
@@ -51,8 +63,9 @@ for intent and the work map for the plan before doing design or build work.
 |---|---|
 | `docs/wishlist/wishlist.md` | The experience wishlist (r2) — authoritative record of intent. Read first. |
 | `docs/wishlist/flows/` | Core-loop and homecoming user-flow diagrams. |
-| `docs/pilot-and-war-front-high-level-spec-and-work-map.md` | The high-level spec + decomposition (work map) — the build plan and invariants. |
-| `docs/adrs/2026-06-06-build-stack-decision.md` | Stack decision (Godot 4.6 + GDScript), provisional pending a confirmation spike. |
+| `docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md` | Authoritative v0.1 design: the backpack engineering system (unified grid, power economy, synergy, recipes). Read first for current build. |
+| `docs/pilot-and-war-front-high-level-spec-and-work-map.md` | The high-level spec + decomposition (work map) — invariants + the v0.2+ pilot-fit plan; see its 2026-06-14 rescope note. |
+| `docs/adrs/2026-06-06-build-stack-decision.md` | Stack decision (Godot 4.6 + GDScript), confirmed in practice via the director spike. |
 | `docs/slices/KM-STACK-SPIKE-godot-platform-confirmation.md` | Ready slice spec for the first Godot confirmation spike. |
 | `agent-handoffs/claude-godot-km-stack-spike-prompt.md` | Claude Code implementation prompt for the Godot confirmation spike. |
 | `output/kitbash-approved-0e22-payload/kb-art-manifest.json` | Current part/anchor manifest and sprite payload for the spike. |
@@ -62,8 +75,10 @@ for intent and the work map for the plan before doing design or build work.
 
 - Add a backend, database, or network endpoint in the near-term prototype. Architect so the
   later backend is not precluded, but do not build it now.
-- Use C# in the v0.4 spike/near-term build, or introduce 3D. Current direction is GDScript;
-  C# can only be re-opened by a later stack decision if optional web export is fully abandoned.
+- Use C# in the near-term build. Current direction is GDScript; C# can only be re-opened by a
+  later stack decision if optional web export is fully abandoned. (The earlier "no 3D"
+  constraint is lifted: the proven combat viewer is 3D Godot. The 2D-cutout assumption from the
+  pilot-era plan no longer holds.)
 - Add real Gundam IP, licensed names, or lore. Specifically no V-fin antenna, no split
   twin-eye visor, no RX-78 silhouette or trim. Original identity uses a mono-eye, a single
   visor band, or a full-face sensor plate.

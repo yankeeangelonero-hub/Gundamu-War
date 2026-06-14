@@ -1,9 +1,11 @@
 # Build Stack for Rigged 2D + Relationship + War-Front Layers — Decision Spike / ADR
 
-Status: Active — product target confirmed as Steam PC first, mobile-app compatible second,
-with optional web demos/playtests. Godot 4.6 + GDScript is the lead stack after reading the
-4.6 docs against the hardened vision; a focused confirmation spike (§6) remains before it is
-final.
+Status: Resolved (2026-06-14) — Godot 4.6 + GDScript is confirmed in practice. The §6
+confirmation spike was carried out as the director/combat-viewer spike, which proved the
+engine and produced the locked combat viewer. Product target remains Steam PC first,
+mobile-app compatible second, with optional web demos/playtests. (Original 2026-06-06 status:
+lead stack pending the §6 spike.) Note: the spike is 3D, which supersedes the "rigged 2D /
+no-3D" framing in this ADR's title and §1 — the combat direction is now 3D Godot.
 Created: 2026-06-06
 Revised: 2026-06-06 (evidence pass against the local Godot 4.6 docs corpus; vision
 hardened to async-PvP endgame; release framing confirmed as Steam PC primary / mobile-app

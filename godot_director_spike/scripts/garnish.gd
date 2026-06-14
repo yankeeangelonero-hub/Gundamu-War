@@ -4,12 +4,10 @@ extends Node3D
 var actors: Dictionary = {}
 var director: Node3D
 var rng := RandomNumberGenerator.new()
-var stylized := false   # cel mode: energy FX drawn as flat core + soft halo, not HDR emissive
 
-func setup(p_actors: Dictionary, p_director: Node3D, p_stylized := false) -> void:
+func setup(p_actors: Dictionary, p_director: Node3D) -> void:
 	actors = p_actors
 	director = p_director
-	stylized = p_stylized
 	rng.seed = 7
 	director.fight_event.connect(_on_event)
 	# Pre-read the log (the director advantage, applied to VFX): every beam
@@ -45,21 +43,11 @@ func _on_event(e: Dictionary) -> void:
 func _other(a: String) -> String:
 	return "B" if a == "A" else "A"
 
-# ---- energy-FX materials: flat unshaded cel (read on any background) vs HDR emissive ----
+# ---- energy-FX materials: HDR emissive (bloom) ----
 
-## Flat unshaded colour with alpha — the cel "fake emissive" (no bloom dependency).
-func _cel_unshaded(albedo: Color, alpha := 1.0) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(albedo.r, albedo.g, albedo.b, alpha)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return m
-
-## One-mesh energy material: flat bright (slightly whitened) in cel mode, HDR
-## emissive otherwise. Used by tracers, missiles, charge orbs, impact sparks.
+## One-mesh HDR-emissive energy material. Used by tracers, missiles, charge orbs,
+## impact sparks, beams.
 func _energy_mat(color: Color, mult := 8.0) -> StandardMaterial3D:
-	if stylized:
-		return _cel_unshaded(color.lerp(Color(1, 1, 1), 0.35), 1.0)
 	var m := StandardMaterial3D.new()
 	m.emission_enabled = true
 	m.emission = color
@@ -67,8 +55,7 @@ func _energy_mat(color: Color, mult := 8.0) -> StandardMaterial3D:
 	m.albedo_color = Color(1, 1, 1)
 	return m
 
-## A beam segment from→to. Cel mode draws a white-hot core inside a soft colour
-## halo (the "mask outside"); otherwise a single HDR-emissive bar. Self-fades.
+## A beam segment from→to: a single HDR-emissive bar that self-fades.
 func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void:
 	var holder := Node3D.new()
 	add_child(holder)
@@ -76,25 +63,10 @@ func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void
 	if not holder.global_position.is_equal_approx(to):
 		holder.look_at(to, Vector3.UP)
 	var length := from.distance_to(to)
-	var fade_mats: Array = []
-	var fade_emissive := false
-	if stylized:
-		var halo_m := _cel_unshaded(color, 0.35)
-		var core_m := _cel_unshaded(color.lerp(Color(1, 1, 1), 0.75), 0.95)
-		_beam_box(holder, Vector3(core_w * 3.2, core_w * 3.2, length), halo_m)
-		_beam_box(holder, Vector3(core_w * 1.2, core_w * 1.2, length), core_m)
-		fade_mats = [halo_m, core_m]
-	else:
-		var em := _energy_mat(color, 14.0)
-		_beam_box(holder, Vector3(core_w, core_w, length), em)
-		fade_mats = [em]
-		fade_emissive = true
-	var tw := create_tween().set_parallel(true)
-	for fm in fade_mats:
-		if fade_emissive:
-			tw.tween_property(fm, "emission_energy_multiplier", 0.0, 0.35)
-		else:
-			tw.tween_property(fm, "albedo_color:a", 0.0, 0.35)
+	var em := _energy_mat(color, 14.0)
+	_beam_box(holder, Vector3(core_w, core_w, length), em)
+	var tw := create_tween()
+	tw.tween_property(em, "emission_energy_multiplier", 0.0, 0.35)
 	tw.chain().tween_callback(holder.queue_free)
 
 ## Re-aim a shot so it leaves straight down the barrel (following the rifle's
@@ -285,7 +257,7 @@ func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -
 		return
 	var m := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
-	mesh.radius = 0.7 if stylized else 0.55
+	mesh.radius = 0.55
 	mesh.height = mesh.radius * 2.0
 	mesh.material = _energy_mat(Color(1.0, 0.7, 0.3), 6.0)
 	m.mesh = mesh
@@ -418,7 +390,7 @@ func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> voi
 	to = _barrel_aim(shooter, from, to)   # tracers stream out the barrel too
 	var b := MeshInstance3D.new()
 	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.32 if stylized else 0.18   # flat cel tracers need a touch more body to read
+	mesh.radius = 0.18
 	mesh.height = 2.8
 	mesh.material = _energy_mat(Color(1.0, 0.85, 0.4), 8.0)
 	b.mesh = mesh
@@ -535,15 +507,10 @@ func _ring(pos: Vector3, color := Color(1.0, 0.8, 0.5), size := 40.0) -> void:
 	mesh.outer_radius = 1.0
 	var mat := StandardMaterial3D.new()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	if stylized:
-		# Flat, subtle, COLOURED shockwave — not a blown-out white disc in cel.
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.albedo_color = Color(color.r, color.g, color.b, 0.5)
-	else:
-		mat.emission_enabled = true
-		mat.emission = color
-		mat.emission_energy_multiplier = 8.0
-		mat.albedo_color = Color(1, 1, 1, 0.8)
+	mat.emission_enabled = true
+	mat.emission = color
+	mat.emission_energy_multiplier = 8.0
+	mat.albedo_color = Color(1, 1, 1, 0.8)
 	mesh.material = mat
 	ring.mesh = mesh
 	add_child(ring)

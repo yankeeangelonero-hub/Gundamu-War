@@ -136,9 +136,10 @@ func _dispatch(e: Dictionary) -> void:
 	match e.kind:
 		"advance":
 			var dur := (float(e.payload.end_tick) - float(e.tick)) * TICK
-			actor.walk_to(float(e.payload.to_x), float(e.payload.get("to_y", 0.0)),
-				float(e.payload.get("to_z", actor.position.z)), dur,
-				bool(e.payload.get("boost", false)))
+			var raw := Vector3(float(e.payload.to_x), float(e.payload.get("to_y", 0.0)),
+				float(e.payload.get("to_z", actor.position.z)))
+			var to := _engage(raw, target.position)   # keep the move at duel range, not away
+			actor.walk_to(to.x, to.y, to.z, dur, bool(e.payload.get("boost", false)))
 		"fire_beam":
 			actor.face_toward(target.position)
 			actor.recoil()
@@ -180,6 +181,21 @@ func _dispatch(e: Dictionary) -> void:
 			actor.die()
 			shake_strength = 1.0
 	fight_event.emit(e)
+
+## Engagement ring: keep a mech's move target within duel range of its enemy, so a
+## log position that would send it walking off into the distance instead lands on
+## the ring at the same bearing — the move reads as strafing the enemy, not fleeing.
+## Pure function of the log target + enemy position, so it stays deterministic.
+const ENGAGE_MIN := 34.0
+const ENGAGE_MAX := 80.0
+func _engage(raw: Vector3, enemy: Vector3) -> Vector3:
+	var off := Vector3(raw.x - enemy.x, 0.0, raw.z - enemy.z)
+	var d := off.length()
+	if d < 0.5:
+		return raw   # degenerate (target ~on enemy) — leave it, sim meant point-blank
+	var clamped := clampf(d, ENGAGE_MIN, ENGAGE_MAX)
+	var p := enemy + off / d * clamped
+	return Vector3(p.x, raw.y, p.z)
 
 func _update_shot() -> void:
 	while _shot_idx + 1 < shots.size() and float(shots[_shot_idx + 1].t0) <= t:

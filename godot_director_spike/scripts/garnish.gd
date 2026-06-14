@@ -4,10 +4,12 @@ extends Node3D
 var actors: Dictionary = {}
 var director: Node3D
 var rng := RandomNumberGenerator.new()
+var stylized := false   # cel mode: energy FX drawn as flat core + soft halo, not HDR emissive
 
-func setup(p_actors: Dictionary, p_director: Node3D) -> void:
+func setup(p_actors: Dictionary, p_director: Node3D, p_stylized := false) -> void:
 	actors = p_actors
 	director = p_director
+	stylized = p_stylized
 	rng.seed = 7
 	director.fight_event.connect(_on_event)
 	# Pre-read the log (the director advantage, applied to VFX): every beam
@@ -22,6 +24,9 @@ func setup(p_actors: Dictionary, p_director: Node3D) -> void:
 func _on_event(e: Dictionary) -> void:
 	var shooter: Node3D = actors[e.actor]
 	var target: Node3D = actors[_other(str(e.actor))]
+	# Any weapon discharge snaps the firer into its firing stance (rigged mechs).
+	if str(e.kind).begins_with("fire") and shooter.has_method("fire_weapon"):
+		shooter.fire_weapon()
 	match e.kind:
 		"fire_beam":
 			_beam(shooter, target, e.payload)
@@ -39,6 +44,74 @@ func _on_event(e: Dictionary) -> void:
 
 func _other(a: String) -> String:
 	return "B" if a == "A" else "A"
+
+# ---- energy-FX materials: flat unshaded cel (read on any background) vs HDR emissive ----
+
+## Flat unshaded colour with alpha — the cel "fake emissive" (no bloom dependency).
+func _cel_unshaded(albedo: Color, alpha := 1.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(albedo.r, albedo.g, albedo.b, alpha)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return m
+
+## One-mesh energy material: flat bright (slightly whitened) in cel mode, HDR
+## emissive otherwise. Used by tracers, missiles, charge orbs, impact sparks.
+func _energy_mat(color: Color, mult := 8.0) -> StandardMaterial3D:
+	if stylized:
+		return _cel_unshaded(color.lerp(Color(1, 1, 1), 0.35), 1.0)
+	var m := StandardMaterial3D.new()
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = mult
+	m.albedo_color = Color(1, 1, 1)
+	return m
+
+## A beam segment from→to. Cel mode draws a white-hot core inside a soft colour
+## halo (the "mask outside"); otherwise a single HDR-emissive bar. Self-fades.
+func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	holder.global_position = (from + to) * 0.5
+	if not holder.global_position.is_equal_approx(to):
+		holder.look_at(to, Vector3.UP)
+	var length := from.distance_to(to)
+	var fade_mats: Array = []
+	var fade_emissive := false
+	if stylized:
+		var halo_m := _cel_unshaded(color, 0.35)
+		var core_m := _cel_unshaded(color.lerp(Color(1, 1, 1), 0.75), 0.95)
+		_beam_box(holder, Vector3(core_w * 3.2, core_w * 3.2, length), halo_m)
+		_beam_box(holder, Vector3(core_w * 1.2, core_w * 1.2, length), core_m)
+		fade_mats = [halo_m, core_m]
+	else:
+		var em := _energy_mat(color, 14.0)
+		_beam_box(holder, Vector3(core_w, core_w, length), em)
+		fade_mats = [em]
+		fade_emissive = true
+	var tw := create_tween().set_parallel(true)
+	for fm in fade_mats:
+		if fade_emissive:
+			tw.tween_property(fm, "emission_energy_multiplier", 0.0, 0.35)
+		else:
+			tw.tween_property(fm, "albedo_color:a", 0.0, 0.35)
+	tw.chain().tween_callback(holder.queue_free)
+
+## Re-aim a shot so it leaves straight down the barrel (following the rifle's
+## animated rotation) while keeping the original muzzle→aim distance — so a hit
+## still reaches the enemy plane and a miss still overshoots by the same length.
+func _barrel_aim(shooter: Node3D, from: Vector3, aim_point: Vector3) -> Vector3:
+	if not shooter.has_method("muzzle_forward"):
+		return aim_point
+	return from + shooter.muzzle_forward() * from.distance_to(aim_point)
+
+func _beam_box(holder: Node3D, size: Vector3, mat: StandardMaterial3D) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = mat
+	mi.mesh = mesh
+	holder.add_child(mi)
 
 ## Mechs body-check the city: any intact building a (living) mech's footprint
 ## overlaps gets smashed and toppled in the mech's travel direction. Driven by
@@ -88,15 +161,12 @@ func _charge(mech: Node3D) -> void:
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.5
 	mesh.height = 1.0
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 10.0
-	mesh.material = mat
+	mesh.material = _energy_mat(color, 10.0)
 	orb.mesh = mesh
 	orb.scale = Vector3.ONE * 0.2
 	mech.muzzle.add_child(orb)
 	var light := OmniLight3D.new()
+	light.visible = false   # omni removed: scene lit by directional + sky only
 	light.light_color = color
 	light.light_energy = 0.0
 	light.omni_range = 20.0
@@ -142,26 +212,10 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		to = target.position + Vector3(0, 11, 0) - (target.position - shooter.position).normalized() * 4.0
 	elif not payload.get("hit", false):
 		to = to + Vector3(0, 6, 22) + (to - from).normalized() * 30.0  # overshoot into a building
-	var beam := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.5, 0.5, from.distance_to(to))
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
-	mat.emission_energy_multiplier = 14.0
-	mat.albedo_color = Color(1, 1, 1)
-	mesh.material = mat
-	beam.mesh = mesh
-	add_child(beam)
-	beam.global_position = (from + to) * 0.5
-	beam.look_at(to, Vector3.UP)
-	var light := OmniLight3D.new()
-	light.light_color = mat.emission
-	light.light_energy = 18.0
-	light.omni_range = 35.0
-	add_child(light)
-	light.global_position = (from + to) * 0.5
-	_impact_flash(to, mat.emission)
+	to = _barrel_aim(shooter, from, to)   # leave the shot down the rifle barrel
+	var color := Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
+	_draw_beam(from, to, color, 0.6)
+	_impact_flash(to, color)
 	# Beams punch through architecture: any building crossing the line dies.
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
@@ -172,12 +226,6 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	if payload.get("hit", false) and float(payload.get("damage", 0)) > 25.0:
 		_hitstop()
 	director.shake_strength = maxf(director.shake_strength, 0.8 if payload.get("hit", false) else 0.3)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.35)
-	tw.tween_property(light, "light_energy", 0.0, 0.35)
-	tw.chain().tween_callback(func():
-		beam.queue_free()
-		light.queue_free())
 
 ## A beam tore through this building: blast at the entry point, then the
 ## whole block collapses straight down into a charred slab. Visual-only —
@@ -237,13 +285,9 @@ func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -
 		return
 	var m := MeshInstance3D.new()
 	var mesh := SphereMesh.new()
-	mesh.radius = 0.55
-	mesh.height = 1.1
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.7, 0.3)
-	mat.emission_energy_multiplier = 6.0
-	mesh.material = mat
+	mesh.radius = 0.7 if stylized else 0.55
+	mesh.height = mesh.radius * 2.0
+	mesh.material = _energy_mat(Color(1.0, 0.7, 0.3), 6.0)
 	m.mesh = mesh
 	add_child(m)
 	var start: Vector3 = shooter.muzzle_pos() + Vector3(rng.randf_range(-3, 3), rng.randf_range(3, 7), rng.randf_range(-3, 3))
@@ -296,15 +340,13 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var omesh := SphereMesh.new()
 	omesh.radius = 1.0
 	omesh.height = 2.0
-	var omat := StandardMaterial3D.new()
-	omat.emission_enabled = true
-	omat.emission = color
-	omat.emission_energy_multiplier = 14.0
+	var omat := _energy_mat(color, 14.0)
 	omesh.material = omat
 	orb.mesh = omesh
 	orb.scale = Vector3.ONE * 0.2
 	shooter.muzzle.add_child(orb)
 	var ol := OmniLight3D.new()
+	ol.visible = false   # omni removed: scene lit by directional + sky only
 	ol.light_color = color
 	ol.omni_range = 32.0
 	shooter.muzzle.add_child(ol)
@@ -320,25 +362,8 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var to: Vector3 = target.position + Vector3(0, 11, 0)
 	if not payload.get("hit", false):
 		to += (to - from).normalized() * 40.0 + Vector3(0, 8, 0)
-	var beam := MeshInstance3D.new()
-	var bmesh := BoxMesh.new()
-	bmesh.size = Vector3(5.0, 5.0, from.distance_to(to))
-	var bmat := StandardMaterial3D.new()
-	bmat.emission_enabled = true
-	bmat.emission = color
-	bmat.emission_energy_multiplier = 17.0
-	bmat.albedo_color = Color(1, 1, 1)
-	bmesh.material = bmat
-	beam.mesh = bmesh
-	add_child(beam)
-	beam.global_position = (from + to) * 0.5
-	beam.look_at(to, Vector3.UP)
-	var light := OmniLight3D.new()
-	light.light_color = color
-	light.light_energy = 45.0
-	light.omni_range = 90.0
-	add_child(light)
-	light.global_position = (from + to) * 0.5
+	to = _barrel_aim(shooter, from, to)   # fire straight down the barrel
+	_draw_beam(from, to, color, 2.5)   # thick capital-ship beam (core + halo in cel)
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
 		var hp: Variant = aabb.intersects_segment(from, to)
@@ -352,12 +377,6 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	shooter.recoil()
 	if payload.get("hit", false):
 		target.flinch(true)
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(bmat, "emission_energy_multiplier", 0.0, 0.4)
-	tw.tween_property(light, "light_energy", 0.0, 0.4)
-	tw.chain().tween_callback(func():
-		beam.queue_free()
-		light.queue_free())
 
 ## Blade clash: a burst of sparks + light at the contact point between the two
 ## suits. A block locks blades (cool sparks, push apart); a connecting cleave is
@@ -368,6 +387,7 @@ func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var col := Color(0.7, 0.9, 1.0) if blocked else Color(1.0, 0.85, 0.6)
 	_impact_flash(contact, col, 1.8)
 	var flash := OmniLight3D.new()
+	flash.visible = false   # omni removed: scene lit by directional + sky only
 	flash.light_color = col
 	flash.light_energy = 28.0
 	flash.omni_range = 30.0
@@ -384,23 +404,23 @@ func _burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var hits := int(payload.hits)
 	for i in rounds:
 		var is_hit := i < hits
-		_tracer(shooter.muzzle_pos(), target, is_hit, float(i) * 0.09)
+		_tracer(shooter, target, is_hit, float(i) * 0.09)
 
-func _tracer(from: Vector3, target: Node3D, is_hit: bool, delay: float) -> void:
+func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> void:
 	await get_tree().create_timer(delay).timeout
+	if not is_instance_valid(shooter) or not is_instance_valid(target):
+		return
+	var from: Vector3 = shooter.muzzle_pos()
 	var to: Vector3 = target.position + Vector3(0, rng.randf_range(6, 13), rng.randf_range(-2, 2))
 	if not is_hit:
 		to += Vector3(rng.randf_range(-4, 4), rng.randf_range(2, 8), rng.randf_range(10, 20))
 		to += (to - from).normalized() * rng.randf_range(15.0, 35.0)  # sail past, hit cityscape
+	to = _barrel_aim(shooter, from, to)   # tracers stream out the barrel too
 	var b := MeshInstance3D.new()
 	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.18
-	mesh.height = 2.6
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.85, 0.4)
-	mat.emission_energy_multiplier = 8.0
-	mesh.material = mat
+	mesh.radius = 0.32 if stylized else 0.18   # flat cel tracers need a touch more body to read
+	mesh.height = 2.8
+	mesh.material = _energy_mat(Color(1.0, 0.85, 0.4), 8.0)
 	b.mesh = mesh
 	add_child(b)
 	b.global_position = from
@@ -431,11 +451,7 @@ func _impact_flash(pos: Vector3, color: Color, scale := 1.0) -> void:
 	var dm := SphereMesh.new()
 	dm.radius = 0.3
 	dm.height = 0.6
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 6.0
-	dm.material = mat
+	dm.material = _energy_mat(color, 6.0)
 	p.draw_pass_1 = dm
 	add_child(p)
 	p.global_position = pos
@@ -444,6 +460,7 @@ func _impact_flash(pos: Vector3, color: Color, scale := 1.0) -> void:
 
 func _explosion(pos: Vector3) -> void:
 	var flash := OmniLight3D.new()
+	flash.visible = false   # omni removed: scene lit by directional + sky only
 	flash.light_color = Color(1.0, 0.7, 0.35)
 	flash.light_energy = 60.0
 	flash.omni_range = 90.0
@@ -475,11 +492,7 @@ func _fireball(pos: Vector3) -> void:
 	var dm := SphereMesh.new()
 	dm.radius = 1.0
 	dm.height = 2.0
-	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.45, 0.1)
-	mat.emission_energy_multiplier = 5.0
-	dm.material = mat
+	dm.material = _energy_mat(Color(1.0, 0.45, 0.1), 5.0)
 	p.draw_pass_1 = dm
 	add_child(p)
 	p.global_position = pos
@@ -521,11 +534,16 @@ func _ring(pos: Vector3, color := Color(1.0, 0.8, 0.5), size := 40.0) -> void:
 	mesh.inner_radius = 0.8
 	mesh.outer_radius = 1.0
 	var mat := StandardMaterial3D.new()
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 8.0
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 1, 1, 0.8)
+	if stylized:
+		# Flat, subtle, COLOURED shockwave — not a blown-out white disc in cel.
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = Color(color.r, color.g, color.b, 0.5)
+	else:
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 8.0
+		mat.albedo_color = Color(1, 1, 1, 0.8)
 	mesh.material = mat
 	ring.mesh = mesh
 	add_child(ring)

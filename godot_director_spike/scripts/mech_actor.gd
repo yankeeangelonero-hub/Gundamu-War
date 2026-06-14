@@ -38,15 +38,30 @@ var _blade_light: OmniLight3D
 var _swinging := false        # while true, the blade lays down a swing trail
 var _lock_t := 0.0            # while >0, planted in a blade lock (no movement)
 var _blocking := false
+# Rigged mode: drive a real Mixamo-rigged mesh (Y-bot stand-in + box armour)
+# instead of building block-out boxes. The integrator + interface are unchanged.
+var rigged := false
+var _rig: Node3D
+var _skel: Skeleton3D
+var _anim: AnimationPlayer
+var _cur_clip := ""
+var _fire_t := 0.0       # while >0 the rigged mech holds the firing-rifle stance
 var _thruster: OmniLight3D
 
-func setup(id: String, color: Color, x: float, p_full_armor := false) -> void:
+func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged := false) -> void:
 	actor_id = id
 	tint = color
 	full_armor = p_full_armor
+	rigged = p_rigged
 	position = Vector3(x, 0, 0)
 
 func _ready() -> void:
+	if rigged:
+		_build_rigged()
+		_target = position
+		look_at_enemy_side()
+		_prev_yaw = rotation.y
+		return
 	var pelvis := _box(Vector3(4.5, 2.0, 3.0), Vector3(0, 7.5, 0))
 	torso = _box(Vector3(5.5, 4.5, 3.5), Vector3(0, 11.0, 0))
 	head = _box(Vector3(1.8, 1.6, 2.0), Vector3(0, 14.0, 0))
@@ -207,12 +222,16 @@ func _process(delta: float) -> void:
 	if _trail:
 		_trail.emitting = dashing
 	# In combat the mech keeps its front (gun + visor) on the enemy, so any move
-	# reads as a strafe/dodge rather than turning tail. Aim tracks fast.
+	# reads as a strafe/dodge rather than turning tail. Track fast enough that a
+	# quick orbit around the enemy never leaves a mech looking the wrong way.
 	if combat_face != null and is_instance_valid(combat_face):
 		var fd := combat_face.position - position
 		if Vector2(fd.x, fd.z).length() > 0.5:
 			_target_yaw = atan2(fd.x, fd.z)
-	rotation.y = lerp_angle(rotation.y, _target_yaw, (12.0 if dashing else 6.0) * delta)
+	rotation.y = lerp_angle(rotation.y, _target_yaw, (16.0 if dashing else 11.0) * delta)
+	if rigged:
+		_drive_rig(delta)
+		return   # skip the block-out box visuals; the rig + clips handle the body
 	# AMBAC: the mech whips its facing by swinging its arms — the limbs counter-
 	# rotate the torso (angular momentum), so a turn reads as limb-driven.
 	var yaw_vel := angle_difference(_prev_yaw, rotation.y) / maxf(delta, 0.0001)
@@ -388,7 +407,7 @@ func _landing_dust() -> void:
 
 ## Ignite the beam blade (extends from the hand) and light it up.
 func ignite_saber() -> void:
-	if _saber_lit:
+	if saber == null or _saber_lit:
 		return
 	_saber_lit = true
 	saber.visible = true
@@ -398,7 +417,7 @@ func ignite_saber() -> void:
 		_blade_light.light_energy = 5.0
 
 func retract_saber() -> void:
-	if not _saber_lit:
+	if saber == null or not _saber_lit:
 		return
 	_saber_lit = false
 	if _blade_light:
@@ -417,6 +436,8 @@ func melee_strike(target_pos: Vector3, _style: String) -> void:
 	if dir.length() > 0.1:
 		_target_yaw = atan2(dir.x, dir.z)
 		velocity += dir.normalized() * 30.0       # lunge onto the target
+	if arm_r == null:
+		return                                    # rigged: lunge done, clips/garnish do the rest
 	_blocking = true                              # hold the arm from AMBAC during the swing
 	var tw := create_tween()
 	tw.tween_property(arm_r, "rotation:x", deg_to_rad(-140), 0.14)   # wind up overhead
@@ -441,6 +462,8 @@ func knockback(away_dir: Vector3, force: float) -> void:
 ## Parry: the defender ignites its own blade and raises it to catch the strike,
 ## so a blocked melee reads as two blades locking.
 func parry() -> void:
+	if rigged:
+		return
 	ignite_saber()
 	_blocking = true
 	var tw := create_tween()
@@ -476,18 +499,43 @@ func crash_jolt() -> void:
 func muzzle_pos() -> Vector3:
 	return muzzle.global_position
 
+## Direction the barrel actually points (rigged: the rifle's animated +Z out the
+## muzzle; block-out: the mech front). Beams travel along this so the shot leaves
+## the gun where the gun is aimed, instead of snapping straight at the enemy.
+func muzzle_forward() -> Vector3:
+	if muzzle == null:
+		return transform.basis.z.normalized()
+	return muzzle.global_transform.basis.z.normalized()
+
+## A weapon just fired: in rigged mode, snap into the firing-rifle stance and hold
+## it briefly (the body plants to shoot, Torrington-style). Block-out mode has its
+## own recoil tween, so this is a no-op there.
+func fire_weapon() -> void:
+	if not rigged or _anim == null or not _anim.has_animation("fire"):
+		return
+	_anim.speed_scale = 1.0
+	_anim.play("fire", 0.1)
+	_cur_clip = "fire"
+	_fire_t = minf(_anim.get_animation("fire").length, 0.8)
+
 func recoil() -> void:
+	if rigged:
+		return
 	var tw := create_tween()
 	tw.tween_property(torso, "position:z", -0.6, 0.05)
 	tw.tween_property(torso, "position:z", 0.0, 0.25)
 
 func flinch(big: bool) -> void:
+	if rigged:
+		return
 	var amt := 0.10 if big else 0.04
 	var tw := create_tween()
 	tw.tween_property(self, "rotation:x", -amt, 0.06)
 	tw.tween_property(self, "rotation:x", 0.0, 0.3)
 
 func block_pose() -> void:
+	if rigged:
+		return
 	_blocking = true
 	var tw := create_tween()
 	tw.tween_property(arm_l, "rotation:x", deg_to_rad(-70), 0.12)
@@ -498,6 +546,12 @@ func block_pose() -> void:
 func die() -> void:
 	dead = true
 	moving = false
+	if rigged:
+		if _anim and _anim.has_animation("walk"):
+			_anim.speed_scale = 0.0   # freeze the pose; garnish explosion covers the kill
+		var tw := create_tween()
+		tw.tween_property(_rig, "rotation:z", deg_to_rad(80), 0.7).set_trans(Tween.TRANS_QUAD)  # topple
+		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
 	for c in get_children():
@@ -508,3 +562,178 @@ func die() -> void:
 			tw.tween_property(c, "rotation", Vector3(rng.randf_range(-2, 2), rng.randf_range(-2, 2), rng.randf_range(-2, 2)), 1.2)
 			if c.mesh.material is StandardMaterial3D and not c.mesh.material.emission_enabled:
 				tw.tween_property(c.mesh.material, "albedo_color", Color(0.05, 0.04, 0.04), 0.8)
+
+# ---- rigged mode: Mixamo Y-bot + bolt-on box armour + box rifle ----
+
+const RIG_SCALE := 11.0   # Mixamo ~1.7u tall → ~19u mech, matching the city scale
+
+func _build_rigged() -> void:
+	var packed := load("res://models/run_rifle.fbx") as PackedScene
+	_rig = packed.instantiate()
+	_rig.scale = Vector3.ONE * RIG_SCALE
+	add_child(_rig)
+	_skel = _find_type(_rig, "Skeleton3D")
+	_anim = _find_type(_rig, "AnimationPlayer")
+	if _anim == null or _skel == null:
+		push_error("rigged mech: skeleton/anim not found"); return
+	# Base clip (the run-rifle take) → "run"; pull the others in from their files.
+	_install_anim("run", _anim.get_animation("mixamo_com"))
+	_add_clip("walk", "res://models/walk.fbx")
+	_add_clip("strafe_l", "res://models/strafe_left.fbx")
+	_add_clip("strafe_r", "res://models/strafe_right.fbx")
+	_add_clip("fire", "res://models/firing_rifle.fbx")
+	_add_clip("stand", "res://models/rifle_aiming_idle.fbx")   # default idle: rifle aiming stance
+	for c in ["run", "walk", "strafe_l", "strafe_r", "stand"]:
+		_prep_loco(c)
+	_prep_oneshot("fire")   # one-shot firing stance for the plant; "stand" is the relaxed idle
+	_attach_rifle()   # weapons only — no bolt-on armour (the real mech brings its own)
+	var start := "stand" if _anim.has_animation("stand") else "walk"
+	_anim.play(start)
+	_cur_clip = start
+
+func _find_type(n: Node, klass: String) -> Node:
+	if n.is_class(klass):
+		return n
+	for c in n.get_children():
+		var r := _find_type(c, klass)
+		if r:
+			return r
+	return null
+
+func _add_clip(clip_name: String, file: String) -> void:
+	if not ResourceLoader.exists(file):
+		return
+	var temp := (load(file) as PackedScene).instantiate()
+	var ap := _find_type(temp, "AnimationPlayer") as AnimationPlayer
+	if ap and ap.has_animation("mixamo_com"):
+		_install_anim(clip_name, ap.get_animation("mixamo_com"))
+	temp.queue_free()
+
+func _install_anim(clip_name: String, src: Animation) -> void:
+	if src == null:
+		return
+	var a := src.duplicate() as Animation
+	var lib: AnimationLibrary
+	if _anim.has_animation_library(""):
+		lib = _anim.get_animation_library("")
+	else:
+		lib = AnimationLibrary.new()
+		_anim.add_animation_library("", lib)
+	if lib.has_animation(clip_name):
+		lib.remove_animation(clip_name)
+	lib.add_animation(clip_name, a)
+
+## Loop + strip root translation so the clip cycles in place (the integrator owns position).
+func _prep_loco(clip_name: String) -> void:
+	var a := _anim.get_animation(clip_name)
+	if a == null:
+		return
+	a.loop_mode = Animation.LOOP_LINEAR
+	for i in a.get_track_count():
+		if a.track_get_type(i) == Animation.TYPE_POSITION_3D and String(a.track_get_path(i)).ends_with("Hips"):
+			a.remove_track(i)
+			return
+
+## Like _prep_loco but plays once (firing stance) — strip root drift, no loop.
+func _prep_oneshot(clip_name: String) -> void:
+	var a := _anim.get_animation(clip_name)
+	if a == null:
+		return
+	a.loop_mode = Animation.LOOP_NONE
+	for i in a.get_track_count():
+		if a.track_get_type(i) == Animation.TYPE_POSITION_3D and String(a.track_get_path(i)).ends_with("Hips"):
+			a.remove_track(i)
+			return
+
+func _drive_rig(delta: float) -> void:
+	if _fire_t > 0.0:
+		_fire_t -= delta   # firing stance owns the body; resume locomotion when it ends
+		return
+	var spd := velocity.length()
+	var fwd := velocity.dot(transform.basis.z)
+	var lat := velocity.dot(transform.basis.x)
+	var clip := "stand"
+	# Front (local +Z) tracks the enemy, so a sideways move is a strafe. local +X is
+	# the mech's LEFT (front +Z, up +Y → +X faces left), so +lat = stepping left.
+	if spd > 5.0 and absf(lat) > absf(fwd):
+		clip = "strafe_l" if lat > 0.0 else "strafe_r"
+	elif spd > 14.0:
+		clip = "run"
+	elif spd > 2.0:
+		clip = "walk"
+	if not _anim.has_animation(clip):
+		clip = "walk"   # stand missing → fall back so a stopped mech still cycles
+	if clip != _cur_clip and _anim.has_animation(clip):
+		_cur_clip = clip
+		_anim.play(clip, 0.25)
+	# Locomotion clips scale with speed; the standing pose plays at a calm steady rate.
+	# A mech facing the enemy but moving backward plays its walk/run REVERSED, so a
+	# retreat reads as a backpedal instead of a moonwalk (legs forward, body sliding back).
+	if clip == "stand":
+		_anim.speed_scale = 1.0
+	else:
+		var s := clampf(spd / 16.0, 0.7, 1.6) if spd > 1.5 else 0.85
+		if (clip == "walk" or clip == "run") and fwd < -1.0:
+			s = -s
+		_anim.speed_scale = s
+
+## Bolt a box onto a bone (armour plate / weapon mount). Tinted = team colour.
+func _bone_box(bone: String, offset: Vector3, size: Vector3, col: Color) -> Node3D:
+	var idx := _skel.find_bone(bone)
+	if idx < 0:
+		return null
+	var ba := BoneAttachment3D.new()
+	_skel.add_child(ba)
+	ba.bone_name = bone
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.roughness = 0.5
+	mesh.material = mat
+	mi.mesh = mesh
+	mi.position = offset
+	ba.add_child(mi)
+	return mi
+
+## Strap blocky armour over the Y-bot so it reads as a mech, not a mannequin.
+func _strap_armor() -> void:
+	var dark := tint.darkened(0.2)
+	_bone_box("mixamorig_Spine2", Vector3(0, 0.04, 0.02), Vector3(0.45, 0.42, 0.32), tint)   # chest
+	_bone_box("mixamorig_Hips", Vector3(0, 0, 0), Vector3(0.4, 0.26, 0.32), dark)            # pelvis
+	_bone_box("mixamorig_Head", Vector3(0, 0.06, 0.03), Vector3(0.26, 0.26, 0.3), tint)      # head
+	for s in ["Left", "Right"]:
+		_bone_box("mixamorig_%sArm" % s, Vector3(0, -0.06, 0), Vector3(0.22, 0.26, 0.24), tint)        # shoulder
+		_bone_box("mixamorig_%sForeArm" % s, Vector3(0, -0.1, 0), Vector3(0.16, 0.32, 0.18), dark)     # forearm
+		_bone_box("mixamorig_%sUpLeg" % s, Vector3(0, -0.12, 0), Vector3(0.2, 0.34, 0.22), tint)       # thigh
+		_bone_box("mixamorig_%sLeg" % s, Vector3(0, -0.12, 0), Vector3(0.18, 0.34, 0.2), dark)         # shin
+		_bone_box("mixamorig_%sFoot" % s, Vector3(0, -0.02, 0.05), Vector3(0.18, 0.12, 0.3), dark)     # foot
+
+## A rectangle rifle in the right hand; its tip is the muzzle for beam FX.
+func _attach_rifle() -> void:
+	var idx := _skel.find_bone("mixamorig_RightHand")
+	if idx < 0:
+		return
+	var ba := BoneAttachment3D.new()
+	_skel.add_child(ba)
+	ba.bone_name = "mixamorig_RightHand"
+	# Holder carries the (correct) facing rotation; the rifle + muzzle are then
+	# offset along the HOLDER's forward, so they sit in the hand and extend down
+	# the barrel — not along the hand bone's Z (which pointed at the shoulder).
+	var holder := Node3D.new()
+	holder.rotation_degrees = Vector3(-90, 0, 0)
+	ba.add_child(holder)
+	var rifle := MeshInstance3D.new()
+	var rmesh := BoxMesh.new()
+	rmesh.size = Vector3(0.13, 0.17, 0.8)   # a clear box rifle
+	var rmat := StandardMaterial3D.new()
+	rmat.albedo_color = Color(0.16, 0.16, 0.19)
+	rmat.roughness = 0.5
+	rmesh.material = rmat
+	rifle.mesh = rmesh
+	rifle.position = Vector3(0, 0, 0.34)    # grip at the hand, barrel extends forward
+	holder.add_child(rifle)
+	muzzle = Node3D.new()
+	muzzle.position = Vector3(0, 0, 0.78)   # barrel tip — projectiles originate + aim from here
+	holder.add_child(muzzle)

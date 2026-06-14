@@ -3,10 +3,17 @@ project: kitbash-mecha
 repo: gundamu-war
 doc_type: high-level-spec
 status: active
-updated: 2026-06-06
+updated: 2026-06-14
 ---
 
 # High Level Project Specifications — Kitbash Mecha
+
+Direction note (2026-06-14): the version line was rebooted to v0.1, the backpack engineering
+gauntlet over the proven 3D combat. Two enduring frames below changed in fact, not just in
+sequence: the build surface is now a single spatial grid, not a recursive part-tree; and the
+combat is 3D, so the old "no 3D" and "2D cutout rig" assumptions are lifted. The pilot-fit
+features (FEAT-002, FEAT-005) remain enduring but are deferred to v0.2+. Authoritative current
+design: docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md.
 
 This is the enduring high-level frame for the project. The detailed, living requirements
 live in two places that this document points to rather than duplicates: the experience
@@ -19,9 +26,9 @@ any single version.
 ## Project statement
 
 Kitbash Mecha is a mech build-fighter with a pilot bond. The player is the partner engineer:
-they kitbash a humanoid mech from a tree of snap-together parts, fit it out for a single
-persistent pilot, deploy that pilot into a living war, and watch the deterministic duel
-resolve without touching the controls. The loop is a positive power fantasy of building a
+they kitbash a humanoid mech by slotting shaped parts into a single spatial grid, fit it out
+for a single persistent pilot, deploy that pilot into a living war, and watch the deterministic
+duel resolve without touching the controls. The loop is a positive power fantasy of building a
 feared ace, and the defining endgame is async PvP in which the player's ace fights other real
 players' stored builds in a contested war.
 
@@ -39,11 +46,11 @@ players' stored builds in a contested war.
 
 | Component | Responsibility |
 |---|---|
-| `Kitbash build tree` | The recursive typed socket assembly the player edits; the build, the stat structure, and the rig in one tree. |
+| `Backpack build grid` | The single spatial grid the player edits; placed shaped items are the build, the stat structure the simulator reads, and what mounts on the mech. (Was a recursive part-tree pre-reboot.) |
 | `Pilot-fit + sync model` | Capacity-vs-demand fit, the pre-deploy readout, and in-combat sync climbing to a breakthrough. The differentiator. |
 | `Machine engineering` | The lean substrate budget: power, heat, armor, weight. |
 | `Deterministic simulator` | Pure, renderer-agnostic event resolution; reproducible from builds + seed; the PvP-verification enabler. |
-| `Rig renderer` | Cutout 2D rig that mounts the built parts and plays one primary attack at a time. |
+| `Rig renderer` | 3D mech that mounts the built parts and plays the watched fight (the proven combat viewer). |
 | `Run + growth state` | The persistent pilot, skills, sync ceiling, salvage, and growth across a run. |
 | `Opponent-build source` | The injected interface supplying enemy builds. |
 
@@ -51,9 +58,10 @@ players' stored builds in a contested war.
 
 These are the enduring features; per-slice acceptance lives in the work map.
 
-### FEAT-001 — Kitbash build tree
-The player assembles a mech from a recursive tree of typed snap-together parts. The same tree
-is the build, the stat structure the simulator reads, and the rig the renderer mounts.
+### FEAT-001 — Backpack build grid
+The player assembles a mech by placing shaped items into a single spatial grid. The same grid
+is the build, the stat structure the simulator reads, and what mounts on the 3D mech. (This was
+a recursive part-tree before the 2026-06-14 reboot; the grid replaces it.)
 
 ### FEAT-002 — Pilot-machine fit and sync
 A build is fit to a specific pilot. The pre-deploy readout shows how well she handles the
@@ -124,8 +132,9 @@ Parts, skills, gates, fits, ghost builds, and war fronts are data, not code.
 ### ARC-004 — Stack and platform
 The product target is Steam PC first and mobile-app compatible second. The build target is
 Godot 4.6 with GDScript; web export is optional for demos/playtests, not the primary product
-platform. No 3D. No backend in the near-term prototype, but the architecture must not
-preclude the backend the war endgame needs.
+platform. The combat is 3D (the earlier no-3D constraint was lifted once the 3D viewer was
+proven). No backend in the near-term prototype, but the architecture must not preclude the
+backend the war endgame needs.
 
 ### ARC-005 — No licensed IP
 No Gundam names, factions, lore, or trademarked silhouettes — specifically no V-fin antenna,

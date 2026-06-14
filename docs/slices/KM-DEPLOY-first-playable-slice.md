@@ -14,6 +14,11 @@ owner_decision: "First playable slice must include some editable parts because k
 
 # KM-DEPLOY — First Playable Deploy Slice
 
+> Deferred (2026-06-14 reboot). KM-DEPLOY is a pilot-fit / deploy-gamble slice; the v0.1 reboot
+> defers the pilot layer to v0.2+, so this is no longer the first playable. The v0.1 first
+> playable is M1, the backpack grid build editor
+> (docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md). Retained for v0.2+.
+
 ## 0. Parent change proposals
 
 None. This draft clarifies KM-DEPLOY's playable scope: it is still tiny, but it must include a small editable-part workshop because kitbashing is the main thing the player should play with before choosing safe fit vs push.

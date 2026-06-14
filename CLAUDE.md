@@ -37,6 +37,13 @@ items. The 3D combat viewer is proven and locked (guide: `fight_log_everything` 
 `docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md`. The vision above is
 unchanged — only the build order moved.
 
+The active first slice is M1 — the grid build editor + power economy
+(`docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md`, designed
+2026-06-14). It is built before the M0 build→fight sim because the editor is standalone-testable.
+Damage uses PoE increased/more algebra; supports buff weapons in their authored slots; the build
+dresses the shared `MechActor`. Currently awaiting the build-screen UI design (in Claude design),
+then an implementation plan — no code yet.
+
 ## Context for agents
 
 - The product target is Steam PC first and mobile-app compatible second. The build target is

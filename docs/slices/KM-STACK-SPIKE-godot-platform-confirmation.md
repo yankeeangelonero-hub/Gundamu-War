@@ -14,6 +14,11 @@ stack_adr: docs/adrs/2026-06-06-build-stack-decision.md
 
 # KM-STACK-SPIKE — Godot Platform Confirmation Slice
 
+> Resolved (2026-06-14). The stack was confirmed in practice by the Godot director/combat-viewer
+> spike — Godot 4.6 + GDScript is in use and the combat viewer is proven. This spike spec is
+> satisfied and retained as history; see docs/adrs/2026-06-06-build-stack-decision.md (now marked
+> resolved).
+
 ## 0. Parent change proposals
 
 None. This slice implements the parent platform decision: Godot 4.6 + GDScript, Steam PC primary, mobile-app compatible secondary, optional web demos/playtests.

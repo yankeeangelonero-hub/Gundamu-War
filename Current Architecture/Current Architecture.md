@@ -8,6 +8,13 @@ updated: 2026-06-04
 
 # Current Architecture — Mech Bags Version 0.1
 
+> Historical, despite the folder name. This documents the superseded Mech Bags v0.1 browser
+> prototype (as-built 2026-06-04), not the current build. The current architecture is the Godot
+> v0.1 backpack engineering prototype (`godot_director_spike/` plus the M1 design at
+> docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md); the JS prototype
+> here is kept only as the deterministic-core reference to port. The sibling Actor Flows.md is
+> the same era.
+
 ## As-built summary (2026-06-04)
 
 Prototype is complete. Entry point: `prototype/index.html` (no server required).

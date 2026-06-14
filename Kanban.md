@@ -19,13 +19,8 @@ is deferred to v0.2+. Backlog items use KM- work-map IDs.
 ### [KM-CORE-PORT] Build-driven deterministic sim (M0)
 Port the pure deterministic core so a `{build, seed}` resolves to the event stream the combat
 viewer already renders, replacing the authored fight logs. Same build + seed → identical
-fight (BEH-D01); headless re-sim parity. The prerequisite the whole gauntlet rests on.
-
-### [KM-BACKPACK-GRID] Unified grid + power battery economy (M1)
-Reshapes the old KM-ENG "lean Layer-1 budget" into the central system: one expandable spatial
-grid, shaped-item placement, the single power economy (builders give pool/regen, spenders cost
-power, multipliers amplify), and the preferred-mount + fallback cascade that puts each slotted
-item on the 3D mech. Power-starvation reads on screen (legibility).
+fight (BEH-D01); headless re-sim parity. The follow-up that makes M1 builds fight — sequenced
+after M1 (which is standalone-testable), not before it.
 
 ### [KM-SYNERGY] Adjacency synergy + scaling vectors (M2)
 Support items that *transform* the weapon they touch (fork/chain/multishot, visible in the
@@ -52,7 +47,15 @@ unique-item pool — the toehold the v0.2 persistent pilot grows from.
 
 ## In Progress
 
-<!-- Nothing in active build; next up is KM-CORE-PORT (M0). -->
+### [KM-BACKPACK-GRID] Grid + power build editor (M1) — design done
+The first slice and the central system (reshapes the old KM-ENG "lean Layer-1 budget"): a 5×4
+grid, shaped builder/spender/support placement, the power battery economy (builders give
+pool/regen, spenders cost power), support value-modifier adjacency (added/increased/more with
+multiplicative cost multipliers), and the preferred-mount + fallback cascade that puts each
+slotted weapon on the shared 3D mech. Design committed
+(docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md). Next: build-screen
+UI design (owner, in Claude design) → implementation plan → build. No code until the plan is
+approved.
 
 ---
 

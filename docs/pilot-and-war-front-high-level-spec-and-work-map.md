@@ -21,6 +21,8 @@ and war-front direction, which is deferred to v0.2+. What changed:
   stack and produced the proven combat viewer (the locked guide is fight_log_everything +
   --director=hybrid). KM-CORE-PORT (build-driven deterministic sim) remains the open
   prerequisite for the gauntlet.
+- ARC-D07's "No 3D" is lifted — the proven combat viewer is 3D Godot. The "rigged 2D / cutout
+  rig" framing throughout the body below is superseded; combat is 3D.
 
 The wishlist (r2) vision is unchanged; only the build order moved.
 

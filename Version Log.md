@@ -54,6 +54,10 @@ export optional.
 (the authoritative v0.1 engineering design); docs/wishlist/wishlist.md (r2, vision unchanged);
 docs/pilot-and-war-front-high-level-spec-and-work-map.md (root contract, rescoped header).
 
+**First slice:** M1 — the grid build editor + power economy
+(docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md), designed
+2026-06-14. The editor is built before the M0 build→fight sim because it is standalone-testable.
+
 **Known gap to close:** the combat is proven as a *viewer* that plays authored fight logs.
 The deterministic sim that turns a backpack build into a fight (the ported core, KM-CORE-PORT)
 is the real prerequisite the gauntlet depends on and is not built yet.

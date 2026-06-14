@@ -51,6 +51,7 @@ static func build_from_placement(raw_placed: Array, base_hp := BASE_HP) -> Dicti
 			"cost": float(e.get("cost", def.get("base_power_cost", 0))),
 			"cadence": float(def.get("cadence", 1.0)),
 			"mount": mounts.mounts.get(p.iid, ""),
+			"fx": def.get("fx", "beam"),
 		})
 	return {
 		"hp": base_hp,
@@ -88,9 +89,7 @@ static func simulate(build_a: Dictionary, build_b: Dictionary, _seed: int = 0) -
 				side.power -= w.cost
 				foe.hp -= w.damage
 				var lethal: bool = foe.hp <= 0.0
-				log.append({"tick": tick, "actor": s, "kind": "fire_beam", "payload": {
-					"hit": true, "damage": w.damage, "hp_after": maxf(0.0, foe.hp),
-					"lethal": lethal, "overkill": maxf(0.0, -foe.hp)}})
+				log.append(_fire_event(tick, s, w, foe.hp, lethal))
 				w.next_fire_tick = tick + int(round(w.cadence / TICK_SECONDS))
 				if lethal:
 					log.append({"tick": tick, "actor": ENEMY[s], "kind": "destroyed", "payload": {}})
@@ -112,12 +111,40 @@ static func simulate(build_a: Dictionary, build_b: Dictionary, _seed: int = 0) -
 	push_warning("BuildFightSim hit MAX_TICKS without a terminal event")
 	return log
 
+## Build the right event for a weapon's FX kind. Damage is already applied; this is
+## pure presentation routing (the sim outcome is identical regardless of fx). Every
+## kind carries `mount` (so the beam/burst/salvo fires from that weapon) and `lethal`
+## (so the kill-cam fires on whichever weapon lands the killing blow).
+static func _fire_event(tick: int, actor: String, w: Dictionary, foe_hp: float, lethal: bool) -> Dictionary:
+	var payload := {
+		"damage": w.damage, "hp_after": maxf(0.0, foe_hp), "lethal": lethal, "mount": w.mount,
+	}
+	var kind := "fire_beam"
+	match w.fx:
+		"burst":
+			kind = "fire_burst"
+			payload["rounds"] = 6
+			payload["hits"] = 6
+		"missiles":
+			kind = "fire_missiles"
+			payload["count"] = 8
+			payload["hits"] = 8
+		"buster":
+			kind = "fire_buster"
+			payload["hit"] = true
+		_:
+			kind = "fire_beam"
+			payload["hit"] = true
+			payload["overkill"] = maxf(0.0, -foe_hp)
+	return {"tick": tick, "actor": actor, "kind": kind, "payload": payload}
+
 static func _init_side(b: Dictionary) -> Dictionary:
 	var weapons: Array = []
 	for w in b.get("weapons", []):
 		weapons.append({
 			"id": w.get("id", ""), "damage": float(w.damage), "cost": float(w.cost),
-			"cadence": float(w.cadence), "mount": w.get("mount", ""), "next_fire_tick": 0})
+			"cadence": float(w.cadence), "mount": w.get("mount", ""),
+			"fx": w.get("fx", "beam"), "next_fire_tick": 0})
 	var pool := float(b.get("pool", 0.0))
 	return {"hp": float(b.get("hp", BASE_HP)), "pool": pool, "regen": float(b.get("regen", 0.0)),
 		"power": pool, "weapons": weapons}

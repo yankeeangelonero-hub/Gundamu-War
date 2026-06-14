@@ -218,6 +218,8 @@ const HARDPOINT_OFFSETS := {
 }
 
 func register_hardpoints() -> void:
+	if not _hardpoints.is_empty():
+		return
 	for hp_name in HARDPOINT_OFFSETS:
 		var n := Node3D.new()
 		n.name = "hp_" + hp_name
@@ -241,6 +243,35 @@ func clear_mounts() -> void:
 		if is_instance_valid(m):
 			m.queue_free()
 	_mounted.clear()
+
+## World-space muzzle of the weapon mounted at `mount` (its barrel tip), so beams
+## fire from the actual weapon. Falls back to the mech's default muzzle when the
+## mount is empty/unmounted (standalone logs carry no mount).
+func weapon_muzzle_pos(mount := "") -> Vector3:
+	if mount != "" and _mounted.has(mount):
+		var w: Node3D = _mounted[mount]
+		if is_instance_valid(w):
+			var mz: Node3D = w.get_node_or_null("muzzle")
+			return mz.global_position if mz else w.global_position
+	return muzzle_pos()
+
+## Forward (barrel) direction of the mounted weapon; falls back to the default.
+func weapon_muzzle_forward(mount := "") -> Vector3:
+	if mount != "" and _mounted.has(mount):
+		var w: Node3D = _mounted[mount]
+		if is_instance_valid(w):
+			return w.global_transform.basis.z.normalized()
+	return muzzle_forward()
+
+## The muzzle Node3D to parent muzzle FX onto (so they ride the weapon); the
+## mounted weapon's marker, else the default muzzle.
+func weapon_muzzle_node(mount := "") -> Node3D:
+	if mount != "" and _mounted.has(mount):
+		var w: Node3D = _mounted[mount]
+		if is_instance_valid(w):
+			var mz: Node3D = w.get_node_or_null("muzzle")
+			return mz if mz else w
+	return muzzle
 
 func _process(delta: float) -> void:
 	if dead:

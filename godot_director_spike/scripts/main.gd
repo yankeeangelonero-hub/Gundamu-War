@@ -7,6 +7,7 @@ const Garnish := preload("res://scripts/garnish.gd")
 const SpikeAudio := preload("res://scripts/spike_audio.gd")
 const PauseController := preload("res://scripts/pause_controller.gd")
 const FightHandoff := preload("res://scripts/build/fight_handoff.gd")
+const LoadoutView := preload("res://scripts/build/loadout_view.gd")
 
 var camera: Camera3D
 var mech_a: Node3D
@@ -126,6 +127,14 @@ func _ready() -> void:
 	mech_b = MechActor.new()
 	mech_b.setup("B", Color(0.70, 0.30, 0.25), 40.0, full_armor, rig)
 	add_child(mech_b)
+	# Deployed fight: hang each side's actual loadout on the mech that fights, so the
+	# mech you built is the mech on the field (presentation only — beams still fire
+	# from the existing muzzle; the sim outcome is unchanged).
+	if FightHandoff.active:
+		mech_a.register_hardpoints()
+		LoadoutView.mount_loadout(mech_a, FightHandoff.player_placement)
+		mech_b.register_hardpoints()
+		LoadoutView.mount_loadout(mech_b, FightHandoff.ghost_placement)
 	camera = Camera3D.new()
 	camera.position = Vector3(0, 45, 90)
 	camera.fov = 55

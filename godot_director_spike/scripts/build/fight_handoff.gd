@@ -13,7 +13,9 @@ static var director_name := "hybrid"
 static var return_scene := "res://scenes/build_screen.tscn"
 static var player_label := "VESPER-7"
 static var ghost_label := "GHOST"
-static var saved_placement: Array = []   # [{def_id, rot, anchor}] — survives the round-trip
+static var saved_placement: Array = []     # [{def_id, rot, anchor}] — restores the bag on return
+static var player_placement: Array = []    # the deployed player loadout (mounted on the fighting mech)
+static var ghost_placement: Array = []      # the ghost loadout (mounted on the enemy mech)
 
 static func set_fight(p_events: Array, p_player: String, p_ghost: String) -> void:
 	active = true

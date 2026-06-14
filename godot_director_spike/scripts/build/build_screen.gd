@@ -412,6 +412,8 @@ func _on_deploy() -> void:
 	for p in grid.placed:
 		snap.append({"def_id": p.def_id, "rot": p.rot, "anchor": p.anchor})
 	FightHandoff.saved_placement = snap
+	FightHandoff.player_placement = snap                 # mounted on the fighting mech
+	FightHandoff.ghost_placement = ghost.placement       # mounted on the enemy mech
 	FightHandoff.set_fight(events, "VESPER-7", str(ghost.get("callsign", "GHOST")))
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 

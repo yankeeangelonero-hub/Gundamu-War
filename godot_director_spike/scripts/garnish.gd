@@ -17,7 +17,8 @@ func setup(p_actors: Dictionary, p_director: Node3D) -> void:
 			var at := float(e.tick) * 0.1 - 0.45
 			if at > 0.0:
 				var who := str(e.actor)
-				get_tree().create_timer(at).timeout.connect(func(): _charge(actors[who]))
+				var mount := str(e.payload.get("mount", ""))
+				get_tree().create_timer(at).timeout.connect(func(): _charge(actors[who], mount))
 
 func _on_event(e: Dictionary) -> void:
 	var shooter: Node3D = actors[e.actor]
@@ -72,10 +73,35 @@ func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void
 ## Re-aim a shot so it leaves straight down the barrel (following the rifle's
 ## animated rotation) while keeping the original muzzle→aim distance — so a hit
 ## still reaches the enemy plane and a miss still overshoots by the same length.
-func _barrel_aim(shooter: Node3D, from: Vector3, aim_point: Vector3) -> Vector3:
+## Muzzle world-position for a (possibly mounted) weapon; falls back to the default.
+func _mz(shooter: Node3D, mount := "") -> Vector3:
+	return shooter.weapon_muzzle_pos(mount) if shooter.has_method("weapon_muzzle_pos") else shooter.muzzle_pos()
+
+func _barrel_aim(shooter: Node3D, from: Vector3, aim_point: Vector3, mount := "") -> Vector3:
+	if shooter.has_method("weapon_muzzle_forward"):
+		return from + shooter.weapon_muzzle_forward(mount) * from.distance_to(aim_point)
 	if not shooter.has_method("muzzle_forward"):
 		return aim_point
 	return from + shooter.muzzle_forward() * from.distance_to(aim_point)
+
+## A quick bright pop at a weapon's muzzle the instant it fires.
+func _muzzle_flash(holder: Node3D, color: Color) -> void:
+	if holder == null or not is_instance_valid(holder):
+		return
+	var flash := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.9
+	mesh.height = 1.8
+	var mat := _energy_mat(color, 18.0)
+	mesh.material = mat
+	flash.mesh = mesh
+	flash.scale = Vector3.ONE * 0.4
+	holder.add_child(flash)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(flash, "scale", Vector3.ONE * 1.8, 0.16)
+	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.16)
+	tw.chain().tween_callback(flash.queue_free)
 
 func _beam_box(holder: Node3D, size: Vector3, mat: StandardMaterial3D) -> void:
 	var mi := MeshInstance3D.new()
@@ -125,8 +151,11 @@ func _smash_building(b: Node3D, mech: Node3D) -> void:
 			c.visible = false
 
 ## Anticipation: a growing emissive orb + light at the muzzle ahead of a beam.
-func _charge(mech: Node3D) -> void:
+func _charge(mech: Node3D, mount := "") -> void:
 	if mech.dead:
+		return
+	var holder: Node3D = mech.weapon_muzzle_node(mount) if mech.has_method("weapon_muzzle_node") else mech.muzzle
+	if holder == null:
 		return
 	var color: Color = Color(0.3, 0.9, 1.0) if mech.actor_id == "A" else Color(1.0, 0.4, 0.2)
 	var orb := MeshInstance3D.new()
@@ -136,13 +165,13 @@ func _charge(mech: Node3D) -> void:
 	mesh.material = _energy_mat(color, 10.0)
 	orb.mesh = mesh
 	orb.scale = Vector3.ONE * 0.2
-	mech.muzzle.add_child(orb)
+	holder.add_child(orb)
 	var light := OmniLight3D.new()
 	light.visible = false   # omni removed: scene lit by directional + sky only
 	light.light_color = color
 	light.light_energy = 0.0
 	light.omni_range = 20.0
-	mech.muzzle.add_child(light)
+	holder.add_child(light)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(orb, "scale", Vector3.ONE * 1.5, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(light, "light_energy", 9.0, 0.42)
@@ -178,14 +207,20 @@ func _wreck_smoke(pos: Vector3) -> void:
 	p.emitting = true
 
 func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
-	var from: Vector3 = shooter.muzzle_pos()
+	var mount := str(payload.get("mount", ""))
+	var from: Vector3 = shooter.weapon_muzzle_pos(mount) if shooter.has_method("weapon_muzzle_pos") else shooter.muzzle_pos()
 	var to: Vector3 = target.position + Vector3(0, 11, 0)
 	if payload.get("blocked", false):
 		to = target.position + Vector3(0, 11, 0) - (target.position - shooter.position).normalized() * 4.0
 	elif not payload.get("hit", false):
 		to = to + Vector3(0, 6, 22) + (to - from).normalized() * 30.0  # overshoot into a building
-	to = _barrel_aim(shooter, from, to)   # leave the shot down the rifle barrel
+	to = _barrel_aim(shooter, from, to, mount)   # leave the shot down the weapon's barrel
 	var color := Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
+	# Pop a muzzle flash on the firing weapon so each gun visibly fires (matches the
+	# prototype highlighting its firing node). Mounted weapons only — standalone logs
+	# carry no mount and keep their existing single-muzzle look.
+	if mount != "" and shooter.has_method("weapon_muzzle_node"):
+		_muzzle_flash(shooter.weapon_muzzle_node(mount), color)
 	_draw_beam(from, to, color, 0.6)
 	_impact_flash(to, color)
 	# Beams punch through architecture: any building crossing the line dies.
@@ -248,10 +283,11 @@ func _debris(at: Vector3) -> void:
 func _missiles(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var count := int(payload.get("count", 10))
 	var hits := int(payload.get("hits", count))
+	var mount := str(payload.get("mount", ""))
 	for i in count:
-		_one_missile(shooter, target, i < hits, float(i) * 0.04 + rng.randf_range(0.0, 0.05))
+		_one_missile(shooter, target, i < hits, float(i) * 0.04 + rng.randf_range(0.0, 0.05), mount)
 
-func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> void:
+func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float, mount := "") -> void:
 	await get_tree().create_timer(delay).timeout
 	if not is_instance_valid(shooter) or not is_instance_valid(target):
 		return
@@ -262,7 +298,7 @@ func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -
 	mesh.material = _energy_mat(Color(1.0, 0.7, 0.3), 6.0)
 	m.mesh = mesh
 	add_child(m)
-	var start: Vector3 = shooter.muzzle_pos() + Vector3(rng.randf_range(-3, 3), rng.randf_range(3, 7), rng.randf_range(-3, 3))
+	var start: Vector3 = _mz(shooter, mount) + Vector3(rng.randf_range(-3, 3), rng.randf_range(3, 7), rng.randf_range(-3, 3))
 	m.global_position = start
 	var to: Vector3 = target.position + Vector3(0, rng.randf_range(7, 13), 0)
 	if not is_hit:
@@ -307,6 +343,10 @@ func _smoke_puff(pos: Vector3) -> void:
 ## tears through everything it crosses, a screen-filling impact, and a heavy
 ## recoil that shoves the firer backward (yield = scale).
 func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var mount := str(payload.get("mount", ""))
+	var holder: Node3D = shooter.weapon_muzzle_node(mount) if shooter.has_method("weapon_muzzle_node") else shooter.muzzle
+	if holder == null:
+		holder = shooter.muzzle
 	var color: Color = Color(0.4, 0.8, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.5, 0.3)
 	var orb := MeshInstance3D.new()
 	var omesh := SphereMesh.new()
@@ -316,12 +356,12 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	omesh.material = omat
 	orb.mesh = omesh
 	orb.scale = Vector3.ONE * 0.2
-	shooter.muzzle.add_child(orb)
+	holder.add_child(orb)
 	var ol := OmniLight3D.new()
 	ol.visible = false   # omni removed: scene lit by directional + sky only
 	ol.light_color = color
 	ol.omni_range = 32.0
-	shooter.muzzle.add_child(ol)
+	holder.add_child(ol)
 	var ctw := create_tween().set_parallel(true)
 	ctw.tween_property(orb, "scale", Vector3.ONE * 3.2, 0.35)
 	ctw.tween_property(ol, "light_energy", 11.0, 0.35)
@@ -330,11 +370,11 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	ol.queue_free()
 	if not is_instance_valid(shooter) or not is_instance_valid(target):
 		return
-	var from: Vector3 = shooter.muzzle_pos()
+	var from: Vector3 = _mz(shooter, mount)
 	var to: Vector3 = target.position + Vector3(0, 11, 0)
 	if not payload.get("hit", false):
 		to += (to - from).normalized() * 40.0 + Vector3(0, 8, 0)
-	to = _barrel_aim(shooter, from, to)   # fire straight down the barrel
+	to = _barrel_aim(shooter, from, to, mount)   # fire straight down the barrel
 	_draw_beam(from, to, color, 2.5)   # thick capital-ship beam (core + halo in cel)
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
@@ -374,20 +414,23 @@ func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 func _burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var rounds := int(payload.rounds)
 	var hits := int(payload.hits)
+	var mount := str(payload.get("mount", ""))
+	if mount != "" and shooter.has_method("weapon_muzzle_node"):
+		_muzzle_flash(shooter.weapon_muzzle_node(mount), Color(1.0, 0.85, 0.4))
 	for i in rounds:
 		var is_hit := i < hits
-		_tracer(shooter, target, is_hit, float(i) * 0.09)
+		_tracer(shooter, target, is_hit, float(i) * 0.09, mount)
 
-func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> void:
+func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float, mount := "") -> void:
 	await get_tree().create_timer(delay).timeout
 	if not is_instance_valid(shooter) or not is_instance_valid(target):
 		return
-	var from: Vector3 = shooter.muzzle_pos()
+	var from: Vector3 = _mz(shooter, mount)
 	var to: Vector3 = target.position + Vector3(0, rng.randf_range(6, 13), rng.randf_range(-2, 2))
 	if not is_hit:
 		to += Vector3(rng.randf_range(-4, 4), rng.randf_range(2, 8), rng.randf_range(10, 20))
 		to += (to - from).normalized() * rng.randf_range(15.0, 35.0)  # sail past, hit cityscape
-	to = _barrel_aim(shooter, from, to)   # tracers stream out the barrel too
+	to = _barrel_aim(shooter, from, to, mount)   # tracers stream out the barrel too
 	var b := MeshInstance3D.new()
 	var mesh := CapsuleMesh.new()
 	mesh.radius = 0.18

@@ -22,27 +22,27 @@
 
     "beam_rifle": {
       "name": "Beam Rifle", "code": "BR-07", "kind": "spender", "shape": "1x3v",
-      "base_damage": 14, "base_power_cost": 8, "cadence": 4.0,
+      "base_damage": 14, "base_power_cost": 8, "cadence": 4.0, "fx": "beam",
       "preferred_mount": "hand_r", "fallback_mounts": ["hand_l", "shoulder_r"]
     },
     "beam_saber": {
       "name": "Beam Saber", "code": "BS-04", "kind": "spender", "shape": "1x2v",
-      "base_damage": 10, "base_power_cost": 5, "cadence": 2.5,
+      "base_damage": 10, "base_power_cost": 5, "cadence": 2.5, "fx": "beam",
       "preferred_mount": "hand_l", "fallback_mounts": ["hand_r"]
     },
     "gatling": {
       "name": "Gatling Gun", "code": "GT-09", "kind": "spender", "shape": "1x3v",
-      "base_damage": 9, "base_power_cost": 4, "cadence": 1.2,
+      "base_damage": 9, "base_power_cost": 4, "cadence": 1.2, "fx": "burst",
       "preferred_mount": "hand_r", "fallback_mounts": ["shoulder_r", "shoulder_l"]
     },
     "missile_rack": {
       "name": "Missile Rack", "code": "MR-11", "kind": "spender", "shape": "2x2",
-      "base_damage": 18, "base_power_cost": 12, "cadence": 6.0,
+      "base_damage": 18, "base_power_cost": 12, "cadence": 6.0, "fx": "missiles",
       "preferred_mount": "back", "fallback_mounts": ["shoulder_l", "shoulder_r"]
     },
     "beam_cannon": {
       "name": "Beam Cannon", "code": "CN-8", "kind": "spender", "shape": "1x4v",
-      "base_damage": 26, "base_power_cost": 18, "cadence": 8.0,
+      "base_damage": 26, "base_power_cost": 18, "cadence": 8.0, "fx": "buster",
       "preferred_mount": "back", "fallback_mounts": ["shoulder_r"]
     },
 

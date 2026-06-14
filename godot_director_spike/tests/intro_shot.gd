@@ -11,6 +11,8 @@ func _initialize() -> void:
 	var player := Sim.build_from_placement(Opp.get_placement(0))
 	var ghost := Sim.build_from_placement(Opp.get_placement(1))
 	var events := Sim.simulate(player, ghost, 1)
+	Handoff.player_placement = Opp.get_placement(0)
+	Handoff.ghost_placement = Opp.get_placement(1)
 	Handoff.set_fight(events, "VESPER-7", "PIERCE-9")
 	change_scene_to_file("res://scenes/main.tscn")
 	await create_timer(1.7).timeout   # mid-intro (push-in ~halfway, title up)

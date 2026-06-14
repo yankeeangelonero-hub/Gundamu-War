@@ -1,0 +1,44 @@
+{
+  "_note": "KM-OPP ghost-build pool (M0). Each ghost is a placement: a list of {def_id, rot, anchor:[row,col]} on the 5x4 grid (rows 0-3, cols 0-4). Resolved through the same M1 resolver + mount cascade the player's build uses, so the sim fights them identically (CON-D03). Hand-authored to span the scaling vectors; tuning is open.",
+
+  "ghosts": [
+    {
+      "name": "GUNLINE",
+      "callsign": "SWARM-3",
+      "blurb": "go-wide: cheap volume of fire on a steady reactor",
+      "placement": [
+        { "def_id": "reactor_core", "rot": 0, "anchor": [0, 0] },
+        { "def_id": "gatling",      "rot": 0, "anchor": [0, 2] },
+        { "def_id": "gatling",      "rot": 0, "anchor": [0, 3] },
+        { "def_id": "beam_saber",   "rot": 0, "anchor": [2, 0] },
+        { "def_id": "aux_cell",     "rot": 0, "anchor": [2, 4] },
+        { "def_id": "power_cell",   "rot": 0, "anchor": [3, 1] }
+      ]
+    },
+    {
+      "name": "LANCE",
+      "callsign": "PIERCE-9",
+      "blurb": "go-tall: one hungry, heavily-supported cannon",
+      "placement": [
+        { "def_id": "beam_cannon",  "rot": 0, "anchor": [0, 0] },
+        { "def_id": "reactor_core", "rot": 0, "anchor": [0, 2] },
+        { "def_id": "overdrive",    "rot": 0, "anchor": [1, 1] },
+        { "def_id": "power_cell",   "rot": 0, "anchor": [2, 1] },
+        { "def_id": "capacitor",    "rot": 0, "anchor": [3, 1] },
+        { "def_id": "aux_cell",     "rot": 0, "anchor": [2, 3] }
+      ]
+    },
+    {
+      "name": "BRICK",
+      "callsign": "ANVIL-1",
+      "blurb": "sustain-heavy: deep reactor, light guns, outlasts to overload",
+      "placement": [
+        { "def_id": "reactor_core", "rot": 0, "anchor": [0, 0] },
+        { "def_id": "aux_cell",     "rot": 0, "anchor": [0, 2] },
+        { "def_id": "aux_cell",     "rot": 0, "anchor": [0, 3] },
+        { "def_id": "beam_rifle",   "rot": 0, "anchor": [0, 4] },
+        { "def_id": "beam_saber",   "rot": 0, "anchor": [2, 0] }
+      ]
+    }
+  ]
+}

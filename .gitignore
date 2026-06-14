@@ -12,6 +12,10 @@ dist/
 build/
 .cache/
 
+# ...but scripts/build/ is the backpack BUILD-system source, not a build artifact.
+!godot_director_spike/scripts/build/
+!godot_director_spike/scripts/build/**
+
 # Redundant zipped duplicates of art payloads already committed as directories
 output/*.zip
 

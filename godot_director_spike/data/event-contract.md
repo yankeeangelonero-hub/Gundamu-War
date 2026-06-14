@@ -18,6 +18,7 @@ presentation layer may read ahead (the director's whole premise).
 | `advance` | `to_x`, `end_tick` | movement as start/end so playback can interpolate; sim owns the path |
 | `fire_beam` | `hit`, `damage`, `hp_after`, opt `blocked`, `lethal`, `overkill` | `hp_after` is the TARGET's hp; miss ⇒ `hit:false, damage:0` |
 | `fire_burst` | `rounds`, `hits`, `damage`, `hp_after` | per-round hit distribution is presentation's choice; totals are sim truth |
+| `overload` | `damage`, `hp_after`, `lethal` | M0 sudden-death reactor overload: escalating self-damage on `actor`'s own mech once the duel passes the sudden-death tick. Added by KM-M0-SIM; renderer shows it as the mech cooking off, and the kill-cam fires on any `lethal` event (beam or overload). |
 | `destroyed` | — | terminal for that actor |
 
 ## Invariants the spike relied on

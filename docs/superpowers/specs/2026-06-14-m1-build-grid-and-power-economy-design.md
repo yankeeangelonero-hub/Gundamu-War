@@ -1,9 +1,12 @@
 # M1 — Build Grid + Power Economy — Design
 
 Date: 2026-06-14
-Status: Design approved in brainstorm. Pending: UI design (in Claude design) and an
-implementation plan before any code.
-Owner: Xuanyue
+Status: Design approved. UI design received (EXOFRAME "Mech Bags Workshop"). Implemented
+2026-06-14 in `godot_director_spike` (see `godot_director_spike/scripts/build/README.md`):
+the 5×4 grid, the PoE power-economy resolver, the EXOFRAME-styled build screen, AND the §5
+3D mount cascade (generic hardpoint registry on the shared MechActor + preferred→fallback
+assignment, shown live in a build-screen sub-viewport). All headless tests pass; the combat
+viewer is unaffected. Only the M0 fight remains deferred. Owner: Xuanyue
 Branch: backpack-system-test
 Upstream: docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md (the v0.1
 backpack engineering design); root contract docs/pilot-and-war-front-high-level-spec-and-work-map.md.

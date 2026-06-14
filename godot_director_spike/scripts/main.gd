@@ -6,6 +6,7 @@ const FightLog := preload("res://scripts/fight_log.gd")
 const Garnish := preload("res://scripts/garnish.gd")
 const SpikeAudio := preload("res://scripts/spike_audio.gd")
 const PauseController := preload("res://scripts/pause_controller.gd")
+const FightHandoff := preload("res://scripts/build/fight_handoff.gd")
 
 var camera: Camera3D
 var mech_a: Node3D
@@ -32,11 +33,83 @@ func _capture_frames(director_name: String) -> void:
 		img.save_png("res://tmp/frame_%s_%02d.png" % [director_name, idx])
 		idx += 1
 
+## Establishing intro for a deployed fight: hold on a far lens that slowly pushes
+## toward the two squared-up mechs while a VS title fades up, then hand off to the
+## director for the fight. Camera is ours here (the director isn't playing yet).
+func _intro(a: Node3D, b: Node3D, dur := 3.2) -> void:
+	# Human-scale establishing shot: a person standing on the deck at the foot of a
+	# ~20m mech, craning up at it. The camera holds human eye height (~1.7m) and walks
+	# in, so the mech towers and the up-angle steepens — selling the scale. Anchored
+	# to the mech's position; `mid` is the high look-up point (the head).
+	var ap := a.position
+	var mid := ap + Vector3(0, 10.0, 0)
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov = 50
+	var from := ap + Vector3(40.0, 1.7, 21.0)   # eye height, well back so the whole mech reads
+	var to := ap + Vector3(30.0, 1.7, 16.0)     # ease in a little, still human-height
+	camera.position = from
+	camera.look_at(mid, Vector3.UP)
+	_intro_clear_occluders(a, b)
+
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	add_child(layer)
+	var cc := CenterContainer.new()
+	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cc.modulate = Color(1, 1, 1, 0)
+	layer.add_child(cc)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	cc.add_child(box)
+	var vs := Label.new()
+	vs.text = "%s    VS    %s" % [FightHandoff.player_label, FightHandoff.ghost_label]
+	vs.add_theme_font_size_override("font_size", 46)
+	vs.add_theme_color_override("font_color", Color("9af1ff"))
+	vs.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(vs)
+	var sub := Label.new()
+	sub.text = "出撃   SORTIE"
+	sub.add_theme_font_size_override("font_size", 20)
+	sub.add_theme_color_override("font_color", Color("d9933a"))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	create_tween().tween_property(cc, "modulate:a", 1.0, 0.6)
+
+	var t := 0.0
+	while t < dur:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var k := clampf(t / dur, 0.0, 1.0)
+		var e := 1.0 - pow(1.0 - k, 3.0)   # ease-out push-in
+		camera.position = from.lerp(to, e)
+		camera.look_at(mid, Vector3.UP)
+		_intro_clear_occluders(a, b)
+
+	var ft := create_tween()
+	ft.tween_property(cc, "modulate:a", 0.0, 0.4)
+	await ft.finished
+	layer.queue_free()
+
+## During the intro the director isn't playing, so reuse its see-through-occluder
+## fade to dissolve any buildings standing between the far lens and the two mechs.
+func _intro_clear_occluders(a: Node3D, b: Node3D) -> void:
+	if director == null:
+		return
+	var ah := a.position + Vector3(0, 10, 0)
+	var bh := b.position + Vector3(0, 10, 0)
+	if director.has_method("_fade_for_iso"):
+		director._fade_for_iso(camera.position, ah, bh)
+	elif director.has_method("_resolve_occlusion"):
+		director._resolve_occlusion(camera.position, (ah + bh) * 0.5)
+
 func _ready() -> void:
 	var director_name := "cinematic"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--director="):
 			director_name = arg.trim_prefix("--director=")
+	# Launched from the build screen → play the injected fight with the proven hybrid grammar.
+	if FightHandoff.active:
+		director_name = FightHandoff.director_name
 	var director_path := "res://scripts/directors/%s.gd" % director_name
 	if not ResourceLoader.exists(director_path):
 		push_error("Unknown director variant '%s': %s does not exist" % [director_name, director_path])
@@ -111,27 +184,41 @@ func _ready() -> void:
 	_fade.color = Color(0, 0, 0, 0)
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(_fade)
-	var log_path := "res://data/fight_log.json"
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--log="):
-			log_path = "res://data/%s.json" % arg.trim_prefix("--log=")
-	var events := FightLog.load_events(log_path)
+	var events: Array
+	if FightHandoff.active:
+		events = FightHandoff.events   # injected by the build screen's DEPLOY
+	else:
+		var log_path := "res://data/fight_log.json"
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--log="):
+				log_path = "res://data/%s.json" % arg.trim_prefix("--log=")
+		events = FightLog.load_events(log_path)
 	var dur := FightLog.duration_sec(events)
 	var shots: Array = DirectorScript.build_shot_list(events, dur)
 	director = DirectorScript.new()
 	add_child(director)
-	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
 	var garnish := Garnish.new()
 	add_child(garnish)
 	garnish.setup({"A": mech_a, "B": mech_b}, director)
 	var audio := SpikeAudio.new()
 	add_child(audio)
 	audio.wire(director)
+	# Deployed-fight only: a far, slow establishing push-in before the duel begins.
+	# Standalone runs (cmdline) skip this so the proven combat feel is untouched.
+	if FightHandoff.active:
+		await _intro(mech_a, mech_b)
+	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
 	if "--frames" in OS.get_cmdline_user_args():
 		_capture_frames(director_name)
 	director.fight_over.connect(func():
 		create_tween().tween_property(_fade, "color:a", 1.0, 2.0)
 		await get_tree().create_timer(2.2).timeout
+		# From a build-screen deploy: return to the bag instead of quitting.
+		if FightHandoff.active:
+			var rs := FightHandoff.return_scene
+			FightHandoff.clear()
+			get_tree().change_scene_to_file(rs)
+			return
 		_fps_samples.sort()
 		if _fps_samples.size() > 2:
 			print("FPS min=%d  p5=%d  avg=%d" % [int(_fps_samples[0]),

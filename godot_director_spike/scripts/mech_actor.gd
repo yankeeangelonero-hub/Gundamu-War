@@ -47,12 +47,18 @@ var _anim: AnimationPlayer
 var _cur_clip := ""
 var _fire_t := 0.0       # while >0 the rigged mech holds the firing-rifle stance
 var _thruster: OmniLight3D
+# Build-pose mode (M1): stand static and expose a named hardpoint registry so the
+# build screen can mount a placed loadout onto the same mech the fight will drive.
+var build_pose := false
+var _hardpoints := {}    # name -> Node3D mount point
+var _mounted := {}       # name -> mounted weapon Node3D
 
-func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged := false) -> void:
+func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged := false, p_build_pose := false) -> void:
 	actor_id = id
 	tint = color
 	full_armor = p_full_armor
 	rigged = p_rigged
+	build_pose = p_build_pose
 	position = Vector3(x, 0, 0)
 
 func _ready() -> void:
@@ -69,12 +75,22 @@ func _ready() -> void:
 	var visor := _box(Vector3(1.6, 0.35, 0.2), Vector3(0, 14.1, 1.1), true)
 	arm_l = _box(Vector3(1.6, 5.0, 1.6), Vector3(-3.8, 11.0, 0))
 	arm_r = _box(Vector3(1.6, 5.0, 1.6), Vector3(3.8, 11.0, 0))
-	var gun := _box(Vector3(0.9, 0.9, 6.0), Vector3(3.8, 9.0, 2.5))
-	muzzle = Node3D.new()
-	muzzle.position = Vector3(3.8, 9.0, 5.5)
-	add_child(muzzle)
+	if not build_pose:
+		var gun := _box(Vector3(0.9, 0.9, 6.0), Vector3(3.8, 9.0, 2.5))
+		muzzle = Node3D.new()
+		muzzle.position = Vector3(3.8, 9.0, 5.5)
+		add_child(muzzle)
 	for leg_x in [-1.6, 1.6]:
 		_box(Vector3(2.0, 6.5, 2.4), Vector3(leg_x, 3.25, 0))
+	# Build-pose mech: skip the combat FX (default gun, thruster, saber, trail), stand
+	# square to the camera, and expose hardpoints for the placed loadout to mount on.
+	if build_pose:
+		register_hardpoints()
+		rotation.y = 0.0
+		_target_yaw = 0.0
+		_target = position
+		_prev_yaw = 0.0
+		return
 	_trail = GPUParticles3D.new()
 	_trail.amount = 30
 	_trail.lifetime = 0.5
@@ -184,6 +200,47 @@ func look_at_enemy_side() -> void:
 	# faces the enemy on the right (+x) → +90°; B faces left → -90°.
 	rotation.y = deg_to_rad(90) if actor_id == "A" else deg_to_rad(-90)
 	_target_yaw = rotation.y
+
+# ---- hardpoint registry (M1 build-pose mount cascade) ----
+# Named mount points, generalised from the old fixed gun attach, so the build
+# screen can hang a placed loadout on the same mech node the fight will drive.
+# Offsets are mech-local (model front = +Z). Keys mirror BuildMounts.HARDPOINTS.
+const HARDPOINT_OFFSETS := {
+	"hand_r": Vector3(3.8, 8.4, 1.2),
+	"hand_l": Vector3(-3.8, 8.4, 1.2),
+	"forearm_r": Vector3(3.8, 10.2, 0.8),
+	"forearm_l": Vector3(-3.8, 10.2, 0.8),
+	"shoulder_r": Vector3(3.4, 13.4, -0.6),
+	"shoulder_l": Vector3(-3.4, 13.4, -0.6),
+	"hip_r": Vector3(2.2, 6.6, 0.6),
+	"hip_l": Vector3(-2.2, 6.6, 0.6),
+	"back": Vector3(0.0, 12.2, -2.8),
+}
+
+func register_hardpoints() -> void:
+	for hp_name in HARDPOINT_OFFSETS:
+		var n := Node3D.new()
+		n.name = "hp_" + hp_name
+		n.position = HARDPOINT_OFFSETS[hp_name]
+		add_child(n)
+		_hardpoints[hp_name] = n
+
+func has_hardpoint(hp_name: String) -> bool:
+	return _hardpoints.has(hp_name)
+
+## Hang a weapon mesh on a named hardpoint (it becomes a child, so it rides the mech).
+func mount(hp_name: String, mesh: Node3D) -> void:
+	if not _hardpoints.has(hp_name):
+		return
+	_hardpoints[hp_name].add_child(mesh)
+	_mounted[hp_name] = mesh
+
+func clear_mounts() -> void:
+	for hp_name in _mounted:
+		var m: Node3D = _mounted[hp_name]
+		if is_instance_valid(m):
+			m.queue_free()
+	_mounted.clear()
 
 func _process(delta: float) -> void:
 	if dead:

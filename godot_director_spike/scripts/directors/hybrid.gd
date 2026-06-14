@@ -9,8 +9,8 @@ const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bul
 
 const OS_LEN := 1.8
 const CUT_LEN := 1.8
-const BT_PRE := 0.4
-const BT_POST := 0.7
+const BT_PRE := 0.2
+const BT_POST := 0.35
 const BT_SCALE := 0.07
 const ISO_OFFSET := Vector3(-45, 90, 18)
 

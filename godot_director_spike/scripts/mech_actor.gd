@@ -197,7 +197,7 @@ func _process(delta: float) -> void:
 		# Blades locked: planted, straining — no seeking, no sliding.
 		velocity = velocity.lerp(Vector3.ZERO, 14.0 * delta)
 	else:
-		var cap := max_speed + (45.0 if _boost_t > 0.0 else 0.0)
+		var cap := max_speed + (22.5 if _boost_t > 0.0 else 0.0)
 		var to_t := _target - position
 		var dist := to_t.length()
 		var desired := Vector3.ZERO
@@ -205,7 +205,7 @@ func _process(delta: float) -> void:
 			var slow := 7.0   # arrive: ease the desired speed down inside this radius
 			desired = to_t / dist * (cap if dist > slow else cap * dist / slow)
 		var steer := desired - velocity
-		var amax := (max_accel + (150.0 if _boost_t > 0.0 else 0.0)) * delta
+		var amax := (max_accel + (75.0 if _boost_t > 0.0 else 0.0)) * delta
 		if steer.length() > amax:
 			steer = steer.normalized() * amax
 		velocity += steer
@@ -300,7 +300,7 @@ func walk_to(to_x: float, to_y: float, to_z: float, dur: float, boost := false) 
 		var dir := _target - position
 		dir.y *= 0.2                                  # keep the kick horizontal
 		if dir.length() > 0.1:
-			velocity += dir.normalized() * 42.0
+			velocity += dir.normalized() * 21.0
 		_boost_t = clampf(dur, 0.45, 1.6)             # boost lasts the move, not an instant
 		_boost_cd = 3.2                               # then must walk/strafe before boosting again
 		_boost_flare(-(_target - position).normalized())

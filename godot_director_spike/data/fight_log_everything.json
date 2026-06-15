@@ -94,12 +94,12 @@
     {
       "tick": 21,
       "actor": "A",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -195,12 +195,11 @@
     {
       "tick": 41,
       "actor": "B",
-      "kind": "fire_burst",
+      "kind": "fire_buster",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "hit": true,
+        "damage": 24,
+        "hp_after": 40
       }
     },
     {
@@ -285,12 +284,12 @@
     {
       "tick": 59,
       "actor": "B",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -466,12 +465,12 @@
     {
       "tick": 95,
       "actor": "B",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -501,12 +500,11 @@
     {
       "tick": 102,
       "actor": "A",
-      "kind": "fire_burst",
+      "kind": "fire_buster",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "hit": true,
+        "damage": 24,
+        "hp_after": 40
       }
     },
     {
@@ -682,12 +680,12 @@
     {
       "tick": 138,
       "actor": "A",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -738,12 +736,11 @@
     {
       "tick": 149,
       "actor": "B",
-      "kind": "fire_burst",
+      "kind": "fire_buster",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "hit": true,
+        "damage": 24,
+        "hp_after": 40
       }
     },
     {
@@ -884,12 +881,12 @@
     {
       "tick": 176,
       "actor": "B",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -964,12 +961,11 @@
     {
       "tick": 192,
       "actor": "A",
-      "kind": "fire_burst",
+      "kind": "fire_buster",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "hit": true,
+        "damage": 24,
+        "hp_after": 40
       }
     },
     {
@@ -1055,12 +1051,12 @@
     {
       "tick": 210,
       "actor": "A",
-      "kind": "fire_burst",
+      "kind": "fire_missiles",
       "payload": {
-        "rounds": 10,
-        "hits": 3,
-        "damage": 4,
-        "hp_after": 50
+        "count": 13,
+        "hits": 9,
+        "damage": 27,
+        "hp_after": 45
       }
     },
     {
@@ -1132,7 +1128,7 @@
       }
     },
     {
-      "tick": 235,
+      "tick": 231,
       "actor": "B",
       "kind": "destroyed",
       "payload": {}

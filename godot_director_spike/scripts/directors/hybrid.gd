@@ -14,7 +14,9 @@ const BT_POST := 0.55   # hold the slow-mo orbit through the destroyed/explosion
 const BT_SCALE := 0.07
 const ISO_OFFSET := Vector3(-45, 90, 18)
 
-static func build_shot_list(events: Array, dur: float) -> Array:
+static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = null) -> Array:
+	if grammar == null:
+		grammar = ShotGrammar.default()
 	var first_t := -1.0
 	var first_actor := "A"
 	var lethal_t := dur
@@ -41,10 +43,10 @@ static func build_shot_list(events: Array, dur: float) -> Array:
 		if mid.is_empty() or absf(float(m.t) - target) < absf(float(mid.t) - target):
 			mid = m
 
-	var fixed: Array = [{"t0": first_t - 0.3, "t1": first_t + OS_LEN, "mode": "hero_os",
+	var fixed: Array = [{"t0": first_t - 0.3, "t1": first_t + grammar.os_len, "mode": "hero_os",
 		"focus": first_actor, "time_scale": 1.0}]
-	if not mid.is_empty() and float(mid.t) - 0.3 > first_t + OS_LEN:
-		fixed.append({"t0": float(mid.t) - 0.3, "t1": float(mid.t) + CUT_LEN, "mode": "hero_cut",
+	if not mid.is_empty() and float(mid.t) - 0.3 > first_t + grammar.os_len:
+		fixed.append({"t0": float(mid.t) - 0.3, "t1": float(mid.t) + grammar.cut_len, "mode": "hero_cut",
 			"focus": str(mid.actor), "time_scale": 1.0})
 	# Every non-lethal melee clash gets a tight close-up so the blade reads.
 	for e in events:
@@ -52,8 +54,8 @@ static func build_shot_list(events: Array, dur: float) -> Array:
 			var mt := float(e.tick) * TICK
 			fixed.append({"t0": mt - 0.5, "t1": mt + 1.7, "mode": "melee_cut",
 				"focus": str(e.actor), "time_scale": 0.5})
-	fixed.append({"t0": lethal_t - BT_PRE, "t1": lethal_t + BT_POST, "mode": "bullet_time",
-		"focus": lethal_actor, "time_scale": BT_SCALE})
+	fixed.append({"t0": lethal_t - grammar.bt_pre, "t1": lethal_t + grammar.bt_post, "mode": "bullet_time",
+		"focus": lethal_actor, "time_scale": grammar.bt_scale})
 	fixed.sort_custom(func(x, y): return float(x.t0) < float(y.t0))
 
 	# Iso fills every gap; the tail after the kill is the iso aftermath read.

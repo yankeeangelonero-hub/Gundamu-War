@@ -7,12 +7,6 @@ extends "res://scripts/director.gd"
 
 const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bullet_time"]
 
-const OS_LEN := 1.8
-const CUT_LEN := 1.8
-const BT_PRE := 0.2
-const BT_POST := 0.55   # hold the slow-mo orbit through the destroyed/explosion beat, not just the lethal hit
-const BT_SCALE := 0.07
-const ISO_OFFSET := Vector3(-45, 90, 18)
 
 static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = null) -> Array:
 	if grammar == null:
@@ -76,6 +70,7 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 var _zoom := 90.0
 var _cam_shot := -1
 var _wall := 0.0
+var _grammar: ShotGrammar = ShotGrammar.default()
 
 func _update_camera(delta: float) -> void:
 	if _shot_idx < 0:
@@ -94,15 +89,15 @@ func _update_camera(delta: float) -> void:
 	# --- isometric backbone (orthographic) ---
 	if s.mode == "iso" or s.mode == "iso_aftermath":
 		var focus_pt := mid
-		var want := clampf(a.position.distance_to(b.position) * 0.7 + 30.0, 50.0, 118.0)
+		var want := clampf(a.position.distance_to(b.position) * _grammar.iso_zoom_factor + _grammar.iso_zoom_base, _grammar.iso_zoom_min, _grammar.iso_zoom_max)
 		if s.mode == "iso_aftermath":
 			focus_pt = (b.position if b.dead else a.position)
-			want = 58.0
+			want = _grammar.aftermath_zoom
 		var k := 1.0 - exp(-3.0 * delta / maxf(Engine.time_scale, 0.05))
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		_zoom = lerpf(_zoom, want, k)
 		camera.size = _zoom
-		camera.position = camera.position.lerp(focus_pt + ISO_OFFSET, k)
+		camera.position = camera.position.lerp(focus_pt + _grammar.iso_offset, k)
 		_set_focus(-1.0)
 		_fade_for_iso(camera.position, a.position + Vector3(0, 10, 0), b.position + Vector3(0, 10, 0))
 		_cull_near(camera.position, 0.0)   # tactical view sees the whole city
@@ -117,41 +112,45 @@ func _update_camera(delta: float) -> void:
 		"hero_os":
 			# Pulled back/up/wide so a bulky (full-armour) shoulder frames the
 			# corner instead of blocking the subject.
+			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
-			pos = f.position - d * 18.0 + d.cross(Vector3.UP) * 8.0 + Vector3(0, 16, 0)
+			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * fr.lateral + Vector3(0, fr.height, 0)
 			aim = o.position + Vector3(0, 10, 0)
-			fov = 40
+			fov = fr.fov
 		"hero_cut":
 			# Low angle beside the shooter, looking down the firing line into the
 			# city — the beam lances past camera and wrecks whatever it crosses.
+			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
-			pos = f.position - d * 2.0 + d.cross(Vector3.UP) * 9.0 + Vector3(0, 5, 0)
+			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * fr.lateral + Vector3(0, fr.height, 0)
 			aim = mid + Vector3(0, 9, 0)
-			fov = 46
-			_roll = -0.05
+			fov = fr.fov
+			_roll = fr.roll
 		"melee_cut":
 			# Tight, slightly slow close-up orbiting the blade clash point.
+			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var contact := f.position.lerp(o.position, 0.5) + Vector3(0, 11, 0)
 			var ang := PI * 0.25 + _wall * 0.6
-			pos = contact + Vector3(cos(ang) * 15.0, 4.0, sin(ang) * 15.0)
+			pos = contact + Vector3(cos(ang) * fr.radius, fr.height, sin(ang) * fr.radius)
 			aim = contact
-			fov = 36
+			fov = fr.fov
 		"bullet_time":
+			var fr: Dictionary = _grammar.framing[s.mode]
 			var shooter: Node3D = actors[s.focus]
 			var victim: Node3D = actors[_other(str(s.focus))]
 			var center := victim.position.lerp(shooter.position, 0.2) + Vector3(0, 10, 0)
-			var wall_len := (float(s.t1) - float(s.t0)) / BT_SCALE
+			var wall_len := (float(s.t1) - float(s.t0)) / _grammar.bt_scale
 			var p := clampf(_wall / wall_len, 0.0, 1.0)
 			var ang := PI + p * TAU * 0.75
-			pos = center + Vector3(cos(ang) * 32.0, 8.0 + p * 9.0, sin(ang) * 14.0)
+			pos = center + Vector3(cos(ang) * fr.radius, fr.height_base + p * fr.height_rise, sin(ang) * fr.depth)
 			aim = center
-			fov = 48
+			fov = fr.fov
 			_roll = lerpf(-0.05, 0.03, p)
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov

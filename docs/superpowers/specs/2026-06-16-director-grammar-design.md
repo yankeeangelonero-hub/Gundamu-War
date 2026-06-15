@@ -39,7 +39,9 @@ kill-cam hold shipped at commit 9c9000e.
 
 ```
 ShotGrammar
-├── Composition   placement, angle, framing-for-scale, OTS        F6, F4
+├── Composition   placement, angle, framing-for-scale, OTS,       F4, F6, F8,
+│                 shot vocabulary (iso/hero_os/hero_cut/           F15, F21
+│                 melee_cut/cockpit_pov/frame_and_streak)
 ├── Lens          FOV / focal length, compression, DoF            F31, F6
 ├── Lighting      key/fill, chromatic shadows, GI bounce, FX prims F22–F25
 ├── Color         base palette + mood variants, accents, cut-bridge F26–F30
@@ -79,6 +81,23 @@ director reads to pick a framing register per beat (low/wide/distant for awe ver
 over-the-shoulder for weight). `framing_emphasis` is also the hook the FeelProfile later biases per
 build.
 
+The Composition block also owns the **shot vocabulary** — the named shot types the director can
+schedule, each with its framing parameters. It lifts `hybrid.gd`'s existing vocabulary (`iso`,
+`hero_os`, `hero_cut`, `bullet_time`, `melee_cut`) and adds two:
+
+- `melee_cut` (F8) — melee is a distinct visceral mode, so its shot carries the closest/heaviest
+  framing and, paired with `cut_cadence`, the densest cuts, not merely an OTS bias. The shot already
+  exists in `hybrid.gd`; the grammar makes its framing tunable.
+- `frame_and_streak` (F15) — a fast-pass / charge primitive that sells speed by moving the frame over
+  the subject with a streaked/blurred background, rather than relying on the actor's own animation.
+- `cockpit_pov` (F21) — the outward cockpit shot: camera at the firing mech's head/cockpit anchor
+  looking out at the enemy, with a lightweight on-demand HUD overlay (target bracket, thin edge chrome,
+  body-aware vignette, per F21). No modeled interior, no pilot, no feedback — purely a camera position
+  plus overlay. Placement is author-by-feel on chosen beats (the opening squared-up read, a hero/charge
+  beat); it is NOT auto-scheduled on a cut-rhythm (the cockpit three-beat intercut was refuted). It is
+  additive punctuation that never displaces the iso backbone or the bullet-time kill. (`bullet_time`'s
+  framing lives here; its timing parameters live in Timing/Cut.)
+
 ### Lens (F31, F6)
 
 `fov_per_mode` lifts the existing FOVs (`40 / 45 / 46 / 48`). New: `compression` — a continuous
@@ -98,7 +117,14 @@ color parameter does most of the work. `gi_bounce` (F24): lean on Forward+ SDFGI
 flashes cast onto mechs and the city. Note the current build *disables* `garnish`'s flash lights
 (`flash.visible = false`, "scene lit by directional + sky only"); F24 says turn dynamic beam-light
 back on — the single biggest "anime light" win. `fx_primitives` (F25): the named, individually-tunable
-FX set (light-flare, debris, sparks, smoke, lightning), formalizing what `garnish` half-has.
+FX set (light-flare, debris, explosions, smoke, sparks, lightning, missiles), formalizing what
+`garnish` half-has.
+
+Lighting ownership is split to avoid the three-way ambiguity the review flagged: **render** owns the
+GI/SDFGI solve and the static directional + sky (engine settings); **`garnish`** owns the transient FX
+lights and the FX primitives above (beam/muzzle flashes that cast onto mechs and city, F24); the
+**`Grade` node** owns the post-render mood grade and color (F23, below). The grammar's Lighting block
+holds the authored values each reads; it does not itself render.
 
 ### Color (F26–F30)
 
@@ -111,8 +137,11 @@ beat. `per_cut_offset` (F28): small grade nudges layered on the base per shot. `
 `cut_bridge` (F30): actor-keyed hues (warm aggressor, cool counter), a saturation push on the dominant
 color, optionally fused in a shared reflective surface.
 
-Scope call: v1 of the Grade node is `WorldEnvironment` adjustments (brightness/contrast/saturation/tint)
-plus mood-variant lerps. A full per-element LUT/color-correction pipeline is a later refinement, not v1.
+Scope call: v1 of the Grade node is `WorldEnvironment` adjustments (brightness/contrast/saturation/tint),
+the mood-variant lerps, AND the per-cut offsets (F28) and per-beat accent overrides (F29) — those are
+data/params applied through the same adjustment path, so they are in v1. Only a full per-element
+LUT/color-correction pipeline is deferred as a later refinement; `cut_bridge` (F30) beyond a simple
+two-actor hue pairing is also later.
 
 ### Continuity (F32–F36)
 
@@ -147,6 +176,17 @@ explosions at varied camera distances rather than one. `yield_by_class` (F17): w
 staging intensity plus a fear beat — a capital/payload-tier discharge gets outsized treatment, a
 sidearm does not.
 
+`evasion_beat` (F19): an all-range evasion / dodge-pursuit beat (one mech weaving a storm of
+multi-source fire) gets its own staging — a distinct camera-and-cut treatment. The *choice* to run an
+evasion exchange is the FeelProfile's domain (driven by weapon mix); the grammar owns how that beat is
+staged when it occurs. Cross-references the FeelProfile spec's `mode_mix`.
+
+Out of grammar scope by design: **F10 (momentum-swing fight arc)** is whole-fight dramaturgy expressed
+in the authored event log / choreography, not a camera-grammar parameter — the grammar stages the beats
+the log produces. **F18 (terrain acts on the mech / groundedness)** is a sim/environment-interaction
+concern (it modifies movement, which is the FeelProfile/`mech_actor` domain), not director craft. Both
+are noted here so their absence from the seven dimensions is deliberate, not an oversight.
+
 ## Relationship to FeelProfile (next spec)
 
 The FeelProfile does not write any of these values. It supplies a per-mech bias that the consumers
@@ -164,7 +204,12 @@ assertion.
 
 Visual: capture frames of a fight with the grammar driving the camera and confirm parity with the
 current look before tuning; then capture the new behaviors (a compression beat, a mood-variant
-transition on the kill, an impact frame, a staggered kill blast) for review.
+transition on the kill, an impact frame, a staggered kill blast, a `cockpit_pov` shot with HUD overlay)
+for review.
+
+Process (F40): lock the director look in a previz pass — capture and approve the grammar's lighting,
+color, and key shots on a reference fight *before* tuning per-fight values, rather than discovering the
+look in post. The parity-capture in step 1 of the build sequence doubles as this look-lock.
 
 ## Scope boundaries (must-not-touch)
 
@@ -177,8 +222,9 @@ transition on the kill, an impact frame, a staggered kill blast) for review.
 
 ## Open questions for the implementation plan
 
-1. How the Grade node's lighting/color composes with Forward+ GI/SDFGI and the existing `garnish` FX —
-   what is a render setting versus an authored grammar dial.
+1. The lighting-ownership split is pinned in the Lighting section (render = GI/static; garnish = FX
+   lights; Grade = post-render mood). Remaining detail for the plan: the exact handoff order per frame
+   so the Grade pass and garnish FX lights don't double-expose a beam flash.
 2. The canonical palette plus mood-variant data shape (one base plus N named state variants) and which
    fight states trigger each (charge, hit, kill, aftermath).
 3. The exact precedence rules of the time-emphasis arbiter across bullet-time, hold-on-impact, and

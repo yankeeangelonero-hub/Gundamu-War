@@ -2,7 +2,13 @@ extends SceneTree
 ## Headless checks for the "hybrid" (iso base + cinematic intercut) variant.
 
 var fails := 0
-const GOLDEN_SHOTLIST_HASH := 2543717900  # frozen from current hybrid.gd, fight_log_everything
+# Frozen characterization hash of the hybrid shot list for fight_log_everything.json
+# (count + per-shot mode,t0,t1,time_scale, rounded to 1e-4). It guards against
+# unintended drift when refactoring the director — NOT a cross-version invariant.
+# String.hash() is not guaranteed stable across Godot releases, so a Godot upgrade
+# may require re-baking: run this test, copy the printed "got hash N", and replace
+# the value below.
+const GOLDEN_SHOTLIST_HASH := 2543717900
 
 func check(cond: bool, label: String) -> void:
 	if cond:
@@ -64,6 +70,9 @@ func _check_hybrid_shot_list() -> void:
 func _check_hybrid_parity_snapshot() -> void:
 	var FightLog := load("res://scripts/fight_log.gd")
 	var Hybrid := load("res://scripts/directors/hybrid.gd")
+	check(Hybrid != null, "hybrid variant script loads (parity)")
+	if Hybrid == null:
+		return
 	var events: Array = FightLog.load_events("res://data/fight_log_everything.json")
 	var dur: float = FightLog.duration_sec(events)
 	var shots: Array = Hybrid.build_shot_list(events, dur)

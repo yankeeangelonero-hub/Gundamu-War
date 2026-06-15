@@ -31,8 +31,8 @@ func _on_event(e: Dictionary) -> void:
 			_beam(shooter, target, e.payload)
 		"fire_burst":
 			_burst(shooter, target, e.payload)
-		"fire_missiles":
-			_missiles(shooter, target, e.payload)
+		"fire_swarm":
+			_swarm(shooter, target, e.payload)
 		"fire_buster":
 			_buster(shooter, target, e.payload)
 		"melee":
@@ -40,6 +40,9 @@ func _on_event(e: Dictionary) -> void:
 		"destroyed":
 			_explosion(shooter.position + Vector3(0, 9, 0))
 			_wreck_smoke(shooter.position + Vector3(0, 5, 0))
+		_:
+			if str(e.kind).begins_with("fire"):
+				push_warning("garnish: unknown fire kind '%s'" % str(e.kind))
 
 func _other(a: String) -> String:
 	return "B" if a == "A" else "A"
@@ -233,6 +236,8 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	if payload.get("hit", false) and float(payload.get("damage", 0)) > 25.0:
 		_hitstop()
 	director.shake_strength = maxf(director.shake_strength, 0.8 if payload.get("hit", false) else 0.3)
+	if payload.get("hero_kill", false):
+		_hero_kill_yield(from, to, color)
 
 ## A beam tore through this building: blast at the entry point, then the
 ## whole block collapses straight down into a charred slab. Visual-only —
@@ -277,17 +282,28 @@ func _debris(at: Vector3) -> void:
 		tw.tween_property(c, "rotation", Vector3(rng.randf_range(-6, 6), rng.randf_range(-6, 6), rng.randf_range(-6, 6)), dur)
 		get_tree().create_timer(7.0).timeout.connect(func(): c.queue_free())
 
-## A missile salvo: a stream of self-guided projectiles that arc out and converge
-## on the target from spread directions (all-range), each trailing smoke, blooming
-## on impact. Hits/misses come from the payload; the flight is cosmetic (seeded rng).
-func _missiles(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
-	var count := int(payload.get("count", 10))
+## All-range homing swarm — Itano-circus style: projectiles fan out wide (>= 45°
+## off bore) before curving back to converge on the target. `count` launched,
+## `hits` connect; the rest overshoot. Each trails smoke. Seeded rng for
+## determinism within a playback — same log ⇒ same circus every run.
+func _swarm(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var count := int(payload.get("count", 8))
 	var hits := int(payload.get("hits", count))
 	var mount := str(payload.get("mount", ""))
 	for i in count:
-		_one_missile(shooter, target, i < hits, float(i) * 0.04 + rng.randf_range(0.0, 0.05), mount)
+		var delay := float(i) * 0.035 + rng.randf_range(0.0, 0.04)
+		_one_swarm_missile(shooter, target, i < hits, delay, mount, i, count)
+	if payload.get("hero_kill", false):
+		var from_s: Vector3 = _mz(shooter, mount)
+		var to_s: Vector3 = target.position + Vector3(0, 11, 0)
+		var col_s := Color(1.0, 0.6, 0.3) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.15)
+		_hero_kill_yield(from_s, to_s, col_s)
 
-func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float, mount := "") -> void:
+## One missile of the swarm: fans out wide (Itano-circus arc ≥ 45° off bore)
+## then curves back and converges on the target. The wide-fan apex is computed
+## from the launch index so missiles spread in all directions, not just one side.
+func _one_swarm_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float,
+		mount: String, idx: int, total: int) -> void:
 	await get_tree().create_timer(delay).timeout
 	if not is_instance_valid(shooter) or not is_instance_valid(target):
 		return
@@ -298,15 +314,29 @@ func _one_missile(shooter: Node3D, target: Node3D, is_hit: bool, delay: float, m
 	mesh.material = _energy_mat(Color(1.0, 0.7, 0.3), 6.0)
 	m.mesh = mesh
 	add_child(m)
-	var start: Vector3 = _mz(shooter, mount) + Vector3(rng.randf_range(-3, 3), rng.randf_range(3, 7), rng.randf_range(-3, 3))
+	var start: Vector3 = _mz(shooter, mount) + Vector3(rng.randf_range(-2, 2), rng.randf_range(2, 6), rng.randf_range(-2, 2))
 	m.global_position = start
 	var to: Vector3 = target.position + Vector3(0, rng.randf_range(7, 13), 0)
 	if not is_hit:
 		to += Vector3(rng.randf_range(-10, 10), rng.randf_range(5, 14), rng.randf_range(-10, 10)) + (to - start).normalized() * 22.0
-	var apex: Vector3 = start.lerp(to, 0.45) + Vector3(rng.randf_range(-12, 12), rng.randf_range(14, 26), rng.randf_range(-12, 12))
+	# Itano-circus apex: each missile fans out at a different angle (>= 45° off bore),
+	# then curves back. The fan angle is driven by launch index so missiles spread in
+	# a full 360° cone around the target rather than bunching on one side.
+	var fan_angle := TAU * float(idx) / maxf(float(total), 1.0)
+	var bore_dir := (to - start).normalized()
+	var perp := bore_dir.cross(Vector3.UP)
+	if perp.length() < 0.01:
+		perp = bore_dir.cross(Vector3.RIGHT)
+	perp = perp.normalized()
+	var rot_axis := bore_dir
+	var fanned := perp.rotated(rot_axis, fan_angle)
+	# Wide-arc fan: apex is 35–50 units off-bore, creating the wide loop before convergence.
+	var fan_radius := rng.randf_range(28.0, 48.0)
+	var apex_mid := start.lerp(to, 0.35)
+	var apex: Vector3 = apex_mid + fanned * fan_radius + Vector3(0, rng.randf_range(8, 20), 0)
 	var seg := [-1]
 	var tw := create_tween()
-	tw.tween_method(_missile_step.bind(m, start, apex, to, seg), 0.0, 1.0, rng.randf_range(0.7, 1.05)).set_trans(Tween.TRANS_SINE)
+	tw.tween_method(_missile_step.bind(m, start, apex, to, seg), 0.0, 1.0, rng.randf_range(0.75, 1.1)).set_trans(Tween.TRANS_SINE)
 	tw.tween_callback(func():
 		_impact_flash(m.global_position, Color(1.0, 0.6, 0.3), 1.1)
 		m.queue_free())
@@ -389,6 +419,8 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	shooter.recoil()
 	if payload.get("hit", false):
 		target.flinch(true)
+	if payload.get("hero_kill", false):
+		_hero_kill_yield(from, to, color)
 
 ## Blade clash: a burst of sparks + light at the contact point between the two
 ## suits. A block locks blades (cool sparks, push apart); a connecting cleave is
@@ -420,6 +452,11 @@ func _burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	for i in rounds:
 		var is_hit := i < hits
 		_tracer(shooter, target, is_hit, float(i) * 0.09, mount)
+	if payload.get("hero_kill", false):
+		var from_b: Vector3 = _mz(shooter, mount)
+		var to_b: Vector3 = target.position + Vector3(0, 11, 0)
+		var color_b := Color(1.0, 0.85, 0.4) if shooter.actor_id == "A" else Color(1.0, 0.5, 0.2)
+		_hero_kill_yield(from_b, to_b, color_b)
 
 func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float, mount := "") -> void:
 	await get_tree().create_timer(delay).timeout
@@ -562,6 +599,54 @@ func _ring(pos: Vector3, color := Color(1.0, 0.8, 0.5), size := 40.0) -> void:
 	tw.tween_property(ring, "scale", Vector3(size, size * 0.1, size), 0.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.8)
 	tw.chain().tween_callback(func(): ring.queue_free())
+
+## Hero-kill yield framing (Tier 3): capital-ship-grade escalation on top of the
+## existing bullet-time kill-cam. Additive — the regular lethal kill-cam still fires.
+## Produces: a thick screen-filling whiteout flash, an oversized beam overlay (3×
+## wider), a secondary shockwave ring, heavy collateral on nearby buildings, and an
+## extended director shake. The whiteout fades so the kill-cam frame is still visible.
+func _hero_kill_yield(from: Vector3, to: Vector3, color: Color) -> void:
+	# 1. Oversized beam overlay — 3× thicker than the normal beam, capital-ship width.
+	_draw_beam(from, to, color, 4.5)
+	# 2. Whiteout flash: a full-screen-filling sphere at the impact point that
+	#    expands fast and fades — the classic UC "beam consumes the enemy" moment.
+	var flash := MeshInstance3D.new()
+	var fmesh := SphereMesh.new()
+	fmesh.radius = 3.0
+	fmesh.height = 6.0
+	var fmat := _energy_mat(Color(1.0, 1.0, 0.98), 28.0)
+	fmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fmat.albedo_color = Color(1, 1, 1, 0.95)
+	fmesh.material = fmat
+	flash.mesh = fmesh
+	flash.scale = Vector3.ONE * 0.3
+	add_child(flash)
+	flash.global_position = to
+	var ftw := create_tween().set_parallel(true)
+	ftw.tween_property(flash, "scale", Vector3.ONE * 18.0, 0.22).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	ftw.tween_property(fmat, "emission_energy_multiplier", 0.0, 0.38)
+	ftw.tween_property(fmat, "albedo_color:a", 0.0, 0.38)
+	ftw.chain().tween_callback(flash.queue_free)
+	# 3. Shockwave ring — much larger than the standard ring; radiates from impact.
+	_ring(to, color.lightened(0.3), 120.0)
+	_ring(to + Vector3(0, -5, 0), Color(1.0, 0.8, 0.6), 90.0)
+	# 4. Extra fireballs + smoke columns for heavy collateral.
+	for i in 3:
+		var offset := Vector3(rng.randf_range(-18, 18), 0, rng.randf_range(-12, 12))
+		_fireball(to + offset)
+		_smoke(to + offset + Vector3(0, 4, 0))
+	# 5. Detonate additional buildings near the kill point — structural collateral.
+	var demolished := 0
+	for bld in get_tree().get_nodes_in_group("kb_building"):
+		if demolished >= 3:
+			break
+		var aabb: AABB = bld.get_meta("aabb")
+		if aabb.get_center().distance_to(to) < 60.0:
+			bld.remove_from_group("kb_building")
+			_detonate_building(bld, aabb.get_center(), from)
+			demolished += 1
+	# 6. Extended shake — capital-ship-grade rumble.
+	director.shake_strength = maxf(director.shake_strength, 4.5)
 
 func _hitstop(dur := 0.07) -> void:
 	if Engine.time_scale < 0.2:

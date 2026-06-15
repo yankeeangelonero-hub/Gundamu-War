@@ -22,8 +22,14 @@ var _prev_yaw := 0.0
 # turns and can't stop on a dime. max_accel is the mass dial (lower = heavier).
 var velocity := Vector3.ZERO
 var _target := Vector3.ZERO
-var max_speed := 48.0    # keep top speed up (slow mechs linger in the city and
-var max_accel := 24.0    # tank perf); HEAVY comes from low accel — slow ramp, carried momentum
+## Movement dials — tuned for burst-coast-snap (Gundam UC feel):
+## High top speed so the mech SKIMS fast during a boost coast; low base accel so
+## the ramp-up reads as heavy thrust building. Boost temporarily blows both caps.
+## Owner fine-tune notes: raise max_speed if the coast phase feels too short;
+## lower max_accel (toward 16) for heavier-feeling mechs; raise boost_t ceiling in
+## walk_to if you want longer sustained thrusts.
+var max_speed := 52.0    # fast coast after burst — reads as propellant-driven glide
+var max_accel := 18.0    # slow ramp = heavy; momentum carries across waypoints
 var _boost_t := 0.0
 var _boost_cd := 0.0     # cooldown: must walk/strafe before boosting again
 var _was_airborne := false
@@ -299,7 +305,23 @@ func _process(delta: float) -> void:
 		velocity += steer
 		if velocity.length() > cap:
 			velocity = velocity.normalized() * cap
+	# Weight: once above the current target height, fall back toward it (hops land
+	# instead of drifting upward forever — the integrator has no gravity otherwise).
+	if position.y > _target.y + 0.1:
+		velocity.y -= 55.0 * delta
 	position += velocity * delta
+	# Arena bounds — keep both mechs inside the playable/visible volume so aggressive
+	# 3-D waypoints + boost momentum can't fling a mech off-camera (x ±55, z ±45, y 0..14).
+	if absf(position.x) > 55.0:
+		position.x = clampf(position.x, -55.0, 55.0)
+		velocity.x = 0.0
+	if absf(position.z) > 45.0:
+		position.z = clampf(position.z, -45.0, 45.0)
+		velocity.z = 0.0
+	if position.y > 14.0:
+		position.y = 14.0
+		if velocity.y > 0.0:
+			velocity.y = 0.0
 	if position.y < 0.0:
 		position.y = 0.0
 		if velocity.y < 0.0:
@@ -320,14 +342,26 @@ func _process(delta: float) -> void:
 	if rigged:
 		_drive_rig(delta)
 		return   # skip the block-out box visuals; the rig + clips handle the body
-	# AMBAC: the mech whips its facing by swinging its arms — the limbs counter-
-	# rotate the torso (angular momentum), so a turn reads as limb-driven.
+	# AMBAC: limb-driven snap reorientation. The mech whips its facing by swinging
+	# arms (and counter-swings a leg on hard turns), so the torso rotation reads as
+	# angular-momentum transfer — "falling cat" physics, not a turret yaw.
+	# Arm swing: proportional to yaw rate. Leg counter-swing: only on sharp snaps
+	# (|yaw_vel| > 1.2 rad/s) to sell the big pivots without constant leg flailing.
 	var yaw_vel := angle_difference(_prev_yaw, rotation.y) / maxf(delta, 0.0001)
 	_prev_yaw = rotation.y
 	if not _blocking:
-		var swing := clampf(yaw_vel * 0.04, -1.0, 1.0)
-		arm_l.rotation.x = lerpf(arm_l.rotation.x, swing, 14.0 * delta)
-		arm_r.rotation.x = lerpf(arm_r.rotation.x, -swing, 14.0 * delta)
+		var swing := clampf(yaw_vel * 0.055, -1.2, 1.2)
+		arm_l.rotation.x = lerpf(arm_l.rotation.x, swing, 16.0 * delta)
+		arm_r.rotation.x = lerpf(arm_r.rotation.x, -swing, 16.0 * delta)
+		# Leg counter-swing on sharp pivots: the raised leg whips opposite the arms
+		# to balance angular momentum — the defining AMBAC tell.
+		if absf(yaw_vel) > 1.2:
+			var leg_swing := clampf(-yaw_vel * 0.03, -0.5, 0.5)
+			# Legs are direct children; find them by position offset (left = negative x).
+			for child in get_children():
+				if child is MeshInstance3D and absf(child.position.y - 3.25) < 0.5:
+					var side := signf(child.position.x)
+					child.rotation.x = lerpf(child.rotation.x, leg_swing * side, 10.0 * delta)
 	# Bank/lean from the integrated velocity; while locked, strain forward into
 	# the blade press instead.
 	if _lock_t > 0.0:
@@ -373,9 +407,22 @@ func _process(delta: float) -> void:
 
 ## Set the move target. The integrator in _process steers there with inertia —
 ## velocity carries across calls, so a new target mid-move curves the mech rather
-## than restarting it. A boost adds a one-shot thruster impulse + flare and is the
-## only thing that goes airborne; default movement is grounded and momentum-driven.
-func walk_to(to_x: float, to_y: float, to_z: float, dur: float, boost := false) -> void:
+## than restarting it.
+##
+## Burst-coast-snap motion (Tier 1 UC feel):
+##   boost=true  → hard thruster impulse at onset; mech SKIMS fast (coast phase),
+##                 then the integrator's arrive-ease kills velocity at the waypoint
+##                 (snap). The fast accel + high cap → ballistic coast → hard stop
+##                 reads as propellant-driven, not constant-gait.
+##   evade=true  → evasive micro-dash: boost-flare fires OPPOSITE travel direction
+##                 (the jet pushing the mech away), slight velocity bias sideways.
+##   pursue=true → pursuit close: boost-flare fires FORWARD (chasing), slight
+##                 forward tilt via extra velocity along the attack vector.
+##
+## to_y > 0 = pop-up hop (airborne). The integrator keeps position.y >= 0, so
+## a grounded return (to_y=0 next waypoint) auto-lands and triggers _land().
+func walk_to(to_x: float, to_y: float, to_z: float, dur: float,
+		boost := false, evade := false, pursue := false) -> void:
 	moving = true
 	_target = Vector3(to_x, to_y, to_z)
 	if combat_face == null:
@@ -383,17 +430,35 @@ func walk_to(to_x: float, to_y: float, to_z: float, dur: float, boost := false) 
 		if Vector2(d.x, d.z).length() > 0.5:
 			_target_yaw = atan2(d.x, d.z)
 	if boost and _boost_cd <= 0.0:
-		# Ground-boost: a horizontal thruster kick (mostly flattened) sustained for
-		# the move, so the mech skims low and fast across the deck "for a while".
+		# Burst-coast-snap: a hard directional impulse at onset so the mech
+		# accelerates fast (ease-out thrust), then coasts on that velocity until
+		# the arrive-ease in _process brakes it at the waypoint.
 		var dir := _target - position
-		dir.y *= 0.2                                  # keep the kick horizontal
-		if dir.length() > 0.1:
-			velocity += dir.normalized() * 21.0
-		_boost_t = clampf(dur, 0.45, 1.6)             # boost lasts the move, not an instant
-		_boost_cd = 3.2                               # then must walk/strafe before boosting again
-		_boost_flare(-(_target - position).normalized())
+		dir.y *= 0.25                                 # mostly horizontal; Y drives hops
+		var impulse_mag := 26.0
+		if evade:
+			# Evasive dash: impulse is AWAY from the approach vector — the jet fires
+			# opposite travel so the mech blasts sideways/backward out of the line.
+			# Add a small lateral bias for the weave visual.
+			var evade_dir := -dir.normalized() if dir.length() > 0.1 else Vector3(1, 0, 0)
+			var lateral := evade_dir.cross(Vector3.UP).normalized()
+			velocity += evade_dir * impulse_mag * 0.7 + lateral * impulse_mag * 0.4
+			_boost_flare(evade_dir)  # flare opposite boost direction = same as travel dir
+		elif pursue:
+			# Pursuit close: impulse TOWARD the enemy — aggressive closing burst.
+			# Slight extra pitch-forward handled by torso.rotation.x in _process.
+			if dir.length() > 0.1:
+				velocity += dir.normalized() * (impulse_mag + 6.0)
+			_boost_flare(-(dir.normalized() if dir.length() > 0.1 else Vector3(0, 0, 1)))
+		else:
+			# Plain boost (pop-up hop or repositioning): kick along the travel vector.
+			if dir.length() > 0.1:
+				velocity += dir.normalized() * impulse_mag
+			_boost_flare(-(_target - position).normalized())
+		_boost_t = clampf(dur, 0.45, 1.8)             # sustain for the move arc
+		_boost_cd = 2.8                               # cool-down before next boost
 	elif boost:
-		_target.y = 0.0                               # boost requested but on cooldown → stay grounded
+		_target.y = 0.0                               # boost on cooldown → stay grounded
 
 ## Thruster jet: a bright flare + light kick at the back of the mech, pointing
 ## opposite the boost vector, that flashes and fades on each dash onset.

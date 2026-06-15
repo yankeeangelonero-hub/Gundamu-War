@@ -5,7 +5,8 @@ extends "res://scripts/director.gd"
 ## beats — the opening exchange, a mid-fight building-wrecking beam, and the
 ## kill — then cuts back to iso. Orthographic backbone, perspective punctuation.
 
-const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bullet_time"]
+const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bullet_time",
+	"popup_burst", "chase_pursuit"]
 
 const OS_LEN := 1.8
 const CUT_LEN := 1.8
@@ -13,20 +14,25 @@ const BT_PRE := 0.2
 const BT_POST := 0.35
 const BT_SCALE := 0.07
 const ISO_OFFSET := Vector3(-45, 90, 18)
+const FIRE_KINDS := ["fire_beam", "fire_burst", "fire_swarm", "fire_buster"]
 
 static func build_shot_list(events: Array, dur: float) -> Array:
 	var first_t := -1.0
 	var first_actor := "A"
 	var lethal_t := dur
 	var lethal_actor := "A"
-	var mids: Array = []      # non-first, non-lethal beams: candidates to intercut
+	var lethal_kind := ""
+	var hero_kill_flag := false
+	var mids: Array = []      # non-first, non-lethal fire events: candidates to intercut
 	# The kill can be any event kind (beam OR melee cleave) — find it generically.
 	for e in events:
 		if e.payload.get("lethal", false):
 			lethal_t = float(e.tick) * TICK
 			lethal_actor = str(e.actor)
+			lethal_kind = str(e.kind)
+			hero_kill_flag = bool(e.payload.get("hero_kill", false))
 	for e in events:
-		if e.kind != "fire_beam" or e.payload.get("lethal", false):
+		if not (e.kind in FIRE_KINDS) or e.payload.get("lethal", false):
 			continue
 		var t := float(e.tick) * TICK
 		if first_t < 0.0:
@@ -34,7 +40,7 @@ static func build_shot_list(events: Array, dur: float) -> Array:
 			first_actor = str(e.actor)
 		else:
 			mids.append({"t": t, "actor": str(e.actor)})
-	# Intercut the beam nearest mid-fight (most likely diagonal across a tower).
+	# Intercut the fire event nearest mid-fight (most likely diagonal across a tower).
 	var target := (first_t + lethal_t) * 0.5
 	var mid: Dictionary = {}
 	for m in mids:
@@ -52,8 +58,64 @@ static func build_shot_list(events: Array, dur: float) -> Array:
 			var mt := float(e.tick) * TICK
 			fixed.append({"t0": mt - 0.5, "t1": mt + 1.7, "mode": "melee_cut",
 				"focus": str(e.actor), "time_scale": 0.5})
-	fixed.append({"t0": lethal_t - BT_PRE, "t1": lethal_t + BT_POST, "mode": "bullet_time",
-		"focus": lethal_actor, "time_scale": BT_SCALE})
+	# hero_kill gets longer post-window and slower scale (capital-grade arc).
+	var bt_post := 0.6 if hero_kill_flag else BT_POST
+	var bt_scale := 0.05 if hero_kill_flag else BT_SCALE
+	fixed.append({"t0": lethal_t - BT_PRE, "t1": lethal_t + bt_post, "mode": "bullet_time",
+		"focus": lethal_actor, "time_scale": bt_scale, "hero_kill": hero_kill_flag})
+
+	# Overload build-up: a tightening "reactor cooking off" shot just before the
+	# lethal overload. Only fires when the killing blow is an overload (not a weapon fire).
+	if lethal_kind == "overload":
+		var buildup_t := lethal_t - 0.8
+		if buildup_t > first_t + OS_LEN + 0.1:
+			fixed.append({"t0": buildup_t, "t1": lethal_t, "mode": "hero_cut",
+				"focus": lethal_actor, "time_scale": 1.0})
+
+	# Pop-up punctuation: a low/heroic angle shot at the single most dramatic pop-up
+	# burst (highest to_y — sells the biggest vertical leap). Capped at one shot to
+	# preserve the iso backbone rhythm; more than one floods the cut rate.
+	# Duration: 1.2s. Skip if it would fully overlap with the hero_os window.
+	const POPUP_LEN := 1.2
+	var best_popup_e: Dictionary = {}
+	for e in events:
+		if e.kind != "advance" or not (float(e.payload.get("to_y", 0.0)) > 0.0):
+			continue
+		var pt := float(e.tick) * TICK
+		# Skip if this pop-up fires inside or immediately after the hero_os window.
+		if pt < first_t + OS_LEN + 0.2:
+			continue
+		if best_popup_e.is_empty() or float(e.payload.get("to_y", 0.0)) > float(best_popup_e.payload.get("to_y", 0.0)):
+			best_popup_e = e
+	if not best_popup_e.is_empty():
+		var pt := float(best_popup_e.tick) * TICK
+		fixed.append({"t0": pt - 0.1, "t1": pt + POPUP_LEN, "mode": "popup_burst",
+			"focus": str(best_popup_e.actor), "time_scale": 1.0})
+
+	# Chase-pursuit punctuation: one wide tracking shot spanning the dodge-pursuit weave.
+	# Detect the run by finding the first evade and last pursue in the log; add a shot
+	# that covers the middle ~2.5s of that window.
+	const CHASE_LEN := 2.5
+	var chase_start := -1.0
+	var chase_end := -1.0
+	var chase_actor := "A"
+	for e in events:
+		if e.kind != "advance":
+			continue
+		if bool(e.payload.get("evade", false)) or bool(e.payload.get("pursue", false)):
+			var ct := float(e.tick) * TICK
+			if chase_start < 0.0:
+				chase_start = ct
+				chase_actor = str(e.actor)
+			chase_end = ct + float(e.payload.get("end_tick", e.tick) - e.tick) * TICK
+	if chase_start >= 0.0:
+		var chase_mid := (chase_start + chase_end) * 0.5
+		var cs0 := chase_mid - CHASE_LEN * 0.5
+		var cs1 := chase_mid + CHASE_LEN * 0.5
+		# Always add — iso backbone clips it naturally if it overlaps bullet_time.
+		fixed.append({"t0": cs0, "t1": cs1, "mode": "chase_pursuit",
+			"focus": chase_actor, "time_scale": 1.0})
+
 	fixed.sort_custom(func(x, y): return float(x.t0) < float(y.t0))
 
 	# Iso fills every gap; the tail after the kill is the iso aftermath read.
@@ -61,9 +123,13 @@ static func build_shot_list(events: Array, dur: float) -> Array:
 	var cursor := 0.0
 	for f in fixed:
 		var t0 := maxf(float(f.t0), cursor)
+		if float(f.t1) <= t0:
+			continue  # fully clipped by a prior overlapping shot
 		if t0 - cursor > 0.001:
 			shots.append({"t0": cursor, "t1": t0, "mode": "iso", "focus": "", "time_scale": 1.0})
-		shots.append({"t0": t0, "t1": float(f.t1), "mode": f.mode, "focus": f.focus, "time_scale": f.time_scale})
+		var shot: Dictionary = f.duplicate()
+		shot["t0"] = t0
+		shots.append(shot)
 		cursor = float(f.t1)
 	if dur - cursor > 0.001:
 		shots.append({"t0": cursor, "t1": dur, "mode": "iso_aftermath", "focus": "", "time_scale": 1.0})
@@ -131,6 +197,29 @@ func _update_camera(delta: float) -> void:
 			aim = mid + Vector3(0, 9, 0)
 			fov = 46
 			_roll = -0.05
+		"popup_burst":
+			# Low/heroic angle: camera planted low and wide, looking UP at the boosting mech.
+			# The pop-up burst should read as a giant leaving the ground — F6 framing-for-scale.
+			var f: Node3D = actors[s.focus]
+			var o: Node3D = actors[_other(str(s.focus))]
+			var d := (o.position - f.position).normalized()
+			# Place camera low, behind and below the boosting mech — looking up into the thrust.
+			pos = f.position - d * 12.0 + Vector3(0, 2.0, 0)
+			aim = f.position + Vector3(0, 18.0, 0)   # aim high: the mech is rising
+			fov = 52   # wider field — sell the vertical scale
+			_roll = 0.02
+		"chase_pursuit":
+			# Wide tracking shot: planted at mid-height between the two mechs, panning with the
+			# evader's movement across the depth plane. The weave must read — keep it wide.
+			# F4: constant reframing (aim tracks evader); F5: shot held long enough to see the arc.
+			var evader: Node3D = actors[s.focus]
+			var pursuer: Node3D = actors[_other(str(s.focus))]
+			var lateral := evader.position - pursuer.position
+			# Offset the camera perpendicular to the chase axis, at a middling height.
+			var perp := Vector3(-lateral.z, 0.0, lateral.x).normalized()
+			pos = evader.position.lerp(pursuer.position, 0.5) + perp * 28.0 + Vector3(0, 14.0, 0)
+			aim = evader.position + Vector3(0, 10.0, 0)  # track the evader
+			fov = 58   # wide — full weave visible
 		"melee_cut":
 			# Tight, slightly slow close-up orbiting the blade clash point.
 			var f: Node3D = actors[s.focus]
@@ -144,13 +233,20 @@ func _update_camera(delta: float) -> void:
 			var shooter: Node3D = actors[s.focus]
 			var victim: Node3D = actors[_other(str(s.focus))]
 			var center := victim.position.lerp(shooter.position, 0.2) + Vector3(0, 10, 0)
-			var wall_len := (float(s.t1) - float(s.t0)) / BT_SCALE
+			var bt_ts := float(s.time_scale)
+			var wall_len := (float(s.t1) - float(s.t0)) / maxf(bt_ts, 0.001)
 			var p := clampf(_wall / wall_len, 0.0, 1.0)
-			var ang := PI + p * TAU * 0.75
-			pos = center + Vector3(cos(ang) * 32.0, 8.0 + p * 9.0, sin(ang) * 14.0)
+			# hero_kill: wider radius, greater height rise, longer arc sweep (capital-grade)
+			var is_hk: bool = bool(s.get("hero_kill", false))
+			var radius_h := 42.0 if is_hk else 32.0
+			var radius_v := 18.0 if is_hk else 14.0
+			var height_rise := 16.0 if is_hk else 9.0
+			var sweep := TAU * 1.0 if is_hk else TAU * 0.75
+			var ang := PI + p * sweep
+			pos = center + Vector3(cos(ang) * radius_h, 8.0 + p * height_rise, sin(ang) * radius_v)
 			aim = center
-			fov = 48
-			_roll = lerpf(-0.05, 0.03, p)
+			fov = 44.0 if is_hk else 48.0
+			_roll = lerpf(-0.07, 0.05, p) if is_hk else lerpf(-0.05, 0.03, p)
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov
 	pos = _resolve_occlusion(pos, aim)

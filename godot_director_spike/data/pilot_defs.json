@@ -1,0 +1,30 @@
+{
+  "_note": "Pilot definitions for v0.1 gauntlet hero pick. Each pilot grants a starting signature item in inventory and a small unique-item pool the shop can offer during their run. This is the v0.1 toehold; the full persistent pilot system is v0.2+.",
+
+  "pilots": [
+    {
+      "id": "vesper",
+      "name": "VESPER-7",
+      "callsign": "Phantom Saber",
+      "blurb": "Precision close-quarters specialist. Her saber cuts before they can answer.",
+      "signature_item": "beam_saber",
+      "unique_pool": ["overdrive", "amplifier"]
+    },
+    {
+      "id": "anvil",
+      "name": "ANVIL-4",
+      "callsign": "Iron Wall",
+      "blurb": "Sustain fortress. Outlast everything — then reload and do it again.",
+      "signature_item": "aux_cell",
+      "unique_pool": ["capacitor", "weapon_rack"]
+    },
+    {
+      "id": "lance",
+      "name": "LANCE-9",
+      "callsign": "Killshot",
+      "blurb": "One shot, one kill. Everything in the bag feeds the cannon.",
+      "signature_item": "beam_cannon",
+      "unique_pool": ["targeting_scope", "external_bay"]
+    }
+  ]
+}

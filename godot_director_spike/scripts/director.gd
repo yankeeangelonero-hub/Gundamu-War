@@ -139,7 +139,12 @@ func _dispatch(e: Dictionary) -> void:
 			var raw := Vector3(float(e.payload.to_x), float(e.payload.get("to_y", 0.0)),
 				float(e.payload.get("to_z", actor.position.z)))
 			var to := _engage(raw, target.position)   # keep the move at duel range, not away
-			actor.walk_to(to.x, to.y, to.z, dur, bool(e.payload.get("boost", false)))
+			# evade: fast directional burst opposite travel; pursue: forward tilt + aggressive close.
+			# Both get a boost; a plain advance gets none (unless the old boost flag is set).
+			var do_boost := bool(e.payload.get("boost", false)) \
+				or bool(e.payload.get("evade", false)) \
+				or bool(e.payload.get("pursue", false))
+			actor.walk_to(to.x, to.y, to.z, dur, do_boost, e.payload.get("evade", false), e.payload.get("pursue", false))
 		"fire_beam":
 			actor.face_toward(target.position)
 			actor.recoil()
@@ -147,18 +152,26 @@ func _dispatch(e: Dictionary) -> void:
 				target.block_pose()
 			elif e.payload.get("hit", false):
 				target.flinch(float(e.payload.damage) > 25.0)
+			if e.payload.get("hero_kill", false):
+				_hero_kill_escalate(actor, target)
 		"fire_burst":
 			actor.face_toward(target.position)
 			actor.recoil()
 			if int(e.payload.hits) > 0:
 				target.flinch(false)
-		"fire_missiles":
+			if e.payload.get("hero_kill", false):
+				_hero_kill_escalate(actor, target)
+		"fire_swarm":
 			actor.face_toward(target.position)
 			actor.recoil()
 			if int(e.payload.get("hits", 0)) > 0:
 				target.flinch(true)
+			if e.payload.get("hero_kill", false):
+				_hero_kill_escalate(actor, target)
 		"fire_buster":
 			actor.face_toward(target.position)
+			if e.payload.get("hero_kill", false):
+				_hero_kill_escalate(actor, target)
 			# the heavy recoil/knockback + impact fire after the charge, in garnish
 		"melee":
 			actor.face_toward(target.position)
@@ -181,6 +194,18 @@ func _dispatch(e: Dictionary) -> void:
 			actor.die()
 			shake_strength = 1.0
 	fight_event.emit(e)
+
+## Hero-kill escalation: when a lethal fire event carries hero_kill:true, notify
+## garnish (via the fight_event signal — garnish listens) and punch the director's
+## shake to capital-ship grade. The per-kind VFX escalation is handled in garnish.gd.
+func _hero_kill_escalate(_shooter: Node3D, _victim: Node3D) -> void:
+	shake_strength = maxf(shake_strength, 3.5)
+	# Extend slow-motion: override the current shot's time_scale if we're already
+	# in bullet-time — the hero_kill window stays dilated longer.
+	if _shot_idx >= 0 and _shot_idx < shots.size():
+		var ts := float(shots[_shot_idx].time_scale)
+		if ts < 1.0:
+			Engine.time_scale = ts   # already dilated — keep it; garnish whiteout handles the rest
 
 ## Engagement ring: keep a mech's move target within duel range of its enemy, so a
 ## log position that would send it walking off into the distance instead lands on

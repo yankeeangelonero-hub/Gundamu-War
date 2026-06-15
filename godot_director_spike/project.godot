@@ -4,7 +4,7 @@ config_version=5
 
 config/name="KM-DIRECTOR-SPIKE"
 config/features=PackedStringArray("4.6", "Forward Plus")
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/gauntlet_screen.tscn"
 
 [display]
 

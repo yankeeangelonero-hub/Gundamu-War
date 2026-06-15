@@ -1,5 +1,5 @@
 {
-  "_note": "M1 build-grid item catalogue. Data-driven contract: parts are data, not code. Kinds: builder (reactor: pool/regen), spender (weapon: PoE base damage + per-shot power cost + mount cascade), support (authored buff-slots applying PoE flat_added/increased/more + a cost_multiplier). Offsets are [row, col]. buff_slots are relative to the support's own origin and rotate WITH the shape.",
+  "_note": "M1 build-grid item catalogue. Data-driven contract: parts are data, not code. Kinds: builder (reactor: pool/regen), spender (weapon: PoE base damage + per-shot power cost + mount cascade), support (authored buff-slots applying PoE flat_added/increased/more + a cost_multiplier), container (bag expansion: grants extra grid cells). Offsets are [row, col]. buff_slots are relative to the support's own origin and rotate WITH the shape.",
 
   "shapes": {
     "1x1":  [[0, 0]],
@@ -13,75 +13,113 @@
   "items": {
     "reactor_core": {
       "name": "Reactor Core", "code": "RC-0", "kind": "builder", "shape": "2x2",
-      "pool": 120, "regen": 14
+      "pool": 120, "regen": 14, "price": 8
     },
     "aux_cell": {
       "name": "Aux Power Cell", "code": "AX-2", "kind": "builder", "shape": "1x2v",
-      "pool": 45, "regen": 5
+      "pool": 45, "regen": 5, "price": 4
     },
 
     "beam_rifle": {
       "name": "Beam Rifle", "code": "BR-07", "kind": "spender", "shape": "1x3v",
       "base_damage": 14, "base_power_cost": 8, "cadence": 4.0, "fx": "beam",
-      "preferred_mount": "hand_r", "fallback_mounts": ["hand_l", "shoulder_r"]
+      "preferred_mount": "hand_r", "fallback_mounts": ["hand_l", "shoulder_r"],
+      "price": 5
     },
     "beam_saber": {
       "name": "Beam Saber", "code": "BS-04", "kind": "spender", "shape": "1x2v",
       "base_damage": 10, "base_power_cost": 5, "cadence": 2.5, "fx": "beam",
-      "preferred_mount": "hand_l", "fallback_mounts": ["hand_r"]
+      "preferred_mount": "hand_l", "fallback_mounts": ["hand_r"],
+      "price": 4
     },
     "gatling": {
       "name": "Gatling Gun", "code": "GT-09", "kind": "spender", "shape": "1x3v",
       "base_damage": 9, "base_power_cost": 4, "cadence": 1.2, "fx": "burst",
-      "preferred_mount": "hand_r", "fallback_mounts": ["shoulder_r", "shoulder_l"]
+      "preferred_mount": "hand_r", "fallback_mounts": ["shoulder_r", "shoulder_l"],
+      "price": 4
     },
     "missile_rack": {
       "name": "Missile Rack", "code": "MR-11", "kind": "spender", "shape": "2x2",
       "base_damage": 18, "base_power_cost": 12, "cadence": 6.0, "fx": "missiles",
-      "preferred_mount": "back", "fallback_mounts": ["shoulder_l", "shoulder_r"]
+      "preferred_mount": "back", "fallback_mounts": ["shoulder_l", "shoulder_r"],
+      "price": 6
     },
     "beam_cannon": {
       "name": "Beam Cannon", "code": "CN-8", "kind": "spender", "shape": "1x4v",
       "base_damage": 26, "base_power_cost": 18, "cadence": 8.0, "fx": "buster",
-      "preferred_mount": "back", "fallback_mounts": ["shoulder_r"]
+      "preferred_mount": "back", "fallback_mounts": ["shoulder_r"],
+      "price": 8
     },
 
     "power_cell": {
       "name": "Power Booster", "code": "BT-1", "kind": "support", "shape": "1x1",
       "buff_slots": [[-1, 0], [1, 0], [0, -1], [0, 1]],
-      "flat_added": 0, "increased": 0.0, "more": 0.30, "cost_multiplier": 1.5
+      "flat_added": 0, "increased": 0.0, "more": 0.30, "cost_multiplier": 1.5,
+      "price": 3
     },
     "targeting_scope": {
       "name": "Targeting Scope", "code": "OP-1", "kind": "support", "shape": "1x1",
       "buff_slots": [[-1, 0], [1, 0], [0, -1], [0, 1]],
-      "flat_added": 0, "increased": 0.40, "more": 0.0, "cost_multiplier": 1.15
+      "flat_added": 0, "increased": 0.40, "more": 0.0, "cost_multiplier": 1.15,
+      "price": 3
     },
     "amplifier": {
       "name": "Beam Amplifier", "code": "AM-3", "kind": "support", "shape": "1x2v",
       "buff_slots": [[0, 1], [1, 1]],
-      "flat_added": 6, "increased": 0.0, "more": 0.0, "cost_multiplier": 1.25
+      "flat_added": 6, "increased": 0.0, "more": 0.0, "cost_multiplier": 1.25,
+      "price": 4
     },
     "overdrive": {
       "name": "Overdrive Chip", "code": "OD-9", "kind": "support", "shape": "1x1",
       "buff_slots": [[-1, 0], [1, 0], [0, -1], [0, 1]],
-      "flat_added": 0, "increased": 0.0, "more": 0.50, "cost_multiplier": 2.0
+      "flat_added": 0, "increased": 0.0, "more": 0.50, "cost_multiplier": 2.0,
+      "price": 5
     },
     "capacitor": {
       "name": "Capacitor Bank", "code": "CP-5", "kind": "support", "shape": "1x1",
       "buff_slots": [[-1, 0], [1, 0], [0, -1], [0, 1]],
-      "flat_added": 0, "increased": 0.20, "more": 0.10, "cost_multiplier": 1.3
+      "flat_added": 0, "increased": 0.20, "more": 0.10, "cost_multiplier": 1.3,
+      "price": 4
+    },
+
+    "hardpoint_pylon": {
+      "name": "Hardpoint Pylon", "code": "HP-1", "kind": "container", "shape": "2x1h",
+      "extra_rows": 2, "extra_cols": 2,
+      "price": 6
+    },
+    "weapon_rack": {
+      "name": "Weapon Rack", "code": "WR-3", "kind": "container", "shape": "1x2v",
+      "extra_rows": 3, "extra_cols": 1,
+      "price": 7
+    },
+    "external_bay": {
+      "name": "External Bay", "code": "EB-2", "kind": "container", "shape": "2x2",
+      "extra_rows": 2, "extra_cols": 3,
+      "price": 10
     }
   },
 
   "categories": {
-    "builder": { "label": "Reactors", "color": "#4aa3c4" },
-    "spender": { "label": "Weapons",  "color": "#c66242" },
-    "support": { "label": "Systems",  "color": "#d9933a" }
+    "builder":   { "label": "Reactors",    "color": "#4aa3c4" },
+    "spender":   { "label": "Weapons",     "color": "#c66242" },
+    "support":   { "label": "Systems",     "color": "#d9933a" },
+    "container": { "label": "Expansions",  "color": "#5aa66f" }
   },
 
   "dev_palette": [
     "reactor_core", "aux_cell",
     "beam_rifle", "beam_saber", "gatling", "missile_rack", "beam_cannon",
-    "power_cell", "targeting_scope", "amplifier", "overdrive", "capacitor"
-  ]
+    "power_cell", "targeting_scope", "amplifier", "overdrive", "capacitor",
+    "hardpoint_pylon", "weapon_rack", "external_bay"
+  ],
+
+  "shop_table": [
+    "reactor_core", "aux_cell",
+    "beam_rifle", "beam_saber", "gatling", "missile_rack", "beam_cannon",
+    "power_cell", "targeting_scope", "amplifier", "overdrive", "capacitor",
+    "hardpoint_pylon", "weapon_rack", "external_bay"
+  ],
+
+  "_recipes_stub": "P2 — recipes data hook. Format: [{ingredients:[def_id,...], result:def_id}]. Not yet processed by code.",
+  "recipes": []
 }

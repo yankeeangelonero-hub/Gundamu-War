@@ -16,22 +16,30 @@ var director: Node3D
 var _fps_samples: Array[float] = []
 var _fade: ColorRect
 var _paused_layer: CanvasLayer
+var _trace := false
 
 func _process(_delta: float) -> void:
 	if get_tree().paused:
 		return
 	if Engine.get_process_frames() % 30 == 0:
 		_fps_samples.append(Performance.get_monitor(Performance.TIME_FPS))
+	if _trace and director != null and director.playing and Engine.get_process_frames() % 12 == 0:
+		print("TRACE f=%d cam=(%.1f,%.1f,%.1f) A=(%.1f,%.1f,%.1f) B=(%.1f,%.1f,%.1f)" % [
+			Engine.get_process_frames(),
+			camera.global_position.x, camera.global_position.y, camera.global_position.z,
+			mech_a.global_position.x, mech_a.global_position.y, mech_a.global_position.z,
+			mech_b.global_position.x, mech_b.global_position.y, mech_b.global_position.z])
 
 ## --frames: dump a PNG every 1.5 game-seconds for offline shot review.
 func _capture_frames(director_name: String) -> void:
 	DirAccess.make_dir_recursive_absolute("res://tmp")
 	var idx := 0
+	var interval := 0.1 if "--densecap" in OS.get_cmdline_user_args() else 1.5
 	while director != null and director.playing:
-		await get_tree().create_timer(1.5).timeout
+		await get_tree().create_timer(interval).timeout
 		var img := get_viewport().get_texture().get_image()
 		img.resize(640, 360)
-		img.save_png("res://tmp/frame_%s_%02d.png" % [director_name, idx])
+		img.save_png("res://tmp/frame_%s_%04d.png" % [director_name, idx])
 		idx += 1
 
 ## Establishing intro for a deployed fight: hold on a far lens that slowly pushes
@@ -104,6 +112,20 @@ func _intro_clear_occluders(a: Node3D, b: Node3D) -> void:
 		director._resolve_occlusion(camera.position, (ah + bh) * 0.5)
 
 func _ready() -> void:
+	# Debug: self-inject a starter DEPLOY fight so the real FightHandoff path can be
+	# traced by running main.tscn directly (no separate runner). Gated by --deploy-test.
+	if "--deploy-test" in OS.get_cmdline_user_args() and not FightHandoff.active:
+		var Sim := load("res://scripts/build/build_fight_sim.gd")
+		var Opp := load("res://scripts/build/opponent_source.gd")
+		var placement := [
+			{"def_id": "reactor_core", "rot": 0, "anchor": [0, 0]},
+			{"def_id": "beam_rifle", "rot": 0, "anchor": [0, 2]}]
+		var gh: Dictionary = Opp.get_ghost(12345)
+		var ev: Array = Sim.simulate(Sim.build_from_placement(placement), Sim.build_from_placement(gh.placement), 12345)
+		FightHandoff.player_placement = placement
+		FightHandoff.ghost_placement = gh.placement
+		FightHandoff.return_scene = ""   # empty → quit after one fight (debug trace)
+		FightHandoff.set_fight(ev, "VESPER-7", str(gh.get("callsign", "GHOST")))
 	var director_name := "cinematic"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--director="):
@@ -141,6 +163,7 @@ func _ready() -> void:
 	camera.attributes = CameraAttributesPractical.new()
 	add_child(camera)
 	camera.look_at(Vector3(0, 10, 0), Vector3.UP)
+	_trace = "--trace" in OS.get_cmdline_user_args()
 	print("KM-DIRECTOR-SPIKE boot ok")
 	if "--still" in OS.get_cmdline_user_args():
 		# Behind mech A (x=-55), looking toward B (x=+40) — sees both mechs + city flanks
@@ -226,7 +249,10 @@ func _ready() -> void:
 		if FightHandoff.active:
 			var rs := FightHandoff.return_scene
 			FightHandoff.clear()
-			get_tree().change_scene_to_file(rs)
+			if rs != "":
+				get_tree().change_scene_to_file(rs)
+				return
+			get_tree().quit()
 			return
 		_fps_samples.sort()
 		if _fps_samples.size() > 2:

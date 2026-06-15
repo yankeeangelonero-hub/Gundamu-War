@@ -1,5 +1,9 @@
 # Research synthesis — what makes combat read "Gundam UC" vs "MechWarrior"
 
+> **SEEDING DOCUMENT — combat & camera feel.** Canonical reference; read before any combat,
+> camera, or fight-choreography work. Camera work makes or breaks the game feel. Findings F1–F10.
+> Companion: `research-synthesis-2026-06-15-weighty-mecha-multi-title-and-cockpit.md` (F11–F21).
+
 Date: 2026-06-13. Source: deep-research pass on the Torrington Base battle (Gundam Unicorn,
 OVA Ep 4 / RE:0096 Ep 11) and UC mobile-suit combat direction. 15 sources, 25 claims verified
 (20 confirmed, 5 killed). Strongest evidence: the Sejoon Kim sakugabooru interview (primary,

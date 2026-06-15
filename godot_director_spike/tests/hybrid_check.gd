@@ -2,6 +2,7 @@ extends SceneTree
 ## Headless checks for the "hybrid" (iso base + cinematic intercut) variant.
 
 var fails := 0
+const GOLDEN_SHOTLIST_HASH := 2543717900  # frozen from current hybrid.gd, fight_log_everything
 
 func check(cond: bool, label: String) -> void:
 	if cond:
@@ -12,6 +13,7 @@ func check(cond: bool, label: String) -> void:
 
 func _initialize() -> void:
 	_check_hybrid_shot_list()
+	_check_hybrid_parity_snapshot()
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)
 
@@ -58,3 +60,15 @@ func _check_hybrid_shot_list() -> void:
 	check(modes.count("hero_os") == 1, "exactly one over-shoulder intercut (opening exchange)")
 	check(modes.count("hero_cut") >= 1, "at least one cinematic mid-fight intercut")
 	check(modes.count("iso") >= 2, "iso base returns between the intercuts")
+
+func _check_hybrid_parity_snapshot() -> void:
+	var FightLog := load("res://scripts/fight_log.gd")
+	var Hybrid := load("res://scripts/directors/hybrid.gd")
+	var events: Array = FightLog.load_events("res://data/fight_log_everything.json")
+	var dur: float = FightLog.duration_sec(events)
+	var shots: Array = Hybrid.build_shot_list(events, dur)
+	var sig := "%d|" % shots.size()
+	for s in shots:
+		sig += "%s,%.4f,%.4f,%.4f;" % [s.mode, float(s.t0), float(s.t1), float(s.time_scale)]
+	var hash_now := sig.hash()
+	check(hash_now == GOLDEN_SHOTLIST_HASH, "hybrid shot list matches golden snapshot (got hash %d)" % hash_now)

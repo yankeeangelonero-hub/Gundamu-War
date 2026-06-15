@@ -1,5 +1,6 @@
 # Local/browser smoke artifacts
 .playwright-mcp/
+.firecrawl/
 
 # OS/editor noise
 .DS_Store

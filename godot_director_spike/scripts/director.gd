@@ -295,21 +295,18 @@ func _update_camera(delta: float) -> void:
 const FADE_NEAR := 7.0     # lens nearer than this to a building also fades it
 const FADE_MIN := 0.1      # dithered-out alpha: see-through
 
-func _resolve_occlusion(pos: Vector3, aim: Vector3, margin := 0.0, instant := false) -> Vector3:
+func _resolve_occlusion(pos: Vector3, aim: Vector3) -> Vector3:
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
-		var occluding := aabb.grow(margin).intersects_segment(pos, aim) != null \
+		var occluding := aabb.intersects_segment(pos, aim) != null \
 			or aabb.grow(FADE_NEAR).has_point(pos)
-		_fade_building(bld, FADE_MIN if occluding else 1.0, instant)
+		_fade_building(bld, FADE_MIN if occluding else 1.0)
 	return pos
 
-func _fade_building(bld: Node3D, target: float, instant := false) -> void:
+func _fade_building(bld: Node3D, target: float) -> void:
 	var mi := bld as MeshInstance3D
 	var mat: StandardMaterial3D = mi.mesh.material
-	var goal := target
-	if instant and target <= FADE_MIN:
-		goal = 0.0   # melee: hard full hide, not see-through
-	var a := goal if instant else lerpf(mat.albedo_color.a, goal, 0.18)
+	var a := lerpf(mat.albedo_color.a, target, 0.18)
 	mat.albedo_color.a = a
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED if a >= 0.99 \
 		else BaseMaterial3D.TRANSPARENCY_ALPHA_HASH

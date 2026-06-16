@@ -333,6 +333,27 @@ static func _silhouette_points(pos: Vector3, aim: Vector3) -> Array:
 		aim - right * 5.0,           # other shoulder
 	]
 
+## Pick the candidate camera position with the most clear silhouette rays toward
+## `aim`. `candidates` is an ordered array of Vector3 whose index pattern is stable
+## across frames (e.g. angle offsets [-arc..+arc]). Keeps `prev_idx` unless another
+## candidate beats its clear ray count by `margin` (hysteresis — damps jitter).
+## Returns { "idx": int, "pos": Vector3, "clear": int }. Pure.
+static func _pick_clear_pose(candidates: Array, aim: Vector3, buildings: Array, prev_idx: int, margin: int) -> Dictionary:
+	if candidates.is_empty():
+		return {"idx": -1, "pos": aim, "clear": 0}
+	var cur := prev_idx if (prev_idx >= 0 and prev_idx < candidates.size()) else int(candidates.size() / 2)
+	var scores: Array = []
+	for c in candidates:
+		scores.append(Sightline.evaluate(c, _silhouette_points(c, aim), buildings).clear_count)
+	var top := 0
+	for i in candidates.size():
+		if scores[i] > scores[top]:
+			top = i
+	var chosen := cur
+	if scores[top] >= scores[cur] + margin:
+		chosen = top
+	return {"idx": chosen, "pos": candidates[chosen], "clear": scores[chosen]}
+
 func _resolve_occlusion(pos: Vector3, aim: Vector3) -> Vector3:
 	var buildings := get_tree().get_nodes_in_group("kb_building")
 	var occ: Array = Sightline.evaluate(pos, _silhouette_points(pos, aim), buildings).occluders
@@ -369,6 +390,7 @@ const AIM_RATE_CAP := 0.9   # rad/s of wall-clock aim rotation within a shot
 
 var _roll := 0.0            # camera dutch/roll (rad), applied after look_at
 var _axis_keyed_side := 1   # which side of the A<->B axis the cut-ins stay on (F32)
+var _pick_idx := -1         # composition-search hysteresis: the candidate index held across frames
 
 ## Shallow-focus control. dist <= 0 disables DOF (deep-focus plates).
 func _set_focus(dist: float, strength := 0.06) -> void:

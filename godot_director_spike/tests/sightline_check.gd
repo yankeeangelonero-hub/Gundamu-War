@@ -42,5 +42,18 @@ func _init() -> void:
 	check(r3.clear_count == 4, "exactly the shoulder ray is blocked")
 
 	wall.free(); side.free(); shoulder.free()
+
+	# --- _pick_clear_pose: choose the candidate with the most clear rays ---
+	var Director := load("res://scripts/director.gd")
+	var aim2 := Vector3(0, 10, 0)
+	var cands := [Vector3(-40, 10, 20), Vector3(0, 10, 40), Vector3(40, 10, 20)]
+	var wall2 := _bld(Vector3(-6, 0, 18), Vector3(12, 30, 4))   # between cand[1] and aim
+	var pk: Dictionary = Director._pick_clear_pose(cands, aim2, [wall2], 1, 1)
+	check(pk.idx != 1, "pick switches off the blocked candidate")
+	check(pk.clear > Director._pick_clear_pose([cands[1]], aim2, [wall2], 0, 1).clear, "chosen candidate is clearer than the blocked one")
+	var pk2: Dictionary = Director._pick_clear_pose(cands, aim2, [], 2, 1)
+	check(pk2.idx == 2, "on a tie, hysteresis keeps the previous pick")
+	wall2.free()
+
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAIL" % fails))
 	quit(1 if fails > 0 else 0)

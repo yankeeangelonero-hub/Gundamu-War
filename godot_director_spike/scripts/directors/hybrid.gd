@@ -46,8 +46,8 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 	for e in events:
 		if e.kind == "melee" and not e.payload.get("lethal", false):
 			var mt := float(e.tick) * TICK
-			fixed.append({"t0": mt - 0.5, "t1": mt + 1.7, "mode": "melee_cut",
-				"focus": str(e.actor), "time_scale": 0.5})
+			fixed.append({"t0": mt - grammar.melee_cut_pre, "t1": mt + grammar.melee_cut_post, "mode": "melee_cut",
+				"focus": str(e.actor), "time_scale": grammar.melee_cut_scale})
 	fixed.append({"t0": lethal_t - grammar.bt_pre, "t1": lethal_t + grammar.bt_post, "mode": "bullet_time",
 		"focus": lethal_actor, "time_scale": grammar.bt_scale})
 	fixed.sort_custom(func(x, y): return float(x.t0) < float(y.t0))

@@ -13,6 +13,12 @@ class_name ShotGrammar
 @export var bt_post: float = 0.55     # bullet-time hold past the lethal hit (covers the kill)
 @export var bt_scale: float = 0.07    # bullet-time time-scale (slow-mo)
 
+# --- Melee framing (Phase 3 Slice 3) ---
+@export var melee_cut_pre: float = 0.5     # lead-in before the clash tick
+@export var melee_cut_post: float = 1.7    # hold after the clash tick
+@export var melee_cut_scale: float = 0.5   # melee close-up slow-mo
+@export var melee_occlusion_margin: float = 8.0  # widen the camera→clash corridor for the aggressive melee occlusion cull
+
 # --- Time-emphasis arbiter (Phase 3 Slice 1; F37/F14) ---
 # One tool owns a contact beat: bullet-time (kill cam) > hitstop (heavy hit) >
 # impact-frame (minor hit). hitstop/impact-frame partition by damage vs threshold.

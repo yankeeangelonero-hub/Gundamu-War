@@ -70,5 +70,10 @@ func _initialize() -> void:
 		check(g.yield_tier("fire_burst") == 1, "fire_burst -> tier 1 (sidearm)")
 		check(g.yield_tier("") == 1, "unknown/empty -> tier 1 (safe floor)")
 		check(g.yield_tier("nonsense") == 1, "unmapped kind -> tier 1")
+		# --- Phase 3 Slice 3: melee framing + occlusion (Composition/Timing) ---
+		check(is_equal_approx(g.melee_cut_pre, 0.5), "melee_cut_pre == 0.5")
+		check(is_equal_approx(g.melee_cut_post, 1.7), "melee_cut_post == 1.7")
+		check(is_equal_approx(g.melee_cut_scale, 0.5), "melee_cut_scale == 0.5")
+		check(is_equal_approx(g.melee_occlusion_margin, 8.0), "melee_occlusion_margin == 8.0")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

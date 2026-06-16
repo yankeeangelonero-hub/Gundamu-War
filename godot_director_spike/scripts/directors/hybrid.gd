@@ -127,7 +127,6 @@ func _update_camera(delta: float) -> void:
 			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
-			var d := (o.position - f.position).normalized()
 			var lat_os := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
 			aim = o.position + Vector3(0, 10, 0)
 			fov = fr.fov
@@ -141,7 +140,6 @@ func _update_camera(delta: float) -> void:
 			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
-			var d := (o.position - f.position).normalized()
 			var lat_cut := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
 			aim = mid + Vector3(0, 9, 0)
 			fov = fr.fov

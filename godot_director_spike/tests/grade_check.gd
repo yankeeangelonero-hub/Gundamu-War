@@ -76,5 +76,19 @@ func _init() -> void:
 	check(env.adjustment_saturation >= 0.55, "lerp never overshoots target")
 	check(env.adjustment_brightness <= 1.0, "death never brightens past base")
 
+	# --- F22: ambient fill is never crushed to black, even with a black grammar fill ---
+	var black_g = ShotGrammarScript.default()
+	black_g.chromatic_fill = Color(0.0, 0.0, 0.0)
+	var benv := _make_env()
+	var bgrade = Grade.new()
+	bgrade.bind(benv, black_g)
+	bgrade.apply_base()
+	check(benv.ambient_light_color.v >= 0.029, "F22: black chromatic_fill is floored to non-black (base)")
+	for mood_name in black_g.mood_variants.keys():
+		bgrade.set_mood(mood_name)
+		# write the target immediately (no easing) by ticking with k=1
+		bgrade.tick(1000.0)
+		check(benv.ambient_light_color.v >= 0.029, "F22: mood '%s' ambient stays non-black" % mood_name)
+
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAIL" % fails))
 	quit(1 if fails > 0 else 0)

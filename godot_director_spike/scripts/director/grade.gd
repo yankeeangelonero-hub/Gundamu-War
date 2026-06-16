@@ -6,6 +6,8 @@ extends Node
 ## and writes nothing back into the sim or camera — determinism is preserved.
 ## Spec: docs/superpowers/specs/2026-06-16-director-grammar-design.md
 
+const FILL_FLOOR := 0.03   # F22: ambient shadow fill is never crushed to black
+
 var _env: Environment
 var _grammar: ShotGrammar
 var _director: Node
@@ -95,3 +97,5 @@ func _write(m: Dictionary) -> void:
 		clampf(fill.g + w * 0.02, 0.0, 1.0),
 		clampf(fill.b - w * 0.08, 0.0, 1.0),
 		fill.a)
+	if _env.ambient_light_color.v < FILL_FLOOR:
+		_env.ambient_light_color.v = FILL_FLOOR

@@ -73,7 +73,7 @@ static func _building(parent: Node3D, pos: Vector3, size: Vector3, col: Color) -
 	b.set_meta("aabb", AABB(pos - size * 0.5, size))
 	return b
 
-static func build_environment(parent: Node3D) -> void:
+static func build_environment(parent: Node3D) -> WorldEnvironment:
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -98,3 +98,4 @@ static func build_environment(parent: Node3D) -> void:
 	moon.rotation_degrees = Vector3(-35, 140, 0)
 	moon.shadow_enabled = true
 	parent.add_child(moon)
+	return we

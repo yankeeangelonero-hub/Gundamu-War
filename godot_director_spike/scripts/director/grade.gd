@@ -34,6 +34,7 @@ func apply_base() -> void:
 	# ambient comes from a color, not the sky. Set it here so the Grade is correct
 	# regardless of how city_builder configured the environment.
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_env.ambient_light_energy = _grammar.ambient_energy
 	var base: Dictionary = _grammar.mood_variants.get("base", _cur)
 	_cur = base.duplicate()
 	_target = base.duplicate()

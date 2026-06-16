@@ -51,6 +51,8 @@ func _init() -> void:
 		"grade owns the ambient source on the live env (F22 fill is honored)")
 	check(live_env.ambient_light_color.is_equal_approx(g.chromatic_fill),
 		"live env ambient == chromatic fill")
+	check(is_equal_approx(live_env.ambient_light_energy, g.ambient_energy),
+		"grade owns ambient energy on the live env (A1)")
 	host.queue_free()
 
 	# --- beat -> mood mapping ---

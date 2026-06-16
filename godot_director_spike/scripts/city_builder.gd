@@ -77,10 +77,7 @@ static func build_environment(parent: Node3D) -> WorldEnvironment:
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.background_color = Color(0.008, 0.01, 0.02)
-	env.ambient_light_color = Color(0.1, 0.12, 0.2)
-	env.ambient_light_energy = 1.6
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
 	env.glow_bloom = 0.2

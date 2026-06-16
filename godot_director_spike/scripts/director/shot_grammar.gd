@@ -39,6 +39,9 @@ class_name ShotGrammar
 # (F22) and are never crushed to black. Equals the current scene ambient so a
 # normal beat is unchanged; moods shift around it via `warmth`.
 @export var chromatic_fill: Color = Color(0.10, 0.12, 0.20)
+# ambient_energy: the ambient fill strength (F22). Grade owns this; default
+# equals the prior city_builder value so the live look is unchanged.
+@export var ambient_energy: float = 1.6
 # fx_light_energy: global multiplier garnish applies to its (now re-enabled) FX
 # OmniLights (F24). 1.0 = author-tuned baseline; raise for a punchier light.
 @export var fx_light_energy: float = 1.0

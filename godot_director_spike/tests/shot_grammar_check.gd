@@ -40,6 +40,7 @@ func _initialize() -> void:
 		check(g.framing.bullet_time.radius == 32.0, "bullet_time.radius == 32")
 		# --- Phase 2: Lighting block ---
 		check(g.chromatic_fill.is_equal_approx(Color(0.10, 0.12, 0.20)), "chromatic_fill == cool non-black ambient")
+		check(is_equal_approx(g.ambient_energy, 1.6), "ambient_energy == 1.6")
 		check(is_equal_approx(g.fx_light_energy, 1.0), "fx_light_energy == 1.0")
 		# --- Phase 2: Color block (mood variants) ---
 		check(is_equal_approx(g.mood_lerp_rate, 1.5), "mood_lerp_rate == 1.5")

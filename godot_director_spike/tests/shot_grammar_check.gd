@@ -58,6 +58,7 @@ func _initialize() -> void:
 		check(hero_m["warmth"] > 0.0, "hero mood pushes warm")
 		# --- Phase 3 Slice 1: time-emphasis arbiter params (Timing block) ---
 		check(is_equal_approx(g.hitstop_dur, 0.07), "hitstop_dur == 0.07")
+		check(is_equal_approx(g.melee_hitstop_dur, 0.12), "melee_hitstop_dur == 0.12 (clash holds longer)")
 		check(is_equal_approx(g.hitstop_threshold, 25.0), "hitstop_threshold == 25.0")
 		check(g.impact_frame_len == 2, "impact_frame_len == 2")
 		check(is_equal_approx(g.impact_frame_strength, 0.15), "impact_frame_strength == 0.15 (subtle-on)")

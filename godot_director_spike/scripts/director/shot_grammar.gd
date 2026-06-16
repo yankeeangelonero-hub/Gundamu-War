@@ -16,7 +16,8 @@ class_name ShotGrammar
 # --- Time-emphasis arbiter (Phase 3 Slice 1; F37/F14) ---
 # One tool owns a contact beat: bullet-time (kill cam) > hitstop (heavy hit) >
 # impact-frame (minor hit). hitstop/impact-frame partition by damage vs threshold.
-@export var hitstop_dur: float = 0.07          # the brief freeze length on a heavy hit
+@export var hitstop_dur: float = 0.07          # the brief freeze length on a heavy ranged hit
+@export var melee_hitstop_dur: float = 0.12    # a melee clash holds longer than a ranged hit (more weight)
 @export var hitstop_threshold: float = 25.0    # damage above this → hitstop; at/below → impact-frame
 @export var impact_frame_len: int = 2          # impact-frame insert length in frames
 @export var impact_frame_strength: float = 0.15  # impact-frame contrast/flash magnitude (subtle-on)

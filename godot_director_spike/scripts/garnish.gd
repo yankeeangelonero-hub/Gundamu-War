@@ -199,8 +199,8 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		if hit_pt != null:
 			bld.remove_from_group("kb_building")
 			_detonate_building(bld, hit_pt, from)
-	if payload.get("hit", false) and float(payload.get("damage", 0)) > 25.0:
-		_hitstop()
+	if payload.get("hit", false):
+		_emphasize(float(payload.get("damage", 0)), grammar.hitstop_dur)
 	director.shake_strength = maxf(director.shake_strength, 0.8 if payload.get("hit", false) else 0.3)
 
 ## A beam tore through this building: blast at the entry point, then the
@@ -370,8 +370,11 @@ func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	create_tween().tween_property(flash, "light_energy", 0.0, 0.5)
 	get_tree().create_timer(1.0).timeout.connect(func(): flash.queue_free())
 	director.shake_strength = maxf(director.shake_strength, 1.4 if not blocked else 1.0)
-	if payload.get("lethal", false) or float(payload.get("damage", 0)) > 25.0:
-		_hitstop(0.12)
+	# A lethal blow may carry 0 damage in the payload; force it over the threshold so
+	# the arbiter picks hitstop (the kill still reads as a heavy clash, not a flash).
+	var melee_dmg := grammar.hitstop_threshold + 1.0 if payload.get("lethal", false) \
+		else float(payload.get("damage", 0))
+	_emphasize(melee_dmg, grammar.melee_hitstop_dur)
 
 func _burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var rounds := int(payload.rounds)
@@ -541,3 +544,31 @@ func _hitstop(dur := 0.07) -> void:
 	await get_tree().create_timer(dur, true, false, true).timeout
 	# Restore to what the current shot wants, never to a captured (possibly stale) value.
 	Engine.time_scale = director.current_time_scale()
+
+## Route a contact beat through the time-emphasis arbiter (Phase 3 Slice 1):
+## exactly one of hitstop / impact-frame fires; both are suppressed during a
+## bullet-time (kill-cam) shot, so they never stack.
+func _emphasize(damage: float, hitstop_dur: float) -> void:
+	var in_bullet_time: bool = director.current_time_scale() < 0.2
+	match TimeEmphasis.decide(in_bullet_time, damage, grammar.hitstop_threshold):
+		"hitstop":
+			_hitstop(hitstop_dur)
+		"impact":
+			_impact_frame()
+		# "bullet" / "none": no transient emphasis
+
+## A sub-perceptual screen flash on a minor contact (F37, impact-frame). Subtle by
+## default (grammar.impact_frame_strength ~0.15), lasting impact_frame_len frames.
+## The arbiter guarantees this never fires during a hitstop or bullet-time, so it
+## never stacks on a freeze/slow-mo.
+func _impact_frame() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 7
+	add_child(layer)
+	var rect := ColorRect.new()
+	rect.color = Color(1.0, 1.0, 1.0, grammar.impact_frame_strength)
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(rect)
+	var tw := create_tween()
+	tw.tween_property(rect, "color:a", 0.0, float(grammar.impact_frame_len) / 60.0)
+	tw.chain().tween_callback(layer.queue_free)

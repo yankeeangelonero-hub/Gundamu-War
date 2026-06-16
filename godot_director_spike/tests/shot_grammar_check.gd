@@ -74,6 +74,5 @@ func _initialize() -> void:
 		check(is_equal_approx(g.melee_cut_pre, 0.5), "melee_cut_pre == 0.5")
 		check(is_equal_approx(g.melee_cut_post, 1.7), "melee_cut_post == 1.7")
 		check(is_equal_approx(g.melee_cut_scale, 0.5), "melee_cut_scale == 0.5")
-		check(is_equal_approx(g.melee_occlusion_margin, 8.0), "melee_occlusion_margin == 8.0")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

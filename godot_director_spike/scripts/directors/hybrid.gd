@@ -111,6 +111,10 @@ func _update_camera(delta: float) -> void:
 	var pos: Vector3
 	var aim: Vector3
 	var fov := 45.0
+	# Framing-table guard (Phase-1 deferred seam): a perspective mode with no
+	# framing entry would null-crash on fr.* below. Skip the shot, don't crash.
+	if not _grammar.framing.has(s.mode):
+		return
 	match s.mode:
 		"hero_os":
 			# Pulled back/up/wide so a bulky (full-armour) shoulder frames the

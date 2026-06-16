@@ -4,10 +4,13 @@ extends Node3D
 var actors: Dictionary = {}
 var director: Node3D
 var rng := RandomNumberGenerator.new()
+var grammar: ShotGrammar = ShotGrammar.default()
 
-func setup(p_actors: Dictionary, p_director: Node3D) -> void:
+func setup(p_actors: Dictionary, p_director: Node3D, p_grammar: ShotGrammar = null) -> void:
 	actors = p_actors
 	director = p_director
+	if p_grammar != null:
+		grammar = p_grammar
 	rng.seed = 7
 	director.fight_event.connect(_on_event)
 	# Pre-read the log (the director advantage, applied to VFX): every beam
@@ -138,14 +141,13 @@ func _charge(mech: Node3D) -> void:
 	orb.scale = Vector3.ONE * 0.2
 	mech.muzzle.add_child(orb)
 	var light := OmniLight3D.new()
-	light.visible = false   # omni removed: scene lit by directional + sky only
 	light.light_color = color
 	light.light_energy = 0.0
 	light.omni_range = 20.0
 	mech.muzzle.add_child(light)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(orb, "scale", Vector3.ONE * 1.5, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tw.tween_property(light, "light_energy", 9.0, 0.42)
+	tw.tween_property(light, "light_energy", 9.0 * grammar.fx_light_energy, 0.42)
 	tw.chain().tween_callback(func():
 		orb.queue_free()
 		light.queue_free())
@@ -318,13 +320,12 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	orb.scale = Vector3.ONE * 0.2
 	shooter.muzzle.add_child(orb)
 	var ol := OmniLight3D.new()
-	ol.visible = false   # omni removed: scene lit by directional + sky only
 	ol.light_color = color
 	ol.omni_range = 32.0
 	shooter.muzzle.add_child(ol)
 	var ctw := create_tween().set_parallel(true)
 	ctw.tween_property(orb, "scale", Vector3.ONE * 3.2, 0.35)
-	ctw.tween_property(ol, "light_energy", 11.0, 0.35)
+	ctw.tween_property(ol, "light_energy", 11.0 * grammar.fx_light_energy, 0.35)
 	await get_tree().create_timer(0.35).timeout
 	orb.queue_free()
 	ol.queue_free()
@@ -359,9 +360,8 @@ func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var col := Color(0.7, 0.9, 1.0) if blocked else Color(1.0, 0.85, 0.6)
 	_impact_flash(contact, col, 1.8)
 	var flash := OmniLight3D.new()
-	flash.visible = false   # omni removed: scene lit by directional + sky only
 	flash.light_color = col
-	flash.light_energy = 28.0
+	flash.light_energy = 28.0 * grammar.fx_light_energy
 	flash.omni_range = 30.0
 	add_child(flash)
 	flash.global_position = contact
@@ -432,9 +432,8 @@ func _impact_flash(pos: Vector3, color: Color, scale := 1.0) -> void:
 
 func _explosion(pos: Vector3) -> void:
 	var flash := OmniLight3D.new()
-	flash.visible = false   # omni removed: scene lit by directional + sky only
 	flash.light_color = Color(1.0, 0.7, 0.35)
-	flash.light_energy = 60.0
+	flash.light_energy = 60.0 * grammar.fx_light_energy
 	flash.omni_range = 90.0
 	add_child(flash)
 	flash.global_position = pos

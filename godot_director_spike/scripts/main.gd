@@ -132,7 +132,7 @@ func _ready() -> void:
 	grade.apply_base()
 	var garnish := Garnish.new()
 	add_child(garnish)
-	garnish.setup({"A": mech_a, "B": mech_b}, director)
+	garnish.setup({"A": mech_a, "B": mech_b}, director, grammar)
 	var audio := SpikeAudio.new()
 	add_child(audio)
 	audio.wire(director)

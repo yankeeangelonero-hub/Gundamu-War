@@ -206,6 +206,7 @@ func _update_shot() -> void:
 	while _shot_idx + 1 < shots.size() and float(shots[_shot_idx + 1].t0) <= t:
 		_shot_idx += 1
 		Engine.time_scale = float(shots[_shot_idx].time_scale)
+		_pick_idx = -1   # reset the composition-search hysteresis for the new shot
 
 ## The time scale the current shot wants — what a hitstop restores to, so a
 ## transient freeze can never leave time stuck in slow-mo.

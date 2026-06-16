@@ -146,7 +146,14 @@ func _update_camera(delta: float) -> void:
 			var o: Node3D = actors[_other(str(s.focus))]
 			var contact := f.position.lerp(o.position, 0.5) + Vector3(0, 11, 0)
 			var ang := PI * 0.25 + _wall * 0.6
-			pos = contact + Vector3(cos(ang) * fr.radius, fr.height, sin(ang) * fr.radius)
+			var arc: float = _grammar.composition_search_arc
+			var cands: Array = []
+			for off in [-arc, -arc * 0.5, 0.0, arc * 0.5, arc]:
+				var aa: float = ang + off
+				cands.append(contact + Vector3(cos(aa) * fr.radius, fr.height, sin(aa) * fr.radius))
+			var pick := _pick_clear_pose(cands, contact, get_tree().get_nodes_in_group("kb_building"), _pick_idx, 2)
+			_pick_idx = pick.idx
+			pos = pick.pos
 			aim = contact
 			fov = fr.fov
 		"bullet_time":

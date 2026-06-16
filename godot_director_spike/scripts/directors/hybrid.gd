@@ -159,6 +159,15 @@ func _update_camera(delta: float) -> void:
 			aim = center
 			fov = fr.fov
 			_roll = lerpf(-0.05, 0.03, p)
+	# Compression (F31): on a compressed beat, drop FOV and pull the lens back to
+	# keep the subject the same screen size — flattening perspective (the looming
+	# long-lens look). c=0 (every mode but hero_cut) skips this → unchanged.
+	var compression: float = _grammar.compression_by_mode.get(s.mode, 0.0)
+	if compression > 0.0:
+		var comp_fov := lerpf(fov, fov * _grammar.compression_fov_floor, compression)
+		var keep := tan(deg_to_rad(fov) * 0.5) / tan(deg_to_rad(comp_fov) * 0.5)
+		pos = aim + (pos - aim) * keep
+		fov = comp_fov
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov
 	pos = _resolve_occlusion(pos, aim)

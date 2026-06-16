@@ -334,6 +334,19 @@ static func _keyed_lateral(f_pos: Vector3, o_pos: Vector3, pullback: float, heig
 	var p := f_pos - d * pullback + d.cross(Vector3.UP) * lateral + Vector3(0, height, 0)
 	return lateral if _axis_side(p, a_pos, b_pos) == keyed_side else -lateral
 
+## The keyed-side candidate camera poses for a hero cut-in: the focus mech pulled
+## back along the firing line, raised, and offset laterally by scaled multiples of
+## the (already keyed-signed) lateral. Pullback is along the A<->B axis and height is
+## vertical -- neither changes which side of the axis a pose sits on -- so every
+## candidate shares the keyed lateral's sign and lands on the same (keyed) side.
+## `lateral_signed` is the output of _keyed_lateral. Pure.
+static func _hero_candidates(f_pos: Vector3, o_pos: Vector3, pullback: float, height: float, lateral_signed: float) -> Array:
+	var d := (o_pos - f_pos).normalized()
+	var out: Array = []
+	for scale in [0.6, 0.85, 1.0, 1.3, 1.7]:
+		out.append(f_pos - d * pullback + d.cross(Vector3.UP) * (lateral_signed * float(scale)) + Vector3(0, height, 0))
+	return out
+
 ## Silhouette sample points around the look target for the multi-ray occlusion test
 ## — feet / upper-body / both shoulders — so an off-center building covering the mech
 ## is caught, not just one dead-center ray. `aim` is the look point.

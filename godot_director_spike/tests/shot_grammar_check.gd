@@ -74,5 +74,9 @@ func _initialize() -> void:
 		check(is_equal_approx(g.melee_cut_pre, 0.5), "melee_cut_pre == 0.5")
 		check(is_equal_approx(g.melee_cut_post, 1.7), "melee_cut_post == 1.7")
 		check(is_equal_approx(g.melee_cut_scale, 0.5), "melee_cut_scale == 0.5")
+		# --- Phase 3 Slice 4: compression / Lens (F31) ---
+		check(is_equal_approx(float(g.compression_by_mode.get("hero_cut", 0.0)), 0.5), "hero_cut compression == 0.5")
+		check(is_equal_approx(float(g.compression_by_mode.get("iso", 0.0)), 0.0), "unmapped mode compression == 0.0")
+		check(is_equal_approx(g.compression_fov_floor, 0.5), "compression_fov_floor == 0.5")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

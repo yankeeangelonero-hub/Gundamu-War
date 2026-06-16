@@ -91,5 +91,15 @@ class_name ShotGrammar
 func yield_tier(kind: String) -> int:
 	return int(yield_by_class.get(kind, 1))
 
+# --- Lens: compression (Phase 3 Slice 4; F31) ---
+# A continuous long-lens dial per shot mode (0 = the authored FOV, no change).
+# On a compressed beat the camera drops FOV and pulls back to keep the subject
+# the same size — flattening perspective (the looming graphic-plane look). The
+# camera reads this via compression_by_mode.get(mode, 0.0).
+@export var compression_by_mode: Dictionary = {
+	"hero_cut": 0.5,
+}
+@export var compression_fov_floor: float = 0.5   # FOV at full compression = base_fov * this floor
+
 static func default() -> ShotGrammar:
 	return new()

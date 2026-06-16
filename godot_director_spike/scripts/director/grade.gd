@@ -20,6 +20,8 @@ func bind(env: Environment, grammar: ShotGrammar, director: Node = null) -> void
 	_env = env
 	_grammar = grammar
 	_director = director
+	if _director != null and _director.has_signal("fight_event"):
+		_director.fight_event.connect(_on_event)
 
 ## Apply the chromatic fill (F22) and the neutral base mood. Called once at start.
 func apply_base() -> void:
@@ -40,6 +42,44 @@ func set_mood(name: String) -> void:
 	if _grammar == null or not _grammar.mood_variants.has(name):
 		return
 	_target = (_grammar.mood_variants[name] as Dictionary).duplicate()
+
+## Which mood (if any) a fight event triggers. "" means "leave the current mood".
+## Pure function of the event — no side effects, unit-tested.
+func mood_for_event(e: Dictionary) -> String:
+	match str(e.get("kind", "")):
+		"fire_buster":
+			return "hero"
+		"destroyed":
+			return "death"
+		"fire_beam":
+			# codex #9: payload may be absent or non-Dictionary — normalize before .get.
+			var p: Variant = e.get("payload", {})
+			var lethal: bool = p is Dictionary and bool((p as Dictionary).get("lethal", false))
+			return "death" if lethal else ""
+		_:
+			return ""
+
+func _on_event(e: Dictionary) -> void:
+	var m := mood_for_event(e)
+	if m != "":
+		set_mood(m)
+
+## Ease the active grade one wall-clock step toward the target and write it.
+## Separated from _process so tests can step it deterministically.
+func tick(wall_delta: float) -> void:
+	if _env == null or _grammar == null:
+		return
+	var k := clampf(_grammar.mood_lerp_rate * wall_delta, 0.0, 1.0)
+	for key in _cur:
+		_cur[key] = lerpf(float(_cur[key]), float(_target[key]), k)
+	_write(_cur)
+
+func _process(delta: float) -> void:
+	# Grade in wall-clock time so bullet-time / hitstop don't stall the mood ease.
+	var ts: float = 1.0
+	if _director != null and _director.has_method("current_time_scale"):
+		ts = maxf(_director.current_time_scale(), 0.05)
+	tick(delta / ts)
 
 ## Write a mood dict to the Environment: brightness/contrast/saturation to the
 ## tonemap adjustments, warmth as a tint shift around the chromatic fill.

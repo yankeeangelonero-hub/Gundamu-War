@@ -53,5 +53,28 @@ func _init() -> void:
 		"live env ambient == chromatic fill")
 	host.queue_free()
 
+	# --- beat -> mood mapping ---
+	# Event kinds verified against data/fight_log_everything.json + garnish.gd/director.gd
+	# readers (codex #6): fire_buster / destroyed / fire_beam+payload.lethal are real kinds.
+	check(grade.mood_for_event({"kind": "fire_buster"}) == "hero", "buster -> hero mood")
+	check(grade.mood_for_event({"kind": "destroyed"}) == "death", "destroyed -> death mood")
+	check(grade.mood_for_event({"kind": "advance"}) == "", "advance -> no mood change")
+	check(grade.mood_for_event({"kind": "fire_beam", "payload": {"lethal": true}}) == "death",
+		"lethal beam -> death mood")
+	check(grade.mood_for_event({"kind": "fire_beam", "payload": {}}) == "",
+		"ordinary beam -> no mood change")
+	# codex #9: malformed payload must not crash and must read as no-mood.
+	check(grade.mood_for_event({"kind": "fire_beam"}) == "", "beam with no payload -> no mood")
+	check(grade.mood_for_event({"kind": "fire_beam", "payload": 7}) == "", "beam with non-dict payload -> no mood")
+
+	# --- lerp eases toward target, clamped, deterministic ---
+	grade.apply_base()
+	grade.set_mood("death")
+	for i in 200:
+		grade.tick(1.0 / 60.0)   # ~3.3s of eased stepping
+	check(env.adjustment_saturation < 0.6, "lerp reaches near death saturation")
+	check(env.adjustment_saturation >= 0.55, "lerp never overshoots target")
+	check(env.adjustment_brightness <= 1.0, "death never brightens past base")
+
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAIL" % fails))
 	quit(1 if fails > 0 else 0)

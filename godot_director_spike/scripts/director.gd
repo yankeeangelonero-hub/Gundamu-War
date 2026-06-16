@@ -83,6 +83,11 @@ var shake_strength := 0.0
 var _dur := 0.0
 var _smooth_aim := Vector3.ZERO
 var _aim_init := false
+# X-ray gate: per-mech enable, faded toward 1 only while that mech is actually
+# occluded by a building (>= XRAY_OCCLUDED_RAYS of its silhouette rays blocked).
+var _xray_enable := {"A": 0.0, "B": 0.0}
+const XRAY_FADE := 6.0          # enable lerp speed (~0.17s full on/off)
+const XRAY_OCCLUDED_RAYS := 3   # of 5 silhouette rays blocked to count as occluded
 
 func start(p_events: Array, p_shots: Array, p_camera: Camera3D, p_actors: Dictionary, dur: float) -> void:
 	events = p_events
@@ -120,13 +125,32 @@ func _cull_near(cam_pos: Vector3, radius: float) -> void:
 		var node := n as Node3D
 		node.visible = cam_pos.distance_to(node.global_position) > radius
 
+## Fade each mech's x-ray window on only while that mech is genuinely occluded:
+## cast the camera->mech silhouette rays against the city AABBs and require
+## XRAY_OCCLUDED_RAYS of 5 blocked. Render-only; never touches the sim.
+func _feed_xray_gate(mech_a: Vector3, mech_b: Vector3, delta: float) -> void:
+	if camera == null:
+		return
+	var buildings := get_tree().get_nodes_in_group("kb_building")
+	var cam := camera.global_position
+	for key in ["A", "B"]:
+		var aim: Vector3 = mech_a if key == "A" else mech_b
+		var clear: int = Sightline.evaluate(cam, _silhouette_points(cam, aim), buildings).clear_count
+		var target := 1.0 if (5 - clear) >= XRAY_OCCLUDED_RAYS else 0.0
+		_xray_enable[key] = move_toward(_xray_enable[key], target, delta * XRAY_FADE)
+	RenderingServer.global_shader_parameter_set("xray_enable_a", _xray_enable["A"])
+	RenderingServer.global_shader_parameter_set("xray_enable_b", _xray_enable["B"])
+
 func _process(delta: float) -> void:
 	if not playing:
 		return
 	t += delta
 	if actors.has("A") and actors.has("B"):
-		RenderingServer.global_shader_parameter_set("xray_mech_a", actors["A"].position + Vector3(0, 9, 0))
-		RenderingServer.global_shader_parameter_set("xray_mech_b", actors["B"].position + Vector3(0, 9, 0))
+		var mech_a: Vector3 = actors["A"].position + Vector3(0, 9, 0)
+		var mech_b: Vector3 = actors["B"].position + Vector3(0, 9, 0)
+		RenderingServer.global_shader_parameter_set("xray_mech_a", mech_a)
+		RenderingServer.global_shader_parameter_set("xray_mech_b", mech_b)
+		_feed_xray_gate(mech_a, mech_b, delta)
 	while _event_idx < events.size() and float(events[_event_idx].tick) * TICK <= t:
 		_dispatch(events[_event_idx])
 		_event_idx += 1

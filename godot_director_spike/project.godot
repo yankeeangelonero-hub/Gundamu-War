@@ -39,3 +39,11 @@ xray_softness={
 "type": "float",
 "value": 5.0
 }
+xray_enable_a={
+"type": "float",
+"value": 0.0
+}
+xray_enable_b={
+"type": "float",
+"value": 0.0
+}

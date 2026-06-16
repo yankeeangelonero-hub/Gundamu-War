@@ -7,6 +7,10 @@ global uniform vec3 xray_mech_a;
 global uniform vec3 xray_mech_b;
 global uniform float xray_radius;
 global uniform float xray_softness;
+// Per-mech gate (0..1): the director fades these up only while that mech is
+// actually occluded by a building, so a clear-view mech never carves a window.
+global uniform float xray_enable_a;
+global uniform float xray_enable_b;
 
 uniform vec4 albedo : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 emission_col : source_color = vec4(0.0, 0.0, 0.0, 1.0);
@@ -36,8 +40,8 @@ float hash12(vec2 v) {
 void fragment() {
 	vec3 cam = CAMERA_POSITION_WORLD;
 	float cut = max(
-		sightline_cut(world_pos, cam, xray_mech_a, xray_radius, xray_softness),
-		sightline_cut(world_pos, cam, xray_mech_b, xray_radius, xray_softness));
+		sightline_cut(world_pos, cam, xray_mech_a, xray_radius, xray_softness) * xray_enable_a,
+		sightline_cut(world_pos, cam, xray_mech_b, xray_radius, xray_softness) * xray_enable_b);
 	if (cut > hash12(FRAGCOORD.xy)) {
 		discard;
 	}

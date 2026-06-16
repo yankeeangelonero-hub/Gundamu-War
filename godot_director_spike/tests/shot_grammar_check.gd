@@ -62,5 +62,13 @@ func _initialize() -> void:
 		check(is_equal_approx(g.hitstop_threshold, 25.0), "hitstop_threshold == 25.0")
 		check(g.impact_frame_len == 2, "impact_frame_len == 2")
 		check(is_equal_approx(g.impact_frame_strength, 0.15), "impact_frame_strength == 0.15 (subtle-on)")
+		# --- Phase 3 Slice 2: yield-by-class (Spectacle, F17) ---
+		check(g.yield_tier("fire_buster") == 3, "fire_buster -> tier 3 (capital)")
+		check(g.yield_tier("fire_missiles") == 2, "fire_missiles -> tier 2")
+		check(g.yield_tier("fire_beam") == 2, "fire_beam -> tier 2")
+		check(g.yield_tier("melee") == 2, "melee -> tier 2")
+		check(g.yield_tier("fire_burst") == 1, "fire_burst -> tier 1 (sidearm)")
+		check(g.yield_tier("") == 1, "unknown/empty -> tier 1 (safe floor)")
+		check(g.yield_tier("nonsense") == 1, "unmapped kind -> tier 1")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

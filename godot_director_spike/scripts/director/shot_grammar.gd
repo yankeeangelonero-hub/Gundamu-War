@@ -68,5 +68,23 @@ class_name ShotGrammar
 # How fast (per wall-clock second) the grade eases toward the active mood.
 @export var mood_lerp_rate: float = 1.5
 
+
+# --- Spectacle: yield-by-class (Phase 3 Slice 2; F16/F17) ---
+# A weapon's event kind maps to a yield TIER (1 = sidearm, 3 = capital/payload).
+# The kill spectacle (staggered blast) scales by the killing weapon's tier — a
+# capital discharge gets the outsized "fear beat", a sidearm stays modest.
+@export var yield_by_class: Dictionary = {
+	"fire_buster": 3,
+	"fire_missiles": 2,
+	"fire_beam": 2,
+	"melee": 2,
+	"fire_burst": 1,
+}
+
+## The yield tier for a weapon event kind; unmapped/empty → 1 (a modest single
+## blast — the safe floor). Pure lookup, unit-tested.
+func yield_tier(kind: String) -> int:
+	return int(yield_by_class.get(kind, 1))
+
 static func default() -> ShotGrammar:
 	return new()

@@ -33,5 +33,28 @@ class_name ShotGrammar
 	"bullet_time": {"radius": 32.0, "height_base": 8.0, "height_rise": 9.0, "depth": 14.0, "fov": 48.0},
 }
 
+
+# --- Lighting (F22, F24) ---
+# chromatic_fill: the ambient shadow tint — shadows take a cool, non-black tint
+# (F22) and are never crushed to black. Equals the current scene ambient so a
+# normal beat is unchanged; moods shift around it via `warmth`.
+@export var chromatic_fill: Color = Color(0.10, 0.12, 0.20)
+# fx_light_energy: global multiplier garnish applies to its (now re-enabled) FX
+# OmniLights (F24). 1.0 = author-tuned baseline; raise for a punchier light.
+@export var fx_light_energy: float = 1.0
+
+# --- Color: mood variants (F26, F27) ---
+# Named grade states the Grade node lerps between when the director signals a
+# beat. Each entry: brightness/contrast/saturation feed Environment.adjustment_*;
+# `warmth` shifts the ambient tint warm (+) or cool (-) around chromatic_fill.
+# `base` MUST be identity (1/1/1, warmth 0) so a normal beat reads like today.
+@export var mood_variants: Dictionary = {
+	"base":  {"brightness": 1.0, "contrast": 1.0,  "saturation": 1.0, "warmth": 0.0},
+	"hero":  {"brightness": 1.06, "contrast": 1.04, "saturation": 1.12, "warmth": 0.18},
+	"death": {"brightness": 0.92, "contrast": 1.08, "saturation": 0.55, "warmth": -0.05},
+}
+# How fast (per wall-clock second) the grade eases toward the active mood.
+@export var mood_lerp_rate: float = 1.5
+
 static func default() -> ShotGrammar:
 	return new()

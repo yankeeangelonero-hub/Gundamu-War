@@ -38,5 +38,22 @@ func _initialize() -> void:
 		check(g.framing.hero_cut.fov == 46.0, "hero_cut.fov == 46")
 		check(g.framing.melee_cut.fov == 36.0, "melee_cut.fov == 36")
 		check(g.framing.bullet_time.radius == 32.0, "bullet_time.radius == 32")
+		# --- Phase 2: Lighting block ---
+		check(g.chromatic_fill.is_equal_approx(Color(0.10, 0.12, 0.20)), "chromatic_fill == cool non-black ambient")
+		check(is_equal_approx(g.fx_light_energy, 1.0), "fx_light_energy == 1.0")
+		# --- Phase 2: Color block (mood variants) ---
+		check(is_equal_approx(g.mood_lerp_rate, 1.5), "mood_lerp_rate == 1.5")
+		check(g.mood_variants.has("base"), "mood_variants has base")
+		check(g.mood_variants.has("hero"), "mood_variants has hero")
+		check(g.mood_variants.has("death"), "mood_variants has death")
+		var base_m: Dictionary = g.mood_variants["base"]
+		check(is_equal_approx(base_m["brightness"], 1.0), "base mood brightness == 1.0 (identity)")
+		check(is_equal_approx(base_m["saturation"], 1.0), "base mood saturation == 1.0 (identity)")
+		check(is_equal_approx(base_m["warmth"], 0.0), "base mood warmth == 0.0 (neutral)")
+		var death_m: Dictionary = g.mood_variants["death"]
+		check(death_m["saturation"] < 1.0, "death mood desaturates")
+		check(death_m["brightness"] <= 1.0, "death mood never brighter than base")
+		var hero_m: Dictionary = g.mood_variants["hero"]
+		check(hero_m["warmth"] > 0.0, "hero mood pushes warm")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

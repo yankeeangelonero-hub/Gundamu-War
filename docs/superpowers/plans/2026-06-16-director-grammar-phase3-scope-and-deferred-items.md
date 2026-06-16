@@ -37,17 +37,30 @@ directional + sky.
 - Test: the live env's ambient energy equals the grammar value after `apply_base`; boot smoke; hash
   unchanged.
 
-### A2 — Fuller F26 color shape: base palette, named aftermath, return-to-base (codex #5, minor)
-Phase 2 intentionally shipped only `base`/`hero`/`death` moods. The spec's F26 wants a fuller shape:
-- An explicit **base palette** (the canonical neutral the moods modulate around) — partly implicit
-  in `base` today; make it first-class if the spec demands it.
-- A named **`aftermath`** mood for the post-kill smoulder coverage (distinct from the instantaneous
-  `death` push).
-- A **return-to-base trigger**: moods are currently *sticky* (they persist until the next mapped
-  beat). Decide and implement whether hero/death should relax back to base after N seconds or on a
-  designated "calm" beat. This is a design call first — confirm the intended behavior against the
-  spec before building. (If sticky-until-next-beat is in fact correct, record that decision and
-  close the item.)
+### A2 — Fuller F26 color shape: base palette, named aftermath, return-to-base — RESOLVED 2026-06-16
+Re-read against the spec (Color §, F26/F27, and Open Question #2). The spec wants "`base_palette`
+plus named `mood_variants` — cool ambient default, warm hero/charge push, **desaturated
+death/aftermath**", and explicitly leaves the data shape + triggers as an open question for the
+implementation plan. Decision, grounded in that text:
+- **`base_palette`:** the Phase 2 `base` mood (identity adjustments) + `chromatic_fill` together ARE
+  the canonical base palette. A separate `base_palette` field would be naming churn for zero
+  behavioral gain — **not added** (per the project code-style: no speculative structure). The `base`
+  mood is the documented base palette.
+- **Return-to-base:** the spec says "lerp between [variants] when the director signals a beat" — it
+  does NOT call for an automatic relax-to-base. Phase 2's **sticky** behavior (a mood holds until the
+  next mapped beat) is a correct resolution. **No return-to-base trigger** — sticky is the decision.
+- **Desaturated death/aftermath:** the spec groups these as both desaturated. The sticky `death`
+  mood (fired on `destroyed`/lethal beam) **persists through the aftermath coverage** — so the
+  desaturated aftermath look the spec wants is **already delivered** by Phase 2.
+- **Distinct `aftermath` mood** (a settle that reads *differently* from the instant kill push) is the
+  one genuine enhancement left. It cannot be done cleanly now: there is no aftermath *fight event*
+  (the log ends at `destroyed`); aftermath is a director *shot* (`iso_aftermath`), so triggering a
+  distinct aftermath mood needs a director→Grade **read-only aftermath signal** — the same
+  signalling boundary that deferred F28/F29. **Moved to Phase 3** (Section C), to land alongside the
+  director-signal infrastructure. Until then, sticky-death-as-aftermath stands.
+
+Net: A2 required **no code** — the Phase 2 shape is the chosen resolution of the spec's open
+question; only the distinct-aftermath enhancement is deferred (to Phase 3 signalling).
 
 ---
 

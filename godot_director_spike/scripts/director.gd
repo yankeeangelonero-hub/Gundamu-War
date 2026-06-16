@@ -321,7 +321,7 @@ const FADE_RATE := 0.45    # per-frame lerp toward the occlusion target (faster 
 ## Silhouette sample points around the look target for the multi-ray occlusion test
 ## — feet / upper-body / both shoulders — so an off-center building covering the mech
 ## is caught, not just one dead-center ray. `aim` is the look point.
-func _silhouette_points(pos: Vector3, aim: Vector3) -> Array:
+static func _silhouette_points(pos: Vector3, aim: Vector3) -> Array:
 	var fwd := aim - pos
 	fwd.y = 0.0
 	var right := (fwd.cross(Vector3.UP).normalized() if fwd.length() > 0.01 else Vector3.RIGHT)

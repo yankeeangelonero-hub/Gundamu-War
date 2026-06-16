@@ -78,5 +78,7 @@ func _initialize() -> void:
 		check(is_equal_approx(float(g.compression_by_mode.get("hero_cut", 0.0)), 0.5), "hero_cut compression == 0.5")
 		check(is_equal_approx(float(g.compression_by_mode.get("iso", 0.0)), 0.0), "unmapped mode compression == 0.0")
 		check(is_equal_approx(g.compression_fov_floor, 0.5), "compression_fov_floor == 0.5")
+		# --- Phase 4/Slice B2: composition search ---
+		check(is_equal_approx(g.composition_search_arc, 0.6), "composition_search_arc == 0.6 rad")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

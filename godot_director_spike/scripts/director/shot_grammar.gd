@@ -101,5 +101,10 @@ func yield_tier(kind: String) -> int:
 }
 @export var compression_fov_floor: float = 0.5   # FOV at full compression = base_fov * this floor
 
+# --- Composition: search arc (Slice B2) ---
+# How far (radians for orbits / scaled for cut-ins) the composition search may swing
+# a perspective shot to find a clear sightline to the mech (Slice B2).
+@export var composition_search_arc: float = 0.6
+
 static func default() -> ShotGrammar:
 	return new()

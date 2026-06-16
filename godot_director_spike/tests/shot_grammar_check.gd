@@ -56,5 +56,10 @@ func _initialize() -> void:
 		check(death_m["brightness"] <= 1.0, "death mood never brighter than base")
 		var hero_m: Dictionary = g.mood_variants["hero"]
 		check(hero_m["warmth"] > 0.0, "hero mood pushes warm")
+		# --- Phase 3 Slice 1: time-emphasis arbiter params (Timing block) ---
+		check(is_equal_approx(g.hitstop_dur, 0.07), "hitstop_dur == 0.07")
+		check(is_equal_approx(g.hitstop_threshold, 25.0), "hitstop_threshold == 25.0")
+		check(g.impact_frame_len == 2, "impact_frame_len == 2")
+		check(is_equal_approx(g.impact_frame_strength, 0.15), "impact_frame_strength == 0.15 (subtle-on)")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

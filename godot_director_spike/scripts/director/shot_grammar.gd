@@ -13,6 +13,14 @@ class_name ShotGrammar
 @export var bt_post: float = 0.55     # bullet-time hold past the lethal hit (covers the kill)
 @export var bt_scale: float = 0.07    # bullet-time time-scale (slow-mo)
 
+# --- Time-emphasis arbiter (Phase 3 Slice 1; F37/F14) ---
+# One tool owns a contact beat: bullet-time (kill cam) > hitstop (heavy hit) >
+# impact-frame (minor hit). hitstop/impact-frame partition by damage vs threshold.
+@export var hitstop_dur: float = 0.07          # the brief freeze length on a heavy hit
+@export var hitstop_threshold: float = 25.0    # damage above this → hitstop; at/below → impact-frame
+@export var impact_frame_len: int = 2          # impact-frame insert length in frames
+@export var impact_frame_strength: float = 0.15  # impact-frame contrast/flash magnitude (subtle-on)
+
 # --- Composition: iso backbone (F6, F4, F34) ---
 @export var iso_offset: Vector3 = Vector3(-45, 90, 18)
 @export var iso_zoom_min: float = 50.0

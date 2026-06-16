@@ -190,6 +190,8 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var color := Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
 	_draw_beam(from, to, color, 0.6)
 	_impact_flash(to, color)
+	_beam_light(from, color, 7.0)   # muzzle flash lights the firing mech
+	_beam_light(to, color, 9.0)     # impact flash lights the target / struck city
 	# Beams punch through architecture: any building crossing the line dies.
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
@@ -403,6 +405,19 @@ func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> voi
 	tw.tween_callback(func():
 		_impact_flash(to, Color(1.0, 0.7, 0.3), 0.5 if is_hit else 0.9)
 		b.queue_free())
+
+## A short-lived OmniLight that flashes then fades and frees — gives an ordinary
+## beam its dynamic cast on mechs and city (F24), scaled by the grammar dial.
+func _beam_light(pos: Vector3, color: Color, peak: float) -> void:
+	var l := OmniLight3D.new()
+	l.light_color = color
+	l.light_energy = peak * grammar.fx_light_energy
+	l.omni_range = 26.0
+	add_child(l)
+	l.global_position = pos
+	var tw := create_tween()
+	tw.tween_property(l, "light_energy", 0.0, 0.35)
+	tw.chain().tween_callback(l.queue_free)
 
 func _impact_flash(pos: Vector3, color: Color, scale := 1.0) -> void:
 	var p := GPUParticles3D.new()

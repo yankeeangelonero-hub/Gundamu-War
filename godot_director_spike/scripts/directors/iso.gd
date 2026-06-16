@@ -46,9 +46,3 @@ func _update_camera(delta: float) -> void:
 	camera.position = camera.position.lerp(mid + ISO_OFFSET, k)
 	_apply_aim(mid, delta, 5.0)
 
-func _fade_for_iso(eye: Vector3, a_pos: Vector3, b_pos: Vector3) -> void:
-	for bld in get_tree().get_nodes_in_group("kb_building"):
-		var aabb: AABB = bld.get_meta("aabb")
-		var occ := aabb.intersects_segment(eye, a_pos) != null \
-			or aabb.intersects_segment(eye, b_pos) != null
-		_fade_building(bld, FADE_MIN if occ else 1.0)

@@ -8,6 +8,22 @@
 
 **Tech Stack:** Godot 4.6, GDScript. Godot binary on this machine: `~/.local/bin/godot.cmd`. Headless test pattern: `~/.local/bin/godot.cmd --headless --path godot_director_spike -s res://tests/<name>.gd` (judge PASS/FAIL lines + exit code; RID/leak warnings on shutdown are harmless noise). A brand-new GDScript file may need a `~/.local/bin/godot.cmd --headless --path godot_director_spike --import` pass before the engine registers its `class_name`.
 
+> **Environment note (this machine):** the project lives at `D:\Claude\Mech Bags` (PowerShell primary; a POSIX Bash tool is also available). The `cd /d/claude/Gundamu-War` lines in the commit snippets below are stale — run them from the repo root (`D:\Claude\Mech Bags`). Bash-tool loops/`grep`/redirection work as written under the Bash tool.
+
+---
+
+## Revisions from the codex plan review (2026-06-16)
+
+A pre-execution codex review of this plan was run and adjudicated. Binding changes folded into the tasks below:
+
+- **(#4, Task 3) `apply_base()` sets its own ambient source.** `city_builder.build_environment` already sets `ambient_light_source = AMBIENT_SOURCE_COLOR` (line 80), so the F22 fill works today — but the Grade must own that, not depend on the city. `apply_base()` now sets the source itself.
+- **(#8, Task 3) Test against the real environment.** `grade_check.gd` gains a check that runs `apply_base()` against the actual `CityBuilder.build_environment()` output, proving the grade reaches the live env object — not only a hand-built `Environment`.
+- **(#2, Tasks 5–6) One shared `ShotGrammar` instance.** `main.gd` creates a single `grammar := ShotGrammar.default()` and threads the *same instance* through `build_shot_list`, the director's runtime `_grammar`, the Grade node, and `garnish` — closing the single-source-of-truth seam instead of handing each consumer a fresh `default()`.
+- **(#1, new Task 1b) Close the Phase-1 framing-key guard seam.** One `.has()` guard before the perspective `match s.mode` in `hybrid.gd`, with the golden hash re-asserted unchanged.
+- **(#9, Task 4) `mood_for_event` payload-safe.** Normalize a non-Dictionary `payload` to `{}` before `.get("lethal")`.
+- **(#6 — verified, no change) Event names are correct.** `fire_buster` / `destroyed` / `fire_beam`+`payload.lethal` were confirmed against `data/fight_log_everything.json` and the readers in `garnish.gd`/`director.gd` — the mood map keys on real event kinds. Codex's "names may not match" worry does not hold; no change needed.
+- **Deferred (Tasks 7–8 stay optional/out):** codex #7 (Task 7 polls director internals, breaching the read-only boundary) confirms the existing call to keep F28/F29 out of the core. Build Tasks 1–6 only; do not start 7–8 without an explicit go.
+
 ---
 
 ## Lighting-ownership split (pinned by the spec — do not redistribute)
@@ -32,6 +48,7 @@ The grammar's Lighting/Color blocks hold the authored values each consumer reads
 
 - **Modify** `godot_director_spike/scripts/director/shot_grammar.gd` — add the Lighting + Color sub-blocks (Task 1).
 - **Modify** `godot_director_spike/tests/shot_grammar_check.gd` — assert the new defaults (Task 1).
+- **Modify** `godot_director_spike/scripts/directors/hybrid.gd` — guard the framing-table lookup (Task 1b).
 - **Modify** `godot_director_spike/scripts/city_builder.gd` — `build_environment` returns the `WorldEnvironment` (Task 2).
 - **Create** `godot_director_spike/scripts/director/grade.gd` — the Grade node (Tasks 3–4, 7–8).
 - **Create** `godot_director_spike/tests/grade_check.gd` — headless tests for the Grade node logic (Tasks 3–4, 7–8).
@@ -116,9 +133,40 @@ Expected: PASS — `---- ALL PASS`, exit 0. (If the engine errors that `ShotGram
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /d/claude/Gundamu-War
 git add godot_director_spike/scripts/director/shot_grammar.gd godot_director_spike/tests/shot_grammar_check.gd
 git commit -m "feat(grammar): add Lighting + Color sub-blocks to ShotGrammar (F22/F24/F26/F27)"
+```
+
+---
+
+### Task 1b: Close the Phase-1 framing-key guard seam (codex #1)
+
+The Phase-1 review deferred a seam: `hybrid.gd` reads `_grammar.framing[s.mode]` at four sites (`:118/:128/:138/:147`) with no guard, so a perspective shot mode with no `framing` entry (a custom grammar, or a future VOCAB mode added without a framing row) returns `null` and crashes on the next property read. All four reads sit at the head of the perspective `match s.mode:` block (the `iso`/`iso_aftermath` path has already `return`ed above it), so one guard before the match covers all four — no per-branch duplication, no new helper. At defaults every perspective mode has a framing entry, so this never triggers and the golden shot-list hash is unchanged.
+
+**Files:**
+- Modify: `godot_director_spike/scripts/directors/hybrid.gd` (insert before `match s.mode:` at ~:114)
+
+- [ ] **Step 1: Add the guard**
+
+In `scripts/directors/hybrid.gd`, immediately before the perspective `match s.mode:` line (~:114, right after `var fov := 45.0`), insert:
+
+```gdscript
+	# Framing-table guard (Phase-1 deferred seam): a perspective mode with no
+	# framing entry would null-crash on fr.* below. Skip the shot, don't crash.
+	if not _grammar.framing.has(s.mode):
+		return
+```
+
+- [ ] **Step 2: Golden hash MUST be unchanged**
+
+Run: `~/.local/bin/godot.cmd --headless --path godot_director_spike -s res://tests/hybrid_check.gd`
+Expected: `---- ALL PASS`, and the hash line still reads `got hash 2543717900`, exit 0. A changed hash means the guard altered the shot solve at defaults — it must not. Stop and investigate if so.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add godot_director_spike/scripts/directors/hybrid.gd
+git commit -m "fix(grammar): guard framing-table lookup in hybrid director (Phase-1 seam)"
 ```
 
 ---
@@ -255,6 +303,10 @@ func apply_base() -> void:
 	if _env == null or _grammar == null:
 		return
 	_env.adjustment_enabled = true
+	# Own the ambient source (codex #4): the chromatic fill is only honored when the
+	# ambient comes from a color, not the sky. Set it here so the Grade is correct
+	# regardless of how city_builder configured the environment.
+	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	var base: Dictionary = _grammar.mood_variants.get("base", _cur)
 	_cur = base.duplicate()
 	_target = base.duplicate()
@@ -287,10 +339,37 @@ func _write(m: Dictionary) -> void:
 Run: `~/.local/bin/godot.cmd --headless --path godot_director_spike -s res://tests/grade_check.gd`
 Expected: PASS — `---- ALL PASS`, exit 0. (Run the `--import` pass once first if the engine reports an unknown script.)
 
+- [ ] **Step 4b: Integration check against the REAL environment (codex #8)**
+
+The checks above use a hand-built `Environment`. Add one check that proves the Grade applies to the *actual* environment the game uses — built by `CityBuilder.build_environment`. Append to `grade_check.gd` before the final `print(...)`/`quit(...)`:
+
+```gdscript
+	# --- integration: grade the REAL environment city_builder produces (codex #8) ---
+	var CityBuilder := load("res://scripts/city_builder.gd")
+	var host := Node3D.new()
+	root.add_child(host)
+	var we = CityBuilder.build_environment(host)
+	check(we != null and we.environment != null, "build_environment returns a live WorldEnvironment")
+	var live_env: Environment = we.environment
+	var grade2 = Grade.new()
+	grade2.bind(live_env, g)
+	grade2.apply_base()
+	check(live_env.adjustment_enabled, "grade enables adjustments on the LIVE env")
+	check(live_env.ambient_light_source == Environment.AMBIENT_SOURCE_COLOR,
+		"grade owns the ambient source on the live env (F22 fill is honored)")
+	check(live_env.ambient_light_color.is_equal_approx(g.chromatic_fill),
+		"live env ambient == chromatic fill")
+	host.queue_free()
+```
+
+> `root` is the `SceneTree` root, available in a `SceneTree`-extending test. `build_environment` adds nodes under `host`; freeing `host` cleans them up. This requires **Task 2** (the return value) to be in place — if running Task 3 before Task 2, do Task 2 first.
+
+Run: `~/.local/bin/godot.cmd --headless --path godot_director_spike -s res://tests/grade_check.gd`
+Expected: PASS — `---- ALL PASS`, exit 0.
+
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /d/claude/Gundamu-War
 git add godot_director_spike/scripts/director/grade.gd godot_director_spike/tests/grade_check.gd
 git commit -m "feat(grade): Grade node applies chromatic fill + base mood (F22/F26)"
 ```
@@ -311,6 +390,8 @@ Append to `tests/grade_check.gd`, before the final `print(...)`/`quit(...)` line
 
 ```gdscript
 	# --- beat -> mood mapping ---
+	# Event kinds verified against data/fight_log_everything.json + garnish.gd/director.gd
+	# readers (codex #6): fire_buster / destroyed / fire_beam+payload.lethal are real kinds.
 	check(grade.mood_for_event({"kind": "fire_buster"}) == "hero", "buster -> hero mood")
 	check(grade.mood_for_event({"kind": "destroyed"}) == "death", "destroyed -> death mood")
 	check(grade.mood_for_event({"kind": "advance"}) == "", "advance -> no mood change")
@@ -318,6 +399,9 @@ Append to `tests/grade_check.gd`, before the final `print(...)`/`quit(...)` line
 		"lethal beam -> death mood")
 	check(grade.mood_for_event({"kind": "fire_beam", "payload": {}}) == "",
 		"ordinary beam -> no mood change")
+	# codex #9: malformed payload must not crash and must read as no-mood.
+	check(grade.mood_for_event({"kind": "fire_beam"}) == "", "beam with no payload -> no mood")
+	check(grade.mood_for_event({"kind": "fire_beam", "payload": 7}) == "", "beam with non-dict payload -> no mood")
 
 	# --- lerp eases toward target, clamped, deterministic ---
 	grade.apply_base()
@@ -355,7 +439,10 @@ func mood_for_event(e: Dictionary) -> String:
 		"destroyed":
 			return "death"
 		"fire_beam":
-			return "death" if e.get("payload", {}).get("lethal", false) else ""
+			# codex #9: payload may be absent or non-Dictionary — normalize before .get.
+			var p: Variant = e.get("payload", {})
+			var lethal: bool = p is Dictionary and bool((p as Dictionary).get("lethal", false))
+			return "death" if lethal else ""
 		_:
 			return ""
 
@@ -397,12 +484,12 @@ git commit -m "feat(grade): beat->mood mapping + wall-clock mood lerp (F27)"
 
 ---
 
-### Task 5: Wire the Grade node into main.gd
+### Task 5: Wire the Grade node into main.gd — one shared grammar instance (codex #2)
 
-Capture the env from `build_environment`, instantiate the Grade node with the same grammar the director uses, apply the base, and add it to the tree so `_process` runs.
+Capture the env from `build_environment`, create **one** `ShotGrammar` instance, and thread that *same instance* through shot generation, the director's runtime camera, the Grade node, and (Task 6) garnish — so there is a single source of truth instead of three independent `default()` copies that only coincidentally agree.
 
 **Files:**
-- Modify: `godot_director_spike/scripts/main.gd` (the `_ready` build sequence around `CityBuilder.build_environment(self)` at :46, and the director-construction block at :118-129)
+- Modify: `godot_director_spike/scripts/main.gd` (the `_ready` build sequence around `CityBuilder.build_environment(self)` at :46, the shot-list/director-construction block at :118-123, and the FX block at :124-129)
 
 - [ ] **Step 1: Capture the env at build time**
 
@@ -418,38 +505,54 @@ to:
 	var world_env := CityBuilder.build_environment(self)
 ```
 
-- [ ] **Step 2: Instantiate and wire the Grade node**
+- [ ] **Step 2: Create one grammar; feed shot-gen and the director's runtime camera**
 
-In `scripts/main.gd`, in the live-fight block (after `director.start(...)` at ~:123 and alongside where `Garnish`/`SpikeAudio` are created at :124-129), add:
+In `scripts/main.gd`, change the shot-list + director construction block (~:120-123) from:
+
+```gdscript
+	var shots: Array = DirectorScript.build_shot_list(events, dur)
+	director = DirectorScript.new()
+	add_child(director)
+	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
+```
+
+to (create the single instance, pass it to `build_shot_list`, and set the director's runtime `_grammar` to the same object so the camera solve and the grade read identical values):
+
+```gdscript
+	# Single source of truth (codex #2): ONE grammar instance flows to shot-gen,
+	# the director's runtime camera (_grammar), the Grade node, and garnish.
+	var grammar := ShotGrammar.default()
+	var shots: Array = DirectorScript.build_shot_list(events, dur, grammar)
+	director = DirectorScript.new()
+	add_child(director)
+	director._grammar = grammar
+	director.start(events, shots, camera, {"A": mech_a, "B": mech_b}, dur)
+```
+
+> `_grammar` is the runtime-camera grammar member on `hybrid.gd` (`:76`), defaulting to its own `default()`. Assigning the shared instance before `start()` makes the camera solve and the Grade read the same object. At defaults the values are identical, so the golden hash is unchanged (Task 9 re-asserts it).
+
+- [ ] **Step 3: Instantiate and wire the Grade node with the shared grammar**
+
+In the live-fight block (alongside where `Garnish`/`SpikeAudio` are created at ~:124-129), add:
 
 ```gdscript
 	var Grade: GDScript = load("res://scripts/director/grade.gd")
 	var grade = Grade.new()
 	add_child(grade)
-	grade.bind(world_env.environment, ShotGrammar.default(), director)
+	grade.bind(world_env.environment, grammar, director)
 	grade.apply_base()
 ```
 
-> The director uses `ShotGrammar.default()` internally (Phase 1); the Grade node uses its own `ShotGrammar.default()` here. At defaults these are identical authored values. When the FeelProfile/custom-grammar wiring lands (Phase 3), both the director and the Grade node must be handed the *same* grammar instance — this is the same single-source seam noted on `hybrid.gd`'s `_grammar` member. Leave a one-line comment here pointing at that.
-
-Add this comment directly above the `grade.bind(...)` line:
-
-```gdscript
-	# NOTE: director (Phase 1) and Grade both default() their grammar; identical at
-	# defaults. Phase 3 custom-grammar wiring must hand BOTH the same instance.
-```
-
-- [ ] **Step 3: Smoke — boot + still**
+- [ ] **Step 4: Smoke — boot**
 
 Run: `~/.local/bin/godot.cmd --path godot_director_spike --quit-after 300 -- --director=hybrid --log=fight_log_everything`
 Expected: `KM-DIRECTOR-SPIKE boot ok`, no errors, exit 0.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-cd /d/claude/Gundamu-War
 git add godot_director_spike/scripts/main.gd
-git commit -m "feat(grade): wire Grade node into the live fight (env + grammar + director)"
+git commit -m "feat(grade): wire Grade node + share one ShotGrammar instance across director/grade (codex #2)"
 ```
 
 ---
@@ -555,10 +658,10 @@ In `scripts/main.gd:126`, change:
 	garnish.setup({"A": mech_a, "B": mech_b}, director)
 ```
 
-to:
+to (pass the **same** `grammar` instance created in Task 5 — not a fresh `default()`, codex #2):
 
 ```gdscript
-	garnish.setup({"A": mech_a, "B": mech_b}, director, ShotGrammar.default())
+	garnish.setup({"A": mech_a, "B": mech_b}, director, grammar)
 ```
 
 - [ ] **Step 4: Smoke — boot + capture a still and frames to eyeball the new light**

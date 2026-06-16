@@ -96,6 +96,11 @@ func start(p_events: Array, p_shots: Array, p_camera: Camera3D, p_actors: Dictio
 		actors["B"].combat_face = actors["A"]
 		actors["A"].director = self
 		actors["B"].director = self
+	# Key the camera's side of the action axis once, from the opening camera pose
+	# (F32/F33): every cut-in is then held on this side so the two mechs never swap
+	# screen sides on a cut.
+	if actors.has("A") and actors.has("B") and camera != null:
+		_axis_keyed_side = _axis_side(camera.position, actors["A"].position, actors["B"].position)
 	playing = true
 
 ## A footfall/landing thud, felt as camera shake scaled by proximity — a
@@ -285,6 +290,15 @@ func _update_camera(delta: float) -> void:
 		camera.position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.2
 	_apply_aim(aim, delta, 8.0)
 
+## Which side of the A<->B action axis a point sits on, in the horizontal plane
+## (+1 or -1). Pure — used to hold the cut-ins on one side of the 180° line (F32).
+static func _axis_side(p: Vector3, a_pos: Vector3, b_pos: Vector3) -> int:
+	var axis := b_pos - a_pos
+	axis.y = 0.0
+	var rel := p - a_pos
+	rel.y = 0.0
+	return 1 if axis.cross(Vector3.UP).dot(rel) >= 0.0 else -1
+
 ## Free-roaming mechs mean no camera pose is occlusion-safe by construction.
 ## Rather than dodge buildings (which makes the camera bounce around), the lens
 ## flies its intended path STRAIGHT THROUGH them, and any building between the
@@ -326,6 +340,7 @@ const SNAP_ANGLE := 0.5     # rad (~28 deg): a swing bigger than this becomes a 
 const AIM_RATE_CAP := 0.9   # rad/s of wall-clock aim rotation within a shot
 
 var _roll := 0.0            # camera dutch/roll (rad), applied after look_at
+var _axis_keyed_side := 1   # which side of the A<->B axis the cut-ins stay on (F32)
 
 ## Shallow-focus control. dist <= 0 disables DOF (deep-focus plates).
 func _set_focus(dist: float, strength := 0.06) -> void:

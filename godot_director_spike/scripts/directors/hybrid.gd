@@ -70,6 +70,9 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 var _zoom := 90.0
 var _cam_shot := -1
 var _wall := 0.0
+# Runtime framing/timing source. At defaults this matches the grammar build_shot_list()
+# self-defaults to, so the two paths agree. When custom-grammar wiring lands (Phase 3),
+# keep this in sync with the grammar passed to build_shot_list() — give the director one source.
 var _grammar: ShotGrammar = ShotGrammar.default()
 
 func _update_camera(delta: float) -> void:

@@ -80,5 +80,8 @@ func _initialize() -> void:
 		check(is_equal_approx(g.compression_fov_floor, 0.5), "compression_fov_floor == 0.5")
 		# --- Phase 4/Slice B2: composition search ---
 		check(is_equal_approx(g.composition_search_arc, 0.6), "composition_search_arc == 0.6 rad")
+		# --- X-ray window occlusion ---
+		check(is_equal_approx(g.xray_radius, 14.0), "xray_radius == 14.0")
+		check(is_equal_approx(g.xray_softness, 5.0), "xray_softness == 5.0")
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)

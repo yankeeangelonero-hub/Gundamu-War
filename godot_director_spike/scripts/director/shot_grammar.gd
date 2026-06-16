@@ -106,5 +106,9 @@ func yield_tier(kind: String) -> int:
 # a perspective shot to find a clear sightline to the mech (Slice B2).
 @export var composition_search_arc: float = 0.6
 
+# --- Lens: x-ray window occlusion ---
+@export var xray_radius: float = 14.0     # window radius around the camera->mech sightline (world units)
+@export var xray_softness: float = 5.0    # soft-edge width of the window
+
 static func default() -> ShotGrammar:
 	return new()

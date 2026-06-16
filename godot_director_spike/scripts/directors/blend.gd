@@ -158,7 +158,6 @@ func _update_camera(delta: float) -> void:
 			pos = _anchor.lerp(_push_to, p2)
 			aim = wreck.position + Vector3(0, lerpf(8.0, 14.0, p2), 0)
 	camera.fov = fov
-	pos = _resolve_occlusion(pos, aim)
 	_set_focus(pos.distance_to(aim) if dof else -1.0, 0.07)
 	if ground:
 		var amp := 0.05 + shake_strength * 0.4

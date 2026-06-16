@@ -1,5 +1,7 @@
 ## Builds the grey-box night city procedurally. Deterministic via fixed seed.
 
+const XRAY_SHADER := preload("res://scripts/shaders/xray_occluder.gdshader")
+
 static func build(parent: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260612
@@ -39,10 +41,12 @@ static func build(parent: Node3D) -> void:
 			var win := MeshInstance3D.new()
 			var wmesh := BoxMesh.new()
 			wmesh.size = Vector3(size.x * 0.9, rng.randf_range(1.0, 2.5), 0.3)
-			var wmat := StandardMaterial3D.new()
-			wmat.emission_enabled = true
-			wmat.emission = Color(0.9, 0.6, 0.25) if rng.randf() < 0.5 else Color(0.4, 0.7, 0.9)
-			wmat.emission_energy_multiplier = 5.0
+			var wmat := ShaderMaterial.new()
+			wmat.shader = XRAY_SHADER
+			var wcol: Color = Color(0.9, 0.6, 0.25) if rng.randf() < 0.5 else Color(0.4, 0.7, 0.9)
+			wmat.set_shader_parameter("albedo", Color(1, 1, 1))
+			wmat.set_shader_parameter("emission_col", wcol)
+			wmat.set_shader_parameter("emission_energy", 5.0)
 			wmesh.material = wmat
 			win.mesh = wmesh
 			# child of the building: collapses (scales) with it when destroyed
@@ -60,9 +64,9 @@ static func _building(parent: Node3D, pos: Vector3, size: Vector3, col: Color) -
 	var b := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = col
-	mat.roughness = 0.7
+	var mat := ShaderMaterial.new()
+	mat.shader = XRAY_SHADER
+	mat.set_shader_parameter("albedo", col)
 	box.material = mat
 	b.mesh = box
 	b.position = pos

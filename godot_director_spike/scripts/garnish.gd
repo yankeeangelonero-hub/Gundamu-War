@@ -119,14 +119,14 @@ func _smash_building(b: Node3D, mech: Node3D) -> void:
 	director.shake_strength = maxf(director.shake_strength, 1.8)
 	if mech.has_method("crash_jolt"):
 		mech.crash_jolt()
-	var mat: StandardMaterial3D = (b as MeshInstance3D).mesh.material
+	var mat: ShaderMaterial = (b as MeshInstance3D).mesh.material
 	var tw := create_tween().set_parallel(true)
 	# Topple over in the dash direction, slide, sink, and char.
 	tw.tween_property(b, "position", b.position + dir * 14.0 - Vector3(0, b.position.y * 0.7, 0), 0.8) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(b, "rotation", Vector3(dir.z * 1.4, 0, -dir.x * 1.4), 0.8)
 	tw.tween_property(b, "scale:y", 0.25, 0.9)
-	tw.tween_property(mat, "albedo_color", Color(0.04, 0.035, 0.03), 0.7)
+	tw.tween_property(mat, "shader_parameter/albedo", Color(0.04, 0.035, 0.03), 0.7)
 	for c in (b as MeshInstance3D).get_children():
 		if c is MeshInstance3D:
 			c.visible = false
@@ -224,8 +224,8 @@ func _detonate_building(b: Node3D, at: Vector3, from: Vector3) -> void:
 	tw.tween_property(b, "scale:y", 0.06, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(b, "position:y", b.position.y * 0.06, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(b, "rotation:z", rng.randf_range(-0.06, 0.06), 0.9)
-	var mat: StandardMaterial3D = b.mesh.material
-	tw.tween_property(mat, "albedo_color", Color(0.03, 0.025, 0.02), 0.7)
+	var mat: ShaderMaterial = b.mesh.material
+	tw.tween_property(mat, "shader_parameter/albedo", Color(0.03, 0.025, 0.02), 0.7)
 
 ## Tumbling concrete chunks thrown from a building hit.
 func _debris(at: Vector3) -> void:

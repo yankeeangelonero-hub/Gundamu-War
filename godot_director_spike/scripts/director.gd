@@ -124,6 +124,9 @@ func _process(delta: float) -> void:
 	if not playing:
 		return
 	t += delta
+	if actors.has("A") and actors.has("B"):
+		RenderingServer.global_shader_parameter_set("xray_mech_a", actors["A"].position + Vector3(0, 9, 0))
+		RenderingServer.global_shader_parameter_set("xray_mech_b", actors["B"].position + Vector3(0, 9, 0))
 	while _event_idx < events.size() and float(events[_event_idx].tick) * TICK <= t:
 		_dispatch(events[_event_idx])
 		_event_idx += 1
@@ -282,7 +285,6 @@ func _update_camera(delta: float) -> void:
 			pos = wreck.position + Vector3(cos(ang) * 30.0, 22, sin(ang) * 10.0)
 			aim = wreck.position + Vector3(0, 6, 0)
 			fov = 45
-	pos = _resolve_occlusion(pos, aim)
 	_set_focus(pos.distance_to(aim) if dof else -1.0)
 	var k := 1.0 - exp(-5.0 * delta / maxf(Engine.time_scale, 0.05))
 	camera.position = camera.position.lerp(pos, k)

@@ -94,7 +94,7 @@ func _update_camera(_delta: float) -> void:
 		_roll = _sway(7.7) * 0.018
 	_set_focus(pos.distance_to(aim) if s.mode != "street_wide" else -1.0,
 		0.1 if s.mode == "kill_gaze" else 0.06)
-	camera.position = _resolve_occlusion(pos, aim)
+	camera.position = pos
 	_apply_aim(aim, _delta, 6.0)
 
 func _take_position(s: Dictionary) -> void:

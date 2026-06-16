@@ -44,9 +44,6 @@ func _update_camera(delta: float) -> void:
 	_zoom = lerpf(_zoom, want, k)
 	camera.size = _zoom
 	camera.position = camera.position.lerp(mid + ISO_OFFSET, k)
-	# See-through occluder pass for the fixed eye: any tower in front of either
-	# giant dissolves, computed in one pass so neither restores the other's fade.
-	_fade_for_iso(camera.position, a.position + Vector3(0, 10, 0), b.position + Vector3(0, 10, 0))
 	_apply_aim(mid, delta, 5.0)
 
 func _fade_for_iso(eye: Vector3, a_pos: Vector3, b_pos: Vector3) -> void:

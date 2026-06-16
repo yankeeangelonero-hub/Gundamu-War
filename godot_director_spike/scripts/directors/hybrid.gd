@@ -102,7 +102,6 @@ func _update_camera(delta: float) -> void:
 		camera.size = _zoom
 		camera.position = camera.position.lerp(focus_pt + _grammar.iso_offset, k)
 		_set_focus(-1.0)
-		_fade_for_iso(camera.position, a.position + Vector3(0, 10, 0), b.position + Vector3(0, 10, 0))
 		_cull_near(camera.position, 0.0)   # tactical view sees the whole city
 		_apply_aim(focus_pt, delta, 5.0)
 		return
@@ -189,7 +188,6 @@ func _update_camera(delta: float) -> void:
 		fov = comp_fov
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov
-	pos = _resolve_occlusion(pos, aim)
 	# Footfall/landing rumble — only on these close perspective shots, so the
 	# low hero angles feel the giant's weight while the iso view stays steady.
 	if shake_strength > 0.001:

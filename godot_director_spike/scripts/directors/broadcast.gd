@@ -115,7 +115,6 @@ func _update_camera(delta: float) -> void:
 			pos = wreck.position + Vector3(-12.0 - p * 30.0, 12.0 + p * 75.0, 6.0 + p * 10.0)
 			aim = wreck.position + Vector3(0, 4, 0)
 			fov = 42
-	pos = _resolve_occlusion(pos, aim)
 	if shake_strength > 0.001:
 		pos += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.15
 	camera.position = pos

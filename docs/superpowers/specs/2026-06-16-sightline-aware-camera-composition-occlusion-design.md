@@ -1,6 +1,11 @@
 # Sightline-Aware Camera: Composition + Precise Occlusion — Design
 
-> Status: APPROVED design (owner, 2026-06-16). Successor to the reverted Phase 3 Slice 3 melee
+> Status: **SUPERSEDED** (2026-06-16) by
+> `docs/superpowers/specs/2026-06-16-continuity-and-sightline-camera-design.md`, which folds this
+> spec's occlusion + composition design into the unified continuity-aware pose-selection layer
+> (Phase 4 + occlusion together). Kept for history; do not implement from this file.
+>
+> Status (original): APPROVED design (owner, 2026-06-16). Successor to the reverted Phase 3 Slice 3 melee
 > occlusion experiment (which hard-snapped a wide corridor and emptied the scene, breaking the battle
 > choreography). Part of the Director Grammar line; pairs with the spec
 > `docs/superpowers/specs/2026-06-16-director-grammar-design.md` (Composition F6/F4 + the occlusion

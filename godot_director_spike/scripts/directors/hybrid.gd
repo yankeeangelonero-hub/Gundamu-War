@@ -90,6 +90,12 @@ func _update_camera(delta: float) -> void:
 	_roll = 0.0
 
 	# --- isometric backbone (orthographic) ---
+	# F34 establishing_layout: the orthographic iso backbone IS the establishing
+	# layout -- it opens the fight (establish), returns between perspective
+	# intercuts (re-establish), and holds the aftermath (final establish), fixing
+	# the geography so the cut-ins never disorient. Coverage: hybrid_check asserts
+	# "opens on the isometric base view", "iso base returns between the intercuts",
+	# and "closes on the iso aftermath read".
 	if s.mode == "iso" or s.mode == "iso_aftermath":
 		var focus_pt := mid
 		var want := clampf(a.position.distance_to(b.position) * _grammar.iso_zoom_factor + _grammar.iso_zoom_base, _grammar.iso_zoom_min, _grammar.iso_zoom_max)

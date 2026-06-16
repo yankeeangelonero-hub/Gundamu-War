@@ -161,7 +161,10 @@ func _update_camera(delta: float) -> void:
 			_roll = lerpf(-0.05, 0.03, p)
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov
-	pos = _resolve_occlusion(pos, aim)
+	if s.mode == "melee_cut":
+		pos = _resolve_occlusion(pos, aim, _grammar.melee_occlusion_margin, true)
+	else:
+		pos = _resolve_occlusion(pos, aim)
 	# Footfall/landing rumble — only on these close perspective shots, so the
 	# low hero angles feel the giant's weight while the iso view stays steady.
 	if shake_strength > 0.001:

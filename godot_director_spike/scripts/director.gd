@@ -11,7 +11,7 @@ const PUNCH_PRE := 0.3
 const PUNCH_POST := 0.9
 const FILLER_MAX := 4.0
 
-static func build_shot_list(events: Array, dur: float) -> Array:
+static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null) -> Array:
 	var fixed: Array = [{"t0": 0.0, "t1": WIDE_LEN, "mode": "wide", "focus": "", "time_scale": 1.0}]
 	var killcam_end := dur
 	var first_beam_done := false

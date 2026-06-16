@@ -9,7 +9,7 @@ const VOCAB := ["iso", "iso_kill"]
 const KILL_PRE := 0.5
 const KILL_POST := 1.8
 
-static func build_shot_list(events: Array, dur: float) -> Array:
+static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null) -> Array:
 	var lethal_t := dur
 	for e in events:
 		if e.kind == "fire_beam" and e.payload.get("lethal", false):

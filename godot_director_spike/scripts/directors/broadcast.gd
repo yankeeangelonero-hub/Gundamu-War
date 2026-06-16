@@ -18,7 +18,7 @@ const BT_SCALE := 0.07
 var _cam_shot := -1
 var _wall := 0.0   # shot-local wall-clock seconds (immune to time_scale)
 
-static func build_shot_list(events: Array, dur: float) -> Array:
+static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null) -> Array:
 	var fixed: Array = []
 	var bt_end := dur
 	for e in events:

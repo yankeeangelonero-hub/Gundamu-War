@@ -16,7 +16,7 @@ const BT_PRE := 0.4
 const BT_POST := 0.7
 const BT_SCALE := 0.07
 
-static func build_shot_list(events: Array, dur: float) -> Array:
+static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null) -> Array:
 	var fixed: Array = []
 	var bt_end := dur
 	var first_beam_done := false

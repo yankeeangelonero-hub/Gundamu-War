@@ -5,6 +5,7 @@ var actors: Dictionary = {}
 var director: Node3D
 var rng := RandomNumberGenerator.new()
 var grammar: ShotGrammar = ShotGrammar.default()
+var _last_kill_class := ""
 
 func setup(p_actors: Dictionary, p_director: Node3D, p_grammar: ShotGrammar = null) -> void:
 	actors = p_actors
@@ -12,6 +13,7 @@ func setup(p_actors: Dictionary, p_director: Node3D, p_grammar: ShotGrammar = nu
 	if p_grammar != null:
 		grammar = p_grammar
 	rng.seed = 7
+	_last_kill_class = ""
 	director.fight_event.connect(_on_event)
 	# Pre-read the log (the director advantage, applied to VFX): every beam
 	# gets a muzzle charge-up glow starting 0.45s before it fires.
@@ -25,6 +27,8 @@ func setup(p_actors: Dictionary, p_director: Node3D, p_grammar: ShotGrammar = nu
 func _on_event(e: Dictionary) -> void:
 	var shooter: Node3D = actors[e.actor]
 	var target: Node3D = actors[_other(str(e.actor))]
+	if e.payload.get("lethal", false):
+		_last_kill_class = str(e.kind)
 	# Any weapon discharge snaps the firer into its firing stance (rigged mechs).
 	if str(e.kind).begins_with("fire") and shooter.has_method("fire_weapon"):
 		shooter.fire_weapon()
@@ -40,7 +44,7 @@ func _on_event(e: Dictionary) -> void:
 		"melee":
 			_melee_clash(shooter, target, e.payload)
 		"destroyed":
-			_explosion(shooter.position + Vector3(0, 9, 0))
+			_staggered_blast(shooter.position + Vector3(0, 9, 0), grammar.yield_tier(_last_kill_class))
 			_wreck_smoke(shooter.position + Vector3(0, 5, 0))
 
 func _other(a: String) -> String:
@@ -447,6 +451,18 @@ func _impact_flash(pos: Vector3, color: Color, scale := 1.0) -> void:
 	p.global_position = pos
 	p.emitting = true
 	get_tree().create_timer(1.5).timeout.connect(func(): p.queue_free())
+
+## The kill blast as a SERIES scaled by the killing weapon's yield tier (F16/F17):
+## tier 1 = one modest blast (today); tier 3 = a spreading 3-blast chain whose
+## repeated detonations sustain the shake (the capital-tier "fear beat"). Offsets
+## use the seeded rng, so the spectacle stays deterministic per seed.
+func _staggered_blast(pos: Vector3, tier: int) -> void:
+	for i in maxi(tier, 1):
+		if i == 0:
+			_explosion(pos)
+		else:
+			var off := Vector3(rng.randf_range(-8.0, 8.0), rng.randf_range(0.0, 6.0), rng.randf_range(-8.0, 8.0)) * float(i)
+			get_tree().create_timer(0.18 * float(i)).timeout.connect(func(): _explosion(pos + off))
 
 func _explosion(pos: Vector3) -> void:
 	var flash := OmniLight3D.new()

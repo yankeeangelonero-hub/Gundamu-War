@@ -299,6 +299,14 @@ static func _axis_side(p: Vector3, a_pos: Vector3, b_pos: Vector3) -> int:
 	rel.y = 0.0
 	return 1 if axis.cross(Vector3.UP).dot(rel) >= 0.0 else -1
 
+## The authored lateral offset, signed so a cut-in's camera lands on `keyed_side`
+## of the A<->B axis (F32). Flipping the lateral mirrors the camera across the axis
+## (the offset is perpendicular to it), so this guarantees the keyed side. Pure.
+static func _keyed_lateral(f_pos: Vector3, o_pos: Vector3, pullback: float, height: float, lateral: float, a_pos: Vector3, b_pos: Vector3, keyed_side: int) -> float:
+	var d := (o_pos - f_pos).normalized()
+	var p := f_pos - d * pullback + d.cross(Vector3.UP) * lateral + Vector3(0, height, 0)
+	return lateral if _axis_side(p, a_pos, b_pos) == keyed_side else -lateral
+
 ## Free-roaming mechs mean no camera pose is occlusion-safe by construction.
 ## Rather than dodge buildings (which makes the camera bounce around), the lens
 ## flies its intended path STRAIGHT THROUGH them, and any building between the

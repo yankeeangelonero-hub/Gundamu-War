@@ -123,7 +123,8 @@ func _update_camera(delta: float) -> void:
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
-			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * fr.lateral + Vector3(0, fr.height, 0)
+			var lat_os := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
+			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * lat_os + Vector3(0, fr.height, 0)
 			aim = o.position + Vector3(0, 10, 0)
 			fov = fr.fov
 		"hero_cut":
@@ -133,7 +134,8 @@ func _update_camera(delta: float) -> void:
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
-			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * fr.lateral + Vector3(0, fr.height, 0)
+			var lat_cut := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
+			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * lat_cut + Vector3(0, fr.height, 0)
 			aim = mid + Vector3(0, 9, 0)
 			fov = fr.fov
 			_roll = fr.roll

@@ -11,6 +11,11 @@ func check(cond: bool, label: String) -> void:
 		print("FAIL  %s" % label)
 		fails += 1
 
+func _assert_side(Director, f: Vector3, o: Vector3, lat: float, a: Vector3, b: Vector3, want: int) -> void:
+	var d := (o - f).normalized()
+	var p := f - d * 2.0 + d.cross(Vector3.UP) * lat + Vector3(0, 5.0, 0)
+	check(Director._axis_side(p, a, b) == want, "keyed_lateral sign lands on side %d" % want)
+
 func _init() -> void:
 	var Director := load("res://scripts/director.gd")
 	check(Director != null, "director.gd loads")
@@ -23,6 +28,17 @@ func _init() -> void:
 	# Mirroring the point across the axis flips the side.
 	check(Director._axis_side(Vector3(13, 20, 50), a, b) == -Director._axis_side(Vector3(13, 20, -50), a, b),
 		"mirror across the axis flips the side")
+
+	# --- _keyed_lateral picks the sign that lands on the keyed side ---
+	var f := Vector3(-40, 0, 0)
+	var o := Vector3(40, 0, 0)
+	var raw := 9.0   # authored lateral magnitude
+	var lat_plus: float = Director._keyed_lateral(f, o, 2.0, 5.0, raw, a, b, 1)
+	var lat_minus: float = Director._keyed_lateral(f, o, 2.0, 5.0, raw, a, b, -1)
+	check(signf(lat_plus) == -signf(lat_minus), "keyed sides +1/-1 give opposite lateral signs")
+	check(absf(lat_plus) == raw and absf(lat_minus) == raw, "magnitude preserved, only sign flips")
+	_assert_side(Director, f, o, lat_plus, a, b, 1)
+	_assert_side(Director, f, o, lat_minus, a, b, -1)
 
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAIL" % fails))
 	quit(1 if fails > 0 else 0)

@@ -316,19 +316,39 @@ static func _keyed_lateral(f_pos: Vector3, o_pos: Vector3, pullback: float, heig
 ## keep their collapse. Presentation only — the sim never sees this.
 const FADE_NEAR := 7.0     # lens nearer than this to a building also fades it
 const FADE_MIN := 0.1      # dithered-out alpha: see-through
+const FADE_RATE := 0.45    # per-frame lerp toward the occlusion target (faster than the old 0.18 — a quick ~3-frame clear, no hard snap)
+
+## Silhouette sample points around the look target for the multi-ray occlusion test
+## — feet / upper-body / both shoulders — so an off-center building covering the mech
+## is caught, not just one dead-center ray. `aim` is the look point.
+func _silhouette_points(pos: Vector3, aim: Vector3) -> Array:
+	var fwd := aim - pos
+	fwd.y = 0.0
+	var right := (fwd.cross(Vector3.UP).normalized() if fwd.length() > 0.01 else Vector3.RIGHT)
+	return [
+		aim,
+		aim + Vector3(0, 5.0, 0),    # upper body / head
+		aim - Vector3(0, 9.0, 0),    # toward the feet
+		aim + right * 5.0,           # one shoulder
+		aim - right * 5.0,           # other shoulder
+	]
 
 func _resolve_occlusion(pos: Vector3, aim: Vector3) -> Vector3:
-	for bld in get_tree().get_nodes_in_group("kb_building"):
-		var aabb: AABB = bld.get_meta("aabb")
-		var occluding := aabb.intersects_segment(pos, aim) != null \
-			or aabb.grow(FADE_NEAR).has_point(pos)
-		_fade_building(bld, FADE_MIN if occluding else 1.0)
+	var buildings := get_tree().get_nodes_in_group("kb_building")
+	var occ: Array = Sightline.evaluate(pos, _silhouette_points(pos, aim), buildings).occluders
+	for bld in buildings:
+		# A building covering the mech's silhouette (occ) OR one the lens is nearly
+		# inside (FADE_NEAR) clears fully; everything else restores.
+		var near := (bld.get_meta("aabb") as AABB).grow(FADE_NEAR).has_point(pos)
+		_fade_building(bld, 0.0 if (occ.has(bld) or near) else 1.0, FADE_RATE)
 	return pos
 
-func _fade_building(bld: Node3D, target: float) -> void:
+# rate default 0.18 preserves the original slow dissolve for the iso see-through
+# (_fade_for_iso); the cinematic occlusion clear passes the faster FADE_RATE.
+func _fade_building(bld: Node3D, target: float, rate := 0.18) -> void:
 	var mi := bld as MeshInstance3D
 	var mat: StandardMaterial3D = mi.mesh.material
-	var a := lerpf(mat.albedo_color.a, target, 0.18)
+	var a := lerpf(mat.albedo_color.a, target, rate)
 	mat.albedo_color.a = a
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED if a >= 0.99 \
 		else BaseMaterial3D.TRANSPARENCY_ALPHA_HASH

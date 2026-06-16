@@ -124,9 +124,14 @@ func _update_camera(delta: float) -> void:
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
 			var lat_os := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
-			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * lat_os + Vector3(0, fr.height, 0)
 			aim = o.position + Vector3(0, 10, 0)
 			fov = fr.fov
+			var cands_os: Array = []
+			for scale in [0.6, 0.85, 1.0, 1.3, 1.7]:
+				cands_os.append(f.position - d * fr.pullback + d.cross(Vector3.UP) * (lat_os * float(scale)) + Vector3(0, fr.height, 0))
+			var pick_os := _pick_clear_pose(cands_os, aim, get_tree().get_nodes_in_group("kb_building"), _pick_idx, 2)
+			_pick_idx = pick_os.idx
+			pos = pick_os.pos
 		"hero_cut":
 			# Low angle beside the shooter, looking down the firing line into the
 			# city — the beam lances past camera and wrecks whatever it crosses.
@@ -135,10 +140,15 @@ func _update_camera(delta: float) -> void:
 			var o: Node3D = actors[_other(str(s.focus))]
 			var d := (o.position - f.position).normalized()
 			var lat_cut := _keyed_lateral(f.position, o.position, fr.pullback, fr.height, fr.lateral, a.position, b.position, _axis_keyed_side)
-			pos = f.position - d * fr.pullback + d.cross(Vector3.UP) * lat_cut + Vector3(0, fr.height, 0)
 			aim = mid + Vector3(0, 9, 0)
 			fov = fr.fov
 			_roll = fr.roll
+			var cands_cut: Array = []
+			for scale in [0.6, 0.85, 1.0, 1.3, 1.7]:
+				cands_cut.append(f.position - d * fr.pullback + d.cross(Vector3.UP) * (lat_cut * float(scale)) + Vector3(0, fr.height, 0))
+			var pick_cut := _pick_clear_pose(cands_cut, aim, get_tree().get_nodes_in_group("kb_building"), _pick_idx, 2)
+			_pick_idx = pick_cut.idx
+			pos = pick_cut.pos
 		"melee_cut":
 			# Tight, slightly slow close-up orbiting the blade clash point.
 			var fr: Dictionary = _grammar.framing[s.mode]

@@ -33,7 +33,7 @@ xray_mech_b={
 }
 xray_radius={
 "type": "float",
-"value": 14.0
+"value": 28.0
 }
 xray_softness={
 "type": "float",

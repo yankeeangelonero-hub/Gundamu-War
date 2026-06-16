@@ -47,45 +47,68 @@ flat look and adds the x-ray cut:
 - **Per-material uniform** `albedo : Color` — the building's base colour (also the target the
   destruction/darken tween animates; see below). One `ShaderMaterial` instance per building so each
   keeps its own colour and can be darkened independently.
-- **Global shader parameters** (one set, read by every building):
+- **Global shader parameters** (FOUR, one set, read by every building — declared in `project.godot`
+  `[shader_globals]` so they exist when the building shaders compile; the director only *sets* them):
   - `xray_mech_a : vec3`, `xray_mech_b : vec3` — the two mechs' world positions (the look-at
-    height-centre, ~`mech.position + (0, 9, 0)`), updated each frame by the director.
-  - `xray_radius : float` — the world-space window radius around a mech (the feel dial, default ~16).
-  - `xray_softness : float` — the soft-edge width (default ~6): full transparency within
-    `radius - softness`, ramping to opaque at `radius`.
-- **Fragment logic** (in world space; `CAMERA_POSITION_WORLD` is a built-in):
-  - For each mech `m` in {a, b}: `d_m = distance(world_vertex, m)`; treat `m` as an occlusion source
-    only if the fragment is **in front of** it: `distance(CAMERA_POSITION_WORLD, world_vertex) <
-    distance(CAMERA_POSITION_WORLD, m)`.
-  - `cut = max over qualifying m of smoothstep(radius, radius - softness, d_m)` → 0 outside the
-    window, 1 in the clear centre, soft ramp on the edge.
-  - `ALPHA = 1.0 - cut`. Use **alpha-hash** dithered transparency (`render_mode` alpha-hash, or a
-    hashed `discard` when `ALPHA < hash`) so the cut is order-independent and needs no depth sorting —
-    matching the look the old fade used (`TRANSPARENCY_ALPHA_HASH`).
-- **`world_vertex`**: pass the vertex world position from the vertex shader (`VERTEX` transformed by
-  `MODEL_MATRIX`) to the fragment as a varying.
+    height-centre, ~`mech.position + (0, 9, 0)`), updated each frame by the director. **Both are fed
+    every frame whether the mech is alive or dead** — the cameras still frame a wrecked mech in the
+    aftermath/orbit beats, so its window must stay open (a dead mech is NOT special-cased off).
+  - `xray_radius : float` — the window radius around the camera→mech sightline (feel dial, default ~14).
+  - `xray_softness : float` — the soft-edge width (default ~5): full cut within `radius - softness` of
+    the sightline, ramping to no-cut at `radius`.
+- **Fragment logic — a soft capsule along the camera→mech SIGHTLINE** (not a sphere around the mech;
+  a sphere would miss a wall that sits between the lens and the mech but far from the mech). In world
+  space, with `cam = CAMERA_POSITION_WORLD`, fragment world position `p`, and each mech `m`:
+  - Project `p` onto the camera→mech segment: `seg = m - cam`; `t = dot(p - cam, seg) / dot(seg, seg)`.
+    The fragment is between the lens and the mech iff `0.0 < t < 1.0` (this also covers the camera
+    embedded in / very close to a wall: at small `t` the capsule still includes near-lens fragments —
+    so it subsumes the old `FADE_NEAR` near-lens case).
+  - Closest point on the segment `proj = cam + t * seg`; perpendicular distance `perp = distance(p, proj)`.
+  - `cut_m = (t > 0.0 && t < 1.0) ? (1.0 - smoothstep(radius - softness, radius, perp)) : 0.0`
+    → 1 (full cut) on the sightline core, 0 outside `radius`, soft ramp between. (Note the smoothstep
+    order: `edge0 = radius - softness < edge1 = radius`; `clamp` softness below radius.)
+  - `cut = max(cut_a, cut_b)`.
+  - **Dissolve via a deterministic hashed `discard`** (order-independent, no transparency sorting):
+    `if (cut > hash(SCREEN_UV or FRAGCOORD)) discard;` — i.e. discard fragments inside the window with
+    a dither proportional to `cut`. (Do NOT rely on an `alpha_hash` render_mode — validate the exact
+    Godot 4.6 transparency syntax in the boot; the hashed-discard path needs no render_mode and matches
+    the dithered look the old fade used.)
+- **Lit look parity:** set `ALBEDO = albedo.rgb` and `ROUGHNESS = 0.7` and keep the default lit
+  (Burley/GGX) pipeline — buildings today are lit `StandardMaterial3D` with `roughness = 0.7`
+  (`city_builder.gd:63`). Do NOT use `unshaded`; a non-occluded building must look the same as today
+  (capture a before/after of an unoccluded building to confirm).
+- **`p` (fragment world position):** pass the vertex world position from the vertex shader
+  (`VERTEX` × `MODEL_MATRIX`) to the fragment as a varying.
 
-This yields a soft spherical window per mech, cutting only the near side (in front of the mech), on
-any camera. (World-space sphere, not a flat screen circle: simpler in a spatial shader, deterministic,
-and reads as a soft hole. The on-screen size varies a little with mech distance, acceptable for these
-shots; revisit if it reads inconsistently.)
+This yields a soft round window along each camera→mech sightline, cutting any wall in front of a mech
+(at any depth, including one hugging the lens), on any camera (perspective cuts and the iso top-down).
 
 ### Feeding the shader (director)
-At startup, register the three global shader parameters (e.g. `RenderingServer.global_shader_parameter_add`)
-with sane defaults. Each frame in the director's `_process`/`_update_camera`, set `xray_mech_a` /
-`xray_mech_b` from the live mech positions (skip a dead mech, or leave its last position — a dead mech
-needs no window; resolve in the plan). `xray_radius`/`xray_softness` come from the grammar (new Lens
-params) so they are tunable.
+The four globals are declared in `project.godot` `[shader_globals]` with sane defaults (so they exist
+at shader-compile time — buildings are materialized in `city_builder` before `director.start()`).
+Each frame in the director's `_process`/`_update_camera`, set `xray_mech_a` / `xray_mech_b` (both
+mechs, alive or dead) via `RenderingServer.global_shader_parameter_set(...)`. `xray_radius` /
+`xray_softness` are set from the grammar (new Lens params) once at `start()` (and could be re-set if
+tuned live), so they are tunable.
 
 ### Building creation (`city_builder.gd`)
 Where buildings currently get a `StandardMaterial3D`, assign a `ShaderMaterial` using the x-ray shader,
 with the per-building `albedo` set to the colour the building used. The `kb_building` group + the
-`aabb` meta stay (the camera-angle search still uses the AABBs). The pop-out window child meshes stay.
+`aabb` meta stay (the camera-angle search still uses the AABBs).
+
+**The pop-out window child meshes also get the x-ray shader.** Buildings have emissive window child
+meshes with their own `StandardMaterial3D` (`city_builder.gd:39`); the old fade hid them when the
+parent's alpha dropped. If only the parent building changes, the window strips would float over the
+x-ray hole. Give the window meshes the **same x-ray shader** (an emissive variant — an `emission`
+uniform / brighter albedo), so they are cut by the identical global sightline test and dissolve with
+the wall. (They read the same four globals; no extra wiring.)
 
 ### Destruction adaptation
-`_smash_building` / `_detonate_building` currently tween `mat.albedo_color` toward a charred dark.
-Re-point those tweens at the shader's colour: `tween_property(mat, "shader_parameter/albedo", <dark>, t)`.
-Collapse transforms (scale/position/rotation) are unchanged.
+`_smash_building` / `_detonate_building` currently type the building material as `StandardMaterial3D`
+and tween `mat.albedo_color` toward a charred dark (`garnish.gd:122`, `garnish.gd:227`). Change the
+type to `ShaderMaterial` and tween the shader colour uniform: `tween_property(mat,
+"shader_parameter/albedo", <dark>, t)` (or a `tween_method` calling `set_shader_parameter("albedo", c)`).
+Collapse transforms (scale/position/rotation) are unchanged; the window-mesh hide-on-collapse stays.
 
 ### Grammar params (Lens block)
 - `xray_radius : float = 16.0`
@@ -104,10 +127,10 @@ visual + the unaffected suites:
 - **Shader compiles / no load errors:** a render boot (`godot --path ... -- --director=hybrid
   --log=fight_log_melee`) prints `boot ok` with no shader-compile or script errors. (Godot reports
   shader errors at material load.)
-- **Globals registered + fed:** a small headless check that the three global shader parameters exist
-  after the director starts (`RenderingServer.global_shader_parameter_get` returns the set value), and
-  that the director updates `xray_mech_a/b` to the mech positions on a `_process` step. (Render not
-  required — this checks the wiring, not the pixels.)
+- **Globals registered + fed:** a small headless check that the four global shader parameters exist
+  (declared in `project.godot`) and that the director updates `xray_mech_a/b` to the mech positions on
+  a `_process` step (`RenderingServer.global_shader_parameter_get` returns them). (Render not required —
+  this checks the wiring, not the pixels.)
 - **Determinism:** `hybrid_check.gd` → `got hash 2543717900` unchanged.
 - **Regression:** `shot_grammar_check` (new params), `continuity_check`, `sightline_check`,
   `director_check`, `grade_check`, `time_emphasis_check` all green (none depend on the removed fades;
@@ -116,18 +139,27 @@ visual + the unaffected suites:
   front of a mech now shows a soft round window with the real mech inside; the rest of the wall and
   the background stay solid; the iso top-down view shows the same; no buildings wholesale-vanish.
 
-## Open questions for the implementation plan
-1. **Dead mech:** when a mech dies, does its window stop (set its `xray_mech_*` far away / a sentinel)
-   or persist on the wreck? Lean: move the dead mech's source out of range so its window closes.
-2. **Global-param registration:** `RenderingServer.global_shader_parameter_add` at runtime vs project
-   `[shader_globals]` in `project.godot`. Lean: runtime add in the director's `start()` (self-contained,
-   no project-file edit), guarded so a re-add is harmless.
-3. **Shader look fidelity:** the buildings' current `StandardMaterial3D` settings (roughness, any
-   shading) must be reproduced in the shader so non-occluded buildings look the same as today. Capture
-   a before/after of an unoccluded building to confirm parity. If they used only flat albedo, the
-   shader is trivial; if they used lit shading, match `diffuse`/`roughness`.
-4. **Alpha-hash vs smooth alpha:** alpha-hash (dither) is order-independent (no sorting) and matches
-   the old look; a smooth alpha would need transparency sorting. Lean: alpha-hash.
-5. **Removal sequencing:** remove `_resolve_occlusion`/`_fade_building`/`_fade_for_iso` and their call
-   sites in the same change that adds the shader, so there is never a frame with neither mechanism.
-   The plan sequences: add shader + wiring first (behind the still-present fade), then remove the fade.
+## Decisions settled by the codex spec review (2026-06-16) — no longer open
+1. **Sightline capsule, not a mech-sphere** (was the core flaw): the cut is along the camera→mech
+   segment (perpendicular distance), so a wall anywhere between lens and mech is cleared, including one
+   at the lens — see the fragment logic above. This is the load-bearing correction.
+2. **Globals in `project.godot` `[shader_globals]`**, not a runtime `global_shader_parameter_add` — they
+   must exist when the building shaders compile (buildings are built before `director.start()`); the
+   director only `set`s them.
+3. **Atomic swap:** the material swap to `ShaderMaterial` and the removal of `_resolve_occlusion` /
+   `_fade_building` / `_fade_for_iso` happen in the SAME change — never "add behind the old fade then
+   remove" (the old fade hard-casts `StandardMaterial3D` and would crash on a `ShaderMaterial`). The
+   plan sequences: (a) shader + project globals + city_builder material swap + director feed + destruction
+   cast change, then (b) delete the dead fade code, in close succession with a boot between.
+4. **Window child meshes get the x-ray shader too** (emissive variant) so they dissolve with the wall.
+5. **Dead mechs keep their window** (both positions fed every frame) — the aftermath/orbit beats frame
+   the wreck.
+6. **Lit parity required:** `ROUGHNESS = 0.7`, lit pipeline — not an open question, a build requirement.
+7. **Hashed `discard`** for the dissolve (no `alpha_hash` render_mode dependency); validate the exact
+   transparency syntax at the first boot.
+
+## Remaining open question for the implementation plan
+- **Window-mesh emissive in the shader:** the window meshes currently use an emissive
+  `StandardMaterial3D`. The x-ray variant needs an `emission`/brightness uniform to keep their glow.
+  Confirm the exact emissive values from `city_builder.gd` when authoring the shader variant so the
+  lit windows look unchanged when not occluded.

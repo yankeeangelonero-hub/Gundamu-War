@@ -4,10 +4,20 @@ doc_type: slice-spec
 version: "0.1"
 slice: "05"
 title: Deterministic ATB simulator
-status: not-started
-updated: 2026-06-04
+status: superseded
+updated: 2026-06-17
 depends_on: ["04"]
+superseded_by:
+  - docs/superpowers/specs/2026-06-17-combat-sim-internals-design.md
+  - docs/superpowers/specs/2026-06-17-fight-event-log-contract-design.md
 ---
+
+> **SUPERSEDED 2026-06-17.** Replaced by the sim→log→director chain:
+> `docs/superpowers/specs/2026-06-17-combat-sim-internals-design.md` (the ATB engine, ported to
+> GDScript and extended with travel/impact, hit-miss, and impact-anchored events) targeting
+> `docs/superpowers/specs/2026-06-17-fight-event-log-contract-design.md` (the v2 event-log
+> contract). The ATB *core* from `prototype/game-core.js` carries forward; the part-tree build
+> model, instant-damage event shape, and the `simulate()` return below do not. Kept for history.
 
 # Slice 05 — Deterministic ATB simulator
 

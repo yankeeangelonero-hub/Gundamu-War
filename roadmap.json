@@ -1,0 +1,180 @@
+{
+  "project": {
+    "name": "Kitbash Mecha",
+    "repo": "Gundamu-War",
+    "subtitle": "v1: a playable gauntlet run — build varied weapon loadouts on one mech frame and watch them resolve as cinematic 3D combat",
+    "version": "0.1",
+    "updated": "2026-06-18"
+  },
+  "nodes": [
+    {
+      "id": "dec-stack",
+      "title": "Stack: Godot 4.6 + GDScript",
+      "state": "locked",
+      "kind": "decision",
+      "version": "0.1",
+      "deps": [],
+      "goal": "Steam-first, mobile-compatible; GDScript build, C++/GDExtension the only sanctioned perf escape hatch. Confirmed in practice by the director spike.",
+      "spec": "docs/adrs/2026-06-06-build-stack-decision.md"
+    },
+    {
+      "id": "dec-determinism",
+      "title": "Deterministic sim + frozen log contract",
+      "state": "locked",
+      "kind": "decision",
+      "version": "0.1",
+      "deps": [],
+      "goal": "Same build(s) + seed produce the identical event sequence; simulation kept architecturally separate from rendering. This is the async-PvP re-simulation enabler."
+    },
+    {
+      "id": "cf-log-contract",
+      "title": "Fight event-log contract",
+      "state": "shipped",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "dec-determinism"
+      ],
+      "goal": "The frozen truth contract the viewer films (fight_log.gd schema + the design). The seam between sim and presentation; the viewer never writes it back.",
+      "spec": "docs/superpowers/specs/2026-06-17-fight-event-log-contract-design.md"
+    },
+    {
+      "id": "cf-viewer",
+      "title": "Cinematic director + viewer grammar",
+      "state": "shipped",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "dec-stack"
+      ],
+      "goal": "The locked viewer: hybrid director (iso tactical backbone + cinematic intercuts), shot grammar, grade (lighting/colour mood), sightline + X-ray occlusion, time-emphasis arbiter, garnish VFX / hero-kill spectacle.",
+      "doneWhen": "A hand-authored fight log renders as a directed, UC-legible cinematic fight; golden-hash regression guards the hybrid shot list.",
+      "spec": "fight_log_everything --director=hybrid"
+    },
+    {
+      "id": "cf-feel-core",
+      "title": "FeelProfile (per-build lean) — pure core",
+      "state": "shipped",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "dec-determinism"
+      ],
+      "goal": "Pure derive(build) -> {heft, tempo, mode_mix}: a per-build cosmetic bias, deterministic, never combat truth, never read by the sim.",
+      "doneWhen": "feel_profile.gd + tests committed (determinism, monotonicity, bounds, empty/zero-damage fallback, outcome-independence).",
+      "spec": "docs/superpowers/specs/2026-06-18-feel-profile-design.md"
+    },
+    {
+      "id": "m1-grid-editor",
+      "title": "M1 — Grid + power build editor (one frame)",
+      "state": "ready",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "dec-stack"
+      ],
+      "goal": "The build editor on ONE mech frame: a 5x4 unified grid; place shaped builder/spender/support items in varied weapon loadouts and quantities; a single power battery economy; supports buff adjacent weapons (added/increased/more) AND author adjacency transforms (fork/chain/multishot) in their slots; slotted weapons mount on the shared 3D mech.",
+      "doneWhen": "Place a varied loadout (different weapons + quantities); see effective damage, power-per-shot, and authored transforms (fork/chain/multishot) change as supports cover a weapon; read total pool+regen; see weapons mount on the 3D mech. Resolver + grid pure and unit-tested.",
+      "next": "Build-screen UI design (in Claude design) -> implementation plan -> build.",
+      "spec": "docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md"
+    },
+    {
+      "id": "cf-choreographer",
+      "title": "Combat choreographer (log -> staged scene)",
+      "state": "ready",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "cf-log-contract",
+        "cf-viewer"
+      ],
+      "goal": "Stage the positionless truth log into spawn positions + advance beats so the director has a 3D scene to film. Replaces hand-authored positions.",
+      "doneWhen": "A contract-valid log is staged into deterministic positions the director films.",
+      "next": "Implement against the contract + fixtures — design pass is complete.",
+      "spec": "docs/superpowers/specs/2026-06-17-combat-choreographer-design.md"
+    },
+    {
+      "id": "m0-sim",
+      "title": "M0 — Build-driven deterministic sim",
+      "state": "blocked",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "m1-grid-editor",
+        "dec-determinism",
+        "cf-log-contract"
+      ],
+      "goal": "Turn a backpack build into the fight the viewer renders: {build, seed} -> the contract event-log, replacing the hand-authored logs. Varied weapon loadouts/quantities and adjacency transforms (fork/chain/multishot) all express as legible log events.",
+      "doneWhen": "Varied M1 builds each resolve to a deterministic event stream that drives the existing viewer; fork/chain/multishot read in the log; a headless re-run is byte-identical."
+    },
+    {
+      "id": "cf-feel-consumers",
+      "title": "FeelProfile consumers (grammar + choreographer bias)",
+      "state": "blocked",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "cf-feel-core",
+        "cf-choreographer",
+        "cf-viewer"
+      ],
+      "goal": "The director grammar and choreographer read each build's FeelProfile and bias their own params, so a loadout visibly looks like itself on screen — a gun-heavy build films different from a melee-heavy or rapid-fire one.",
+      "doneWhen": "Two different weapon loadouts on the same frame read distinctly on screen; the FeelProfile leaf is no longer dead.",
+      "next": "Build after the choreographer lands."
+    },
+    {
+      "id": "m3-gauntlet",
+      "title": "M3 — The gauntlet run (v1 finish line)",
+      "state": "blocked",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "m1-grid-editor",
+        "m0-sim",
+        "cf-choreographer",
+        "cf-feel-consumers"
+      ],
+      "goal": "The v1 product: a playable gauntlet run. A shop phase (buy/sell/reroll) then a deterministic cinematic auto-battle vs a ghost opponent; a few hearts, a loss costs one, ends at zero or a win threshold; no persistence; pilot as the item-source hero. One frame; variety comes from weapon loadout + placement.",
+      "doneWhen": "A tester plays a full escalating run building varied weapon loadouts that each keep functioning AND stay cinematic; the placement decisions feel like the fun.",
+      "next": "Last node before v1 ships."
+    },
+    {
+      "id": "m2-synergy",
+      "title": "M2 — Scaling vectors, recipes, expansions (deferred)",
+      "state": "pending",
+      "kind": "future",
+      "version": "0.2",
+      "deps": [
+        "m3-gauntlet"
+      ],
+      "goal": "Deferred out of v1: distinct tall/wide/tank scaling vectors and archetype viability, bag-expansion container items, recipe/merge fusion at the round transition. v1 stays one frame; these add the multi-frame/archetype depth.",
+      "doneWhen": "Tall, wide, and tank builds are each viable; expansions + recipes work end to end."
+    },
+    {
+      "id": "v02-pilot",
+      "title": "v0.2+ — Pilot-fit / sync layer",
+      "state": "pending",
+      "kind": "future",
+      "version": "0.2",
+      "deps": [
+        "m3-gauntlet"
+      ],
+      "goal": "The pilot bond on top of the engineering core: the in-fight sync / breakthrough meter (re-entering as item behaviour), a persistent bonded pilot, salvage acquisition, and grid expansion through pilot milestones."
+    },
+    {
+      "id": "war-pvp",
+      "title": "Async-PvP war (networked)",
+      "state": "pending",
+      "kind": "future",
+      "version": "future",
+      "deps": [
+        "v02-pilot"
+      ],
+      "goal": "The networked backend for real-player ghosts and async-PvP; the two-faction GM-steered live war. No dates; architecture must not preclude it."
+    }
+  ],
+  "canon": {
+    "sha": "991e0cfc58c70d3d3077eae036c9c1c917365c02",
+    "ref": "HEAD"
+  }
+}

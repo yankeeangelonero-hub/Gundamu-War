@@ -1,0 +1,9 @@
+:root{
+  --surface-dark:#0E0E0C;
+  --on-dark:#EDEADD;
+  --accent:#78BDE8;
+  --font-display:'Lato',system-ui,sans-serif;
+  --font-body:'Lato',system-ui,sans-serif;
+  --font-mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+}

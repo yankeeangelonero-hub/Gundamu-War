@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "roadmap.json",
+  "type": "object",
+  "required": ["project", "nodes"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "repo": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "version": { "type": "string" },
+        "updated": { "type": "string" }
+      }
+    },
+    "canon": {
+      "type": "object",
+      "required": ["sha"],
+      "properties": {
+        "sha": { "type": "string" },
+        "ref": { "type": "string" }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "state", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "state": { "enum": ["shipped", "in-progress", "ready", "blocked", "decision", "locked", "pending"] },
+          "kind": { "enum": ["slice", "milestone", "decision", "future"] },
+          "version": { "type": "string" },
+          "deps": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "goal": { "type": "string" },
+          "doneWhen": { "type": "string" },
+          "next": { "type": "string" },
+          "spec": { "type": "string" },
+          "gy": { "type": "number" }
+        }
+      }
+    }
+  }
+}

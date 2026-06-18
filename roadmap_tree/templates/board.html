@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap Tree</title>
+<style>
+/*__TOKENS__*/
+html,body{margin:0;height:100%;background:var(--surface-dark,#0E0E0C);}
+*{box-sizing:border-box;}
+::selection{background:rgba(120,189,232,.3);}
+.rt-scroll::-webkit-scrollbar{width:10px;height:10px;}
+.rt-scroll::-webkit-scrollbar-thumb{background:#2a2922;border-radius:6px;}
+.rt-scroll::-webkit-scrollbar-track{background:transparent;}
+textarea,button{font-family:inherit;}
+@keyframes rtReadyGlow{0%,100%{box-shadow:0 0 0 1.5px #5BD49B,0 0 14px -3px rgba(91,212,155,.55);}50%{box-shadow:0 0 0 1.5px #5BD49B,0 0 28px 1px rgba(91,212,155,.9);}}
+@keyframes rtProgGlow{0%,100%{box-shadow:0 0 0 1.5px #78BDE8,0 0 12px -3px rgba(120,189,232,.5);}50%{box-shadow:0 0 0 1.5px #78BDE8,0 0 24px 0 rgba(120,189,232,.8);}}
+@keyframes rtGhost{0%,100%{opacity:.62;}50%{opacity:1;}}
+@keyframes rtFlow{to{stroke-dashoffset:-14;}}
+@keyframes rtToast{from{opacity:0;transform:translate(-50%,12px);}to{opacity:1;transform:translate(-50%,0);}}
+.rt-stale{position:absolute;top:0;left:0;right:0;z-index:50;background:#D07A5E;color:#1a0d08;font-family:var(--font-mono);font-size:12px;font-weight:700;letter-spacing:.04em;padding:7px 16px;text-align:center;}
+</style></head>
+<body>
+<div id="rt-root"></div>
+<script id="rt-data" type="application/json">"__ROADMAP_DATA__"</script>
+<script>
+/*__BOARD_JS__*/
+</script>
+</body></html>

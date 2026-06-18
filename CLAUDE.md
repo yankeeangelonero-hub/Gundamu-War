@@ -102,3 +102,21 @@ then an implementation plan — no code yet.
 - Behaviour invariants: `BEH-NNN`
 - Architecture constraints: `ARC-NNN`
 - Work-map artifact IDs use the `KM-` prefix (e.g. `KM-DEPLOY`, `KM-PILOT-FIT`).
+
+## Roadmap sync — read on every commit
+
+The shippable roadmap lives in `roadmap.json` (rendered to `roadmap.html` by `python -m roadmap_tree .`).
+Node states: shipped · in-progress · ready · blocked · decision · locked · pending.
+
+- BEFORE starting work: open the tree, find the READY node, copy its handoff prompt.
+- ON a commit that advances a node: edit that node's `state` in `roadmap.json` — set `shipped`
+  when its done-when is met and tests pass, or `in-progress` while it is still partial. Then
+  recompute downstream: flip any node whose deps are now all shipped from `blocked` to `ready`.
+  Re-run `python -m roadmap_tree . --sync` to re-stamp canon to HEAD.
+- WHEN a new requirement or decision arrives: add a `decision` or `pending` node and do NOT graft
+  it until reviewed and approved (use "Branch here" to draft it).
+- If commits land without a re-sync, the board shows "OUT OF SYNC — N commits ahead"; click
+  "Session Diff" to copy a brief that reconciles the tree from the real git diff.
+
+States are never derived — the board shows exactly what `roadmap.json` says. Keep it the source of
+truth for what is left to ship, not just git history.

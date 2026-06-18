@@ -16,6 +16,13 @@ build/
 # Redundant zipped duplicates of art payloads already committed as directories
 output/*.zip
 
+# Rendered roadmap board — regenerated from roadmap.json by `python -m roadmap_tree .`
+roadmap_tree/roadmap.html
+
+# Python bytecode (roadmap_tree tool + .claude hooks)
+__pycache__/
+*.pyc
+
 # Heavy imported Gundam model — runtime copy + glTF-extracted 4K textures for the
 # --gundam viewer (~113 MB glb, over GitHub's 100 MB push limit). Source lives in
 # Research/Gundam Reference/. Matches gundam_mk2.glb and gundam_mk2_*BaseColor.png etc.

@@ -3,7 +3,7 @@ project: kitbash-mecha
 repo: gundamu-war
 doc_type: roadmap
 status: active
-updated: 2026-06-14
+updated: 2026-06-18
 ---
 
 # Roadmap — Kitbash Mecha
@@ -14,6 +14,12 @@ docs/superpowers/specs/2026-06-14-backpack-engineering-system-design.md). The ve
 rebooted on 2026-06-14; the earlier v0.4 pilot-fit plan is deferred to v0.2+. The browser
 prototypes (0.1–0.3) are superseded pre-history whose deterministic-sim foundation carries
 forward.
+
+The roadmap runs two parallel tracks. **v0.1 — Backpack engineering gauntlet** is the gameplay
+track (the build the player makes). **Combat-feel / cinematic direction** is the presentation
+track (how that build's fight reads on screen) — the proven, partly-locked substrate the gameplay
+feeds into. The two meet at the build → fight seam: a resolved backpack drives the deterministic
+sim, whose event-log the cinematic pipeline films.
 
 ## Track: v0.1 — Backpack engineering gauntlet
 
@@ -95,6 +101,63 @@ toehold in place for v0.2.
 
 ---
 
+## Track: Combat-feel / cinematic direction
+
+Goal: make combat *read* Gundam UC — the camera work and direction are what make the game feel,
+per the combat-feel research north star (`Research/Research Documents/research-synthesis-2026-06-13-gundam-uc-combat-feel.md`).
+This is the presentation pipeline the v0.1 backpack build feeds into: a fight event-log is staged
+and filmed into a directed cinematic fight. Much of it is already built and locked; the current
+frontier is the deterministic data-spine that wires a *build* into that fight and the per-build
+lean that makes each build look like itself.
+
+The data spine, end to end: `build → sim → event-log → choreographer → director`, with the
+FeelProfile biasing the two presentation stages. This track owns the log → director half; the
+build → sim half meets the v0.1 track at the M0 seam.
+
+---
+
+### CF-VIEWER — Cinematic director + viewer grammar
+
+**Status:** Built and locked. The hybrid director (isometric tactical backbone + cinematic
+intercuts), the shot grammar (framing / timing / mood), the grade layer (lighting + colour mood),
+sightline + X-ray occlusion handling, the time-emphasis arbiter, and the garnish VFX / hero-kill
+spectacle are all implemented in `godot_director_spike/` and verified by the `tests/` check suite
+(golden-hash regression on the hybrid shot list). Guide: `fight_log_everything --director=hybrid`.
+
+**Done when:** (met) a hand-authored fight log renders as a directed, UC-legible cinematic fight
+through the locked hybrid director.
+
+---
+
+### CF-SPINE — Combat data-spine (build → fight, deterministically)
+
+**Status:** Designed — design pass complete, not built. The deterministic chain that replaces the
+hand-authored logs: the combat sim internals and the frozen **fight event-log contract** (the
+truth the viewer films), plus the **combat choreographer** that stages the positionless truth log
+into a 3D scene (spawn positions + advance beats) for the director. Specs:
+`docs/superpowers/specs/2026-06-17-fight-event-log-contract-design.md`,
+`2026-06-17-combat-sim-internals-design.md`, `2026-06-17-combat-choreographer-design.md`. Shares
+the M0 build → sim seam with the v0.1 track.
+
+**Done when:** a `{build, seed}` resolves to a contract-valid event-log, the choreographer stages
+it into positions the director films, and a headless re-sim is byte-identical.
+
+---
+
+### CF-FEEL — FeelProfile per-build presentation lean
+
+**Status:** Designed; pure leaf built, consumers pending. A per-build cosmetic bias
+`{heft, tempo, mode_mix}` — derived purely from a build's resolved stats — that makes a heavy
+bruiser read heavy and a nimble gunner read nimble by modulating the director grammar and
+choreographer, without touching combat truth. The pure function (`scripts/sim/feel_profile.gd`)
+and its tests are built and committed; nothing consumes it yet. Spec:
+`docs/superpowers/specs/2026-06-18-feel-profile-design.md`.
+
+**Done when:** the director grammar and choreographer read the per-mech FeelProfile and a build
+visibly looks like itself on screen (the bias is no longer a dead leaf).
+
+---
+
 ## Future (v0.2+ — not planned in detail)
 
 The pilot layer returns on top of the v0.1 engineering core: the in-fight sync / breakthrough
@@ -105,3 +168,13 @@ milestones rather than purchase. This is where the deferred v0.4 pilot-fit direc
 Further out, no dates: the networked backend for real-player ghosts and async-PvP; the
 two-faction GM-steered live war; a stable of multiple pilots; the opt-in pilot-behaviour rule
 layer; grunts in the field; research as a second use for salvage.
+
+---
+
+## Changelog
+
+- 2026-06-18 — vouse-managing-versions — Added the **Combat-feel / cinematic direction** track
+  (CF-VIEWER built/locked, CF-SPINE designed, CF-FEEL designed + leaf built) to track the
+  previously-untracked combat presentation data-spine; reframed the intro as two parallel tracks
+  meeting at the build → fight seam. (Formal version bump + `check_roadmap.py` validation not run:
+  this repo has the Vouse doc artefacts but not the helper scripts / version-frontmatter contract.)

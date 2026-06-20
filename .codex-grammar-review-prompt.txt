@@ -1,0 +1,18 @@
+Adversarially review a DESIGN SPEC (rev 7) for a deterministic anime-Gundam mech-combat game in Godot/GDScript. You reviewed rev 1-6; rev-6 verdict NEEDS-ANOTHER-PASS, biggest (design-level) blocker: CG-BLIND permitted pre-impact structural prominence to read post-impact damage/lethal/outcome (a temporal pre-spoil). Verify the rev-7 fix closes it; attack what remains; give a FINAL verdict that explicitly separates DESIGN-level blockers from IMPLEMENTATION/TUNING-level gaps. Skeptic only; no praise/summary; do not edit files.
+
+UNDER REVIEW (rev 7): docs/superpowers/specs/2026-06-20-choreography-grammar-design.md
+CONTEXT (frozen): 2026-06-17 event-log contract (shot.tick = impact, fire_tick = tick - travel, travel >= 1); 2026-06-17 shipped choreographer; 2026-06-18 FeelProfile; the built director.
+
+REV-7 FIXES (verify):
+1. CG-BLIND now has a TEMPORAL/CAUSAL part: staging visible at display tick t is a pure function of the truth prefix knowable by t. Pre-impact staging (cue/telegraph/approach/mode/range AND cue-phase prominence) may read only fire-knowable attributes (weapon/profile/motif/tier/travel/range/scheduling), NOT outcome/damage/lethal/hp_after; those drive only at/after impact (impact frame, sell, hero-kill). A kill-shot is staged identically to an ordinary same-weapon/tier/travel shot until its impact tick.
+2. Scheduler Step-2 rank is now fire-knowable only: heavy = tier >= HEAVY_TIER > normal; lethal/damage removed from cue/commit priority; lethal elevates only the at-impact hero treatment; HEAVY_DMG applies only at impact.
+3. Two tests: mirror test (canonical transform = swap actor labels + mirror positions about x, keep fire-knowable attributes) and prefix-blindness test (fixture vs variant differing only in post-impact resolution -> staged trace on [0, impact_tick) byte-identical).
+4. Numeric pins: shooter_pos sampled at impact_tick; unit(0) = (0,0); sells EMA seeded 0; spans half-open [start,end).
+
+PRIORITIZED (P1/P2/P3), cite sections:
+(a) RESOLUTION CHECK: is the temporal CG-BLIND rule now sufficient to close the pre-impact pre-spoil channel? Are the mirror + prefix-blindness tests together well-defined and sufficient to enforce it, or is there still a channel (e.g. travel/tier itself correlating with eventual lethality, range-band choice, telegraph length) that leaks the outcome pre-impact while satisfying both tests?
+(b) Any remaining DESIGN-level contradiction or hole (not tuning): does the causal rule conflict with CG-CONTRAST, the suspense plan's climax framing, determinism, or the contract? Does "kill staged identically until impact" conflict with anything the director needs earlier?
+(c) Confirm whether the still-open items (detector constants, exact thresholds, EMA windows, overlap endpoint conventions, fixture authoring) are now purely IMPLEMENTATION/TUNING-level (a TDD build pins them against the reference + edge fixtures), or if any is still DESIGN-level.
+(d) FIRST-PLAN READINESS for beam-trade only.
+
+End with one line: IMPLEMENTATION-READY (design complete; residual is tuning-level) OR NEEDS-ANOTHER-PASS + the single biggest DESIGN-level blocker. Prefer fewer high-confidence findings; do not invent new scope.

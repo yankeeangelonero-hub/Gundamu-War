@@ -16,6 +16,10 @@ extends RefCounted
 ## nondecreasing start-tick order against the model built so far, so every target is in-ring
 ## by construction and a later beat never perturbs an earlier tick. Precedence at overlap is
 ## evade > stagger > ambient (latest-started covering beat wins).
+##
+## Public `position_at` and `movement_trace` delegate to movement_trace.gd (the single
+## source of truth for the position model). Internal staging helpers (_pos, _eval_layered,
+## etc.) remain here because they operate on the partial `built` array during generation.
 
 # --- staging parameters (world staging, separate from camera-craft ShotGrammar) ----------
 const SPAWN_X := 40.0          # mirrored spawn: A at -SPAWN_X, B at +SPAWN_X, on the z=0 line
@@ -105,40 +109,22 @@ static func stage(truth: Array, seed: int) -> Array:
 ## staged log (spawn {x,z} + that actor's `advance` beats). Vector2 is the ground plane
 ## (x, z). Single source of truth for the in-ring invariant and the movement trace; the
 ## runtime director need not match it exactly (it interpolates + `_engage`-clamps).
+## Delegates to movement_trace.gd — the canonical position model lives there.
 static func position_at(events: Array, actor: String, tick: int) -> Vector2:
-	return _eval_layered(_spawn_xz(events, actor), _advances_for(events, actor), tick)
+	return _MT.position_at(events, actor, tick)
 
 
 ## Per-tick, per-mech movement log resampled from the model, for comparing the technical
 ## cinematography quality of different builds/seeds later. One row per (tick, actor) while
 ## the mech is alive, in (tick, actor) order: {tick, actor, x, y, z, dist_to_enemy, speed,
 ## bearing_deg, boost}. Pure resample — x/z always agree with `position_at`.
+## Delegates to movement_trace.gd.
 static func movement_trace(events: Array) -> Array:
-	var destroyed := _destroyed_ticks(events)
-	var end_tick := _end_tick(events)
-	var rows := []
-	for tick in range(0, end_tick + 1):
-		for actor in ["A", "B"]:
-			if tick > int(destroyed.get(actor, 1 << 30)):
-				continue
-			var enemy := "B" if actor == "A" else "A"
-			var pos := position_at(events, actor, tick)
-			var prev := position_at(events, actor, tick - 1) if tick > 0 else pos
-			var vel := pos - prev
-			var speed := vel.length()
-			var bearing_deg := rad_to_deg(atan2(vel.y, vel.x)) if speed > 1e-4 else 0.0
-			rows.append({
-				"tick": tick,
-				"actor": actor,
-				"x": pos.x,
-				"y": _hop_y(events, actor, tick),
-				"z": pos.y,
-				"dist_to_enemy": pos.distance_to(position_at(events, enemy, tick)),
-				"speed": speed,
-				"bearing_deg": bearing_deg,
-				"boost": _active_advance(events, actor, tick).get("payload", {}).get("boost", false),
-			})
-	return rows
+	return _MT.movement_trace(events)
+
+
+## Cached reference to movement_trace.gd (loaded once, reused across static calls).
+static var _MT := load("res://scripts/sim/movement_trace.gd")
 
 
 # =========================================================================================

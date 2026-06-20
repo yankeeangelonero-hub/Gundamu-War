@@ -2,9 +2,9 @@
   "project": {
     "name": "Kitbash Mecha",
     "repo": "Gundamu-War",
-    "subtitle": "v1: a playable gauntlet run — build varied weapon loadouts on one mech frame and watch them resolve as cinematic 3D combat",
+    "subtitle": "v0.1: a first cinematic combat sandbox — assemble two weapon loadouts, press Fight, and watch deterministic anime / UC-legible 3D combat through the hybrid director. Fireworks first; the balanced gauntlet comes after.",
     "version": "0.1",
-    "updated": "2026-06-18"
+    "updated": "2026-06-20"
   },
   "nodes": [
     {
@@ -25,6 +25,16 @@
       "version": "0.1",
       "deps": [],
       "goal": "Same build(s) + seed produce the identical event sequence; simulation kept architecturally separate from rendering. This is the async-PvP re-simulation enabler."
+    },
+    {
+      "id": "dec-fireworks-first",
+      "title": "Fireworks first, balance later",
+      "state": "locked",
+      "kind": "decision",
+      "version": "0.1",
+      "deps": [],
+      "goal": "The first playable is a cinematic combat sandbox, NOT a balanced gauntlet. Build weapon combinations for two mechs, press Fight, and watch deterministic anime combat through the hybrid director. Target: Gundam fight readability — different archetypes and match shapes must render differently (stomp, pitched duel, ranged pressure, melee chase, artillery finish, shield attrition), not a generic effects reel. Balance, shop economy, hearts, run structure, and long-run gauntlet progression are explicitly deferred until the sandbox proves the fights slap.",
+      "spec": "docs/slices/CF-FIREWORKS-cinematic-combat-sandbox.md"
     },
     {
       "id": "cf-log-contract",
@@ -65,22 +75,38 @@
       "spec": "docs/superpowers/specs/2026-06-18-feel-profile-design.md"
     },
     {
-      "id": "m1-grid-editor",
-      "title": "M1 — Grid + power build editor (one frame)",
-      "state": "ready",
-      "kind": "milestone",
-      "version": "0.1",
-      "deps": [
-        "dec-stack"
-      ],
-      "goal": "The build editor on ONE mech frame: a 5x4 unified grid; place shaped builder/spender/support items in varied weapon loadouts and quantities; a single power battery economy; supports buff adjacent weapons (added/increased/more) AND author adjacency transforms (fork/chain/multishot) in their slots; slotted weapons mount on the shared 3D mech.",
-      "doneWhen": "Place a varied loadout (different weapons + quantities); see effective damage, power-per-shot, and authored transforms (fork/chain/multishot) change as supports cover a weapon; read total pool+regen; see weapons mount on the 3D mech. Resolver + grid pure and unit-tested.",
-      "next": "Build-screen UI design (in Claude design) -> implementation plan -> build.",
-      "spec": "docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md"
-    },
-    {
       "id": "cf-choreographer",
       "title": "Combat choreographer (log -> staged scene)",
+      "state": "in-progress",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "cf-log-contract",
+        "cf-viewer"
+      ],
+      "goal": "Stage the positionless truth log into spawn positions + advance beats so the director has a 3D scene to film. Replaces hand-authored positions. Implementation exists uncommitted with a known same-tick precedence bug (Ada): when a reactive evade/stagger starts on the same tick as an ambient stride, both `advance` events are emitted and `_eval_layered()` / `_active_advance()` (and director event order) can pick ambient instead of the higher-priority reactive beat. Current 39 PASS misses it because the tests avoid stride-boundary reactive windows.",
+      "doneWhen": "A contract-valid log is staged into deterministic positions the director films, AND the same-tick precedence bug is fixed (reactive evade/stagger on a stride boundary wins over ambient in both event emission and active-beat lookup), with a regression test that exercises a stride-boundary reactive window.",
+      "next": "FIRST on the immediate route. Fix the same-tick precedence bug + add the stride-boundary regression test, then land. Design pass is complete.",
+      "spec": "docs/superpowers/specs/2026-06-17-combat-choreographer-design.md"
+    },
+    {
+      "id": "cf-choreo-grammar",
+      "title": "Combat choreography grammar (theory-grounded staging)",
+      "state": "in-progress",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "cf-choreographer",
+        "cf-feel-core"
+      ],
+      "goal": "Replace the ambient choreographer's fixed pattern with a four-layer grammar (prosody/primitives/exchanges/dramaturgy) grounded in cited film theory (research synthesis C0-C40). Laws: CG-CONTRAST (per-mode), CG-SUSPENSE (no-pre-spoil gate + exciting-shape; suspense availability flagged as sim/balance), CG-BLIND (outcome-blind + causal/prefix-blind, incl. per-hit will-it-land micro-suspense). Data-extensible (motif/tier/travel + per-weapon mode-weights; archetypes = FeelProfile/preset data). The scheduler's total preemption rule subsumes cf-choreographer's same-tick precedence bug.",
+      "doneWhen": "Beam-trade path staged TDD against the reference-diff + edge-fight fixtures: CG-CONTRAST, CG-NO-PRESPOIL, CG-BLIND (mirror + prefix-blindness), determinism, and range/measure gates pass; the recreated reference fight tracks the hand-authored reference's metric band. Other modes are registered stubs.",
+      "next": "Approved design (rev 7; codex IMPLEMENTATION-READY, design-level blockers none). Implement the lean file set (choreographer.gd + grammar_params + movement_trace) beam-trade-first.",
+      "spec": "docs/superpowers/specs/2026-06-20-choreography-grammar-design.md"
+    },
+    {
+      "id": "cf-fireworks",
+      "title": "Fireworks profiler + parity report",
       "state": "ready",
       "kind": "slice",
       "version": "0.1",
@@ -88,24 +114,57 @@
         "cf-log-contract",
         "cf-viewer"
       ],
-      "goal": "Stage the positionless truth log into spawn positions + advance beats so the director has a 3D scene to film. Replaces hand-authored positions.",
-      "doneWhen": "A contract-valid log is staged into deterministic positions the director films.",
-      "next": "Implement against the contract + fixtures — design pass is complete.",
-      "spec": "docs/superpowers/specs/2026-06-17-combat-choreographer-design.md"
+      "goal": "The spectacle-profile tooling: read a fight log (authored or generated) and emit its spectacle profile — intended archetype/matchup shape, duration, event/attack density, longest dead-air gap, weapon mix, heavy-beat count, defensive/reversal beats, movement/boost/stagger profile, director-beat availability, finisher quality, taste verdict. Tracking records the intended archetype + spectacle shape, not only raw event counts. Plus a comparison report of any candidate log against fight_log_everything.json as the fireworks floor (not as a metronomic mold to mimic).",
+      "doneWhen": "A profiler produces a spectacle profile for fight_log_everything.json (baseline: 23.1s, 101 events, 50 attacks, 48 advances, 10 boosts, full arsenal, lethal buster finish) and a comparison report runs candidate-vs-baseline with a dead-air / spectacle-floor check.",
+      "next": "Second on the immediate route. Build the profiler over the existing fight_log schema, then the comparison report.",
+      "spec": "docs/slices/CF-FIREWORKS-cinematic-combat-sandbox.md"
     },
     {
-      "id": "m0-sim",
-      "title": "M0 — Build-driven deterministic sim",
+      "id": "m0-sandbox-sim",
+      "title": "M0 — Minimal weapon-combination sim (build-vs-build)",
       "state": "blocked",
       "kind": "milestone",
       "version": "0.1",
       "deps": [
-        "m1-grid-editor",
         "dec-determinism",
-        "cf-log-contract"
+        "cf-log-contract",
+        "cf-choreographer",
+        "cf-fireworks"
       ],
-      "goal": "Turn a backpack build into the fight the viewer renders: {build, seed} -> the contract event-log, replacing the hand-authored logs. Varied weapon loadouts/quantities and adjacency transforms (fork/chain/multishot) all express as legible log events.",
-      "doneWhen": "Varied M1 builds each resolve to a deterministic event stream that drives the existing viewer; fork/chain/multishot read in the log; a headless re-run is byte-identical."
+      "goal": "The smallest deterministic build-vs-build sim: two weapon combinations + a seed -> a contract-valid combat-truth event-log, then wired sim -> choreographer -> hybrid director (a temporary v2->v1 adapter is allowed if it is the shortest path). No grid economy required yet — it consumes a raw loadout so the sandbox can run before the full M1 editor. Different archetypes (rifle/missile pressure, buster artillery, saber/booster aggression, shield/tank attrition, mixed arsenal) must produce distinct logs and distinct camera/staging reads. Later extended to consume the M1 grid build.",
+      "doneWhen": "Two weapon loadouts + seed resolve to a contract-valid log that the choreographer stages and the hybrid director films; same loadouts + seed reproduce the identical normalized log byte-for-byte; no dead-air failure vs the fireworks floor.",
+      "next": "Third on the immediate route. Built after the choreographer lands and the profiler exists."
+    },
+    {
+      "id": "build-picker",
+      "title": "Crude build picker + fight launcher",
+      "state": "blocked",
+      "kind": "slice",
+      "version": "0.1",
+      "deps": [
+        "m0-sandbox-sim"
+      ],
+      "goal": "A crude UI to choose/assemble two weapon loadouts and press Fight, launching the deterministic sim -> choreographer -> director pipeline. Minimal — not the full M1 grid editor; just enough to drive the sandbox and pick distinct archetypes.",
+      "doneWhen": "A player can pick two loadouts, press Fight, and watch the generated cinematic fight; re-running the same picks + seed replays the identical fight.",
+      "next": "Fourth on the immediate route. Built after the minimal sim is wired to the director."
+    },
+    {
+      "id": "cf-sandbox",
+      "title": "First Cinematic Combat Sandbox (first playable)",
+      "state": "blocked",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "dec-fireworks-first",
+        "cf-choreographer",
+        "cf-fireworks",
+        "m0-sandbox-sim",
+        "build-picker"
+      ],
+      "goal": "The v0.1 first-playable finish line: assemble/choose weapon combinations for two mechs, press Fight, and watch deterministic anime / UC-legible combat through the hybrid director. Archetypes and match shapes render differently — stomp, pitched duel, ranged pressure, melee chase, artillery finish, shield attrition.",
+      "doneWhen": "At least three build archetypes (e.g. rifle+missiles, buster+shield, saber+booster) produce deterministic, visibly different spectacle profiles AND rendered reads; each has a comparison report vs fight_log_everything.json; each offers director-usable beats (opening hero beat, mid escalation, heavy/finisher, aftermath) with no dead-air failure.",
+      "next": "Gauntlet/shop/hearts come AFTER this proves the fights slap.",
+      "spec": "docs/slices/CF-FIREWORKS-cinematic-combat-sandbox.md"
     },
     {
       "id": "cf-feel-consumers",
@@ -118,25 +177,39 @@
         "cf-choreographer",
         "cf-viewer"
       ],
-      "goal": "The director grammar and choreographer read each build's FeelProfile and bias their own params, so a loadout visibly looks like itself on screen — a gun-heavy build films different from a melee-heavy or rapid-fire one.",
+      "goal": "The director grammar and choreographer read each build's FeelProfile and bias their own params, so a loadout visibly looks like itself on screen — a gun-heavy build films different from a melee-heavy or rapid-fire one. Sharpens the sandbox's archetype reads but is not a hard gate on the first playable.",
       "doneWhen": "Two different weapon loadouts on the same frame read distinctly on screen; the FeelProfile leaf is no longer dead.",
-      "next": "Build after the choreographer lands."
+      "next": "Parallel polish — build after the choreographer lands."
+    },
+    {
+      "id": "m1-grid-editor",
+      "title": "M1 — Grid + power build editor (richer build path)",
+      "state": "ready",
+      "kind": "milestone",
+      "version": "0.1",
+      "deps": [
+        "dec-stack"
+      ],
+      "goal": "The richer build editor on ONE mech frame: a 5x4 unified grid; place shaped builder/spender/support items in varied weapon loadouts and quantities; a single power battery economy; supports buff adjacent weapons (added/increased/more) AND author adjacency transforms (fork/chain/multishot) in their slots; slotted weapons mount on the shared 3D mech. Parallel to the sandbox's crude build-picker — this is the deeper build surface the later gauntlet needs, not a gate on the first playable.",
+      "doneWhen": "Place a varied loadout (different weapons + quantities); see effective damage, power-per-shot, and authored transforms (fork/chain/multishot) change as supports cover a weapon; read total pool+regen; see weapons mount on the 3D mech. Resolver + grid pure and unit-tested.",
+      "next": "Standalone-testable; can proceed in parallel with the sandbox route. Build-screen UI design (in Claude design) -> implementation plan -> build.",
+      "spec": "docs/superpowers/specs/2026-06-14-m1-build-grid-and-power-economy-design.md"
     },
     {
       "id": "m3-gauntlet",
-      "title": "M3 — The gauntlet run (v1 finish line)",
+      "title": "M3 — The gauntlet run (deferred behind the sandbox)",
       "state": "blocked",
       "kind": "milestone",
       "version": "0.1",
       "deps": [
+        "cf-sandbox",
         "m1-grid-editor",
-        "m0-sim",
-        "cf-choreographer",
+        "m0-sandbox-sim",
         "cf-feel-consumers"
       ],
-      "goal": "The v1 product: a playable gauntlet run. A shop phase (buy/sell/reroll) then a deterministic cinematic auto-battle vs a ghost opponent; a few hearts, a loss costs one, ends at zero or a win threshold; no persistence; pilot as the item-source hero. One frame; variety comes from weapon loadout + placement.",
+      "goal": "Deferred until the cinematic sandbox proves the fights slap. The balanced run: a shop phase (buy/sell/reroll) then a deterministic cinematic auto-battle vs a ghost opponent; a few hearts, a loss costs one, ends at zero or a win threshold; no persistence; pilot as the item-source hero. One frame; variety comes from weapon loadout + placement.",
       "doneWhen": "A tester plays a full escalating run building varied weapon loadouts that each keep functioning AND stay cinematic; the placement decisions feel like the fun.",
-      "next": "Last node before v1 ships."
+      "next": "Starts only after cf-sandbox is shipped."
     },
     {
       "id": "m2-synergy",
@@ -147,7 +220,7 @@
       "deps": [
         "m3-gauntlet"
       ],
-      "goal": "Deferred out of v1: distinct tall/wide/tank scaling vectors and archetype viability, bag-expansion container items, recipe/merge fusion at the round transition. v1 stays one frame; these add the multi-frame/archetype depth.",
+      "goal": "Deferred out of v0.1: distinct tall/wide/tank scaling vectors and archetype viability, bag-expansion container items, recipe/merge fusion at the round transition. v0.1 stays one frame; these add the multi-frame/archetype depth.",
       "doneWhen": "Tall, wide, and tank builds are each viable; expansions + recipes work end to end."
     },
     {
@@ -174,7 +247,7 @@
     }
   ],
   "canon": {
-    "sha": "991e0cfc58c70d3d3077eae036c9c1c917365c02",
+    "sha": "4bfb2ef48ebc17f8a1e290712f2d0027b026433d",
     "ref": "HEAD"
   }
 }

@@ -64,6 +64,7 @@ static func movement_trace(events: Array) -> Array:
 ## Cached references (loaded once, reused across static calls).
 static var _MT := load("res://scripts/sim/movement_trace.gd")
 static var _P := load("res://scripts/sim/grammar_params.gd")
+static var _GM := load("res://scripts/sim/grammar_metrics.gd")
 
 
 # =========================================================================================
@@ -342,8 +343,11 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 			"engage":
 				# Strafe to BAND distance on an oscillating bearing around the shooter's home
 				# side, so the duel circles instead of sliding head-on. Heavy beats boost in
-				# (airborne dash); the bearing/boost are fire-knowable (no outcome read).
-				var bearing: float = float(home[shooter]) + ORBIT_AMP * sin(float(it.orbit) * ORBIT_RATE)
+				# (airborne dash); the bearing/boost are fire-knowable (no outcome read). The
+				# per-side sign makes the strafe equivariant under (swap A<->B, negate-x) so the
+				# CG-BLIND mirror invariant holds (else home π vs 0 would flip the z-sign).
+				var sign := 1.0 if shooter == "A" else -1.0
+				var bearing: float = float(home[shooter]) + sign * ORBIT_AMP * sin(float(it.orbit) * ORBIT_RATE)
 				to = target_pos + Vector2(cos(bearing), sin(bearing)) * band
 				if bool(it.heavy):
 					boost = true
@@ -354,7 +358,9 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 				if bool(it.connects):
 					to = target_pos + away * KNOCK       # sell: a grounded stagger-step back, feet planted
 				else:
-					to = target_pos + away.orthogonal() * WEAVE  # near-miss: lateral weave
+					# near-miss: lateral weave. Per-side sign keeps it mirror-equivariant too.
+					var wsign := 1.0 if actor == "A" else -1.0
+					to = target_pos + away.orthogonal() * WEAVE * wsign
 		built.append({
 			"tick": start, "actor": actor, "kind": "advance",
 			"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": it.end},
@@ -439,3 +445,108 @@ static func _merge(truth: Array, spawn_pos: Dictionary, advances: Array) -> Arra
 			out.append(advances[j])
 			j += 1
 	return out
+
+
+# =========================================================================================
+# Layer 4 — dramaturgy: suspense plan + the root `presentation` hook block
+# =========================================================================================
+
+const TEMPLATES_PATH := "res://data/grammar_templates.json"
+
+## Load the shape → template_id registry (data, not code).
+static func load_templates() -> Dictionary:
+	var text := FileAccess.get_file_as_string(TEMPLATES_PATH)
+	var parsed: Variant = JSON.parse_string(text)
+	return parsed if parsed is Dictionary else {}
+
+
+## The side-channel `presentation` hook block (per the spec it rides as a side file, not inside
+## the frozen event log, until the contract amendment ratifies it). Pure structural facts:
+## per-beat hooks bound by truth_ref, plus a fight block with the classified shape + template,
+## phrase bounds, the staged apparent-initiative series (quantized to Q), the climax window, and
+## the lethal reference. The hard CG-NO-PRESPOIL gate never reads this block; the advisory
+## invariant is climax_window.start >= reveal(truth_dom).
+static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> Dictionary:
+	var staged := stage(truth, seed, feel_profiles)
+	var beats := schedule(truth, feel_profiles, load_mode_map())
+	var duration := _end_tick(truth) + 1
+
+	var td: Array = _GM.truth_dom(truth, _spawn_hp(truth))
+	var sd: Array = _GM.staged_dom(staged)
+	var shape: String = _GM.classify_shape(td, _has_kill(truth), duration)
+	var rev: int = _GM.reveal(td)
+	var late_gate := int(_P.LATE_FRAC * float(duration))
+	var climax_start: int = rev if rev < (1 << 20) else late_gate
+
+	var beat_hooks := []
+	for b in beats:
+		beat_hooks.append({
+			"truth_ref": b.truth_ref,
+			"exchange_mode": b.exchange_mode,
+			"range_band": "mid",  # beam-trade band this pass; range bands generalise with the modes
+			"cue_tick": int(b.cue_tick), "fire_tick": int(b.fire_tick), "impact_tick": int(b.impact_tick),
+			"is_background": bool(b.is_background),
+			"reaction_background": bool(b.reaction_background),
+			"is_impact": bool(b.connects),
+		})
+
+	var q := float(_P.Q)
+	var ai := []
+	for t in range(sd.size()):
+		ai.append({"tick": t, "lead": round(float(sd[t]) / q) * q})
+
+	var fight := {
+		"shape": shape,
+		"template_id": String(load_templates().get(shape, "")),
+		"phrase_bounds": _phrase_bounds(beats, int(_P.REACT)),
+		"apparent_initiative": ai,
+		"climax_window": [climax_start, maxi(duration - 1, climax_start)],
+		"lethal_ref": _lethal_ref(truth),
+	}
+	return {"beats": beat_hooks, "fight": fight}
+
+
+## Merge each beat's [cue_tick, impact_tick + gap] span into contiguous phrase bounds.
+static func _phrase_bounds(beats: Array, gap: int) -> Array:
+	var spans := []
+	for b in beats:
+		spans.append([int(b.cue_tick), int(b.impact_tick) + gap])
+	spans.sort_custom(func(p, q): return int(p[0]) < int(q[0]))
+	var merged := []
+	for s in spans:
+		if merged.is_empty() or int(s[0]) > int(merged[-1][1]):
+			merged.append([int(s[0]), int(s[1])])
+		else:
+			merged[-1][1] = maxi(int(merged[-1][1]), int(s[1]))
+	return merged
+
+
+## A kill exists if any shot resolves lethal (equivalently result.cause == "kill").
+static func _has_kill(truth: Array) -> bool:
+	for e in truth:
+		if e.kind == "shot" and bool(e.get("payload", {}).get("lethal", false)):
+			return true
+	return false
+
+
+## The lethal shot's truth ref {tick, seq}, or null if the fight has no kill.
+static func _lethal_ref(truth: Array):
+	for e in truth:
+		if e.kind == "shot" and bool(e.get("payload", {}).get("lethal", false)):
+			return {"tick": int(e.tick), "seq": int(e.seq)}
+	return null
+
+
+static func _spawn_hp(truth: Array) -> Dictionary:
+	var out := {}
+	for e in truth:
+		if e.kind == "spawn":
+			out[e.actor] = float(e.get("payload", {}).get("hp", 0.0))
+	return out
+
+
+static func _end_tick(truth: Array) -> int:
+	var last := 0
+	for e in truth:
+		last = maxi(last, int(e.tick))
+	return last

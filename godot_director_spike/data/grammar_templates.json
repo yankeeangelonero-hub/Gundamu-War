@@ -1,0 +1,8 @@
+{
+  "instant": "hero_stomp",
+  "stomp": "hero_stomp",
+  "reversal": "comeback",
+  "photofinish": "photo_finish",
+  "grind": "escalating_duel",
+  "stalemate": "standoff"
+}

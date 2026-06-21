@@ -169,7 +169,7 @@
     {
       "id": "cf-feel-consumers",
       "title": "FeelProfile consumers (grammar + choreographer bias)",
-      "state": "blocked",
+      "state": "shipped",
       "kind": "slice",
       "version": "0.1",
       "deps": [
@@ -247,7 +247,7 @@
     }
   ],
   "canon": {
-    "sha": "2ec4a84db5be90910e8a36ce66ab89b373962e90",
+    "sha": "1b02566ee59cf692a1d4df5b1aa4cb2d422ca9a2",
     "ref": "HEAD"
   }
 }

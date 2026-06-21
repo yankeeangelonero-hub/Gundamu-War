@@ -19,5 +19,33 @@
     "tempo_bias": 0.5,
     "mode_mix": {"ranged": 1.0},
     "overrides": {}
+  },
+  "anvil": {
+    "name": "anvil",
+    "heft_bias": 0.9,
+    "tempo_bias": 0.25,
+    "mode_mix": {"melee": 0.7, "ranged": 0.3},
+    "overrides": {"KNOCK": 8.0}
+  },
+  "hornet": {
+    "name": "hornet",
+    "heft_bias": 0.1,
+    "tempo_bias": 0.95,
+    "mode_mix": {"barrage": 0.7, "ranged": 0.3},
+    "overrides": {"ORBIT_AMP": 0.85, "KNOCK": 22.0}
+  },
+  "lancer": {
+    "name": "lancer",
+    "heft_bias": 0.25,
+    "tempo_bias": 0.9,
+    "mode_mix": {},
+    "overrides": {"WEAVE": 22.0}
+  },
+  "bastion": {
+    "name": "bastion",
+    "heft_bias": 0.9,
+    "tempo_bias": 0.2,
+    "mode_mix": {"ranged": 1.0},
+    "overrides": {}
   }
 }

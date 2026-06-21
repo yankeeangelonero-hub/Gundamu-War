@@ -52,6 +52,16 @@ const HEAVY_TIER := 3
 ## Damage threshold for heavy-at-impact emphasis (applies only at impact, not cue).
 const HEAVY_DMG := 50.0
 
+# --- Exchange movement (mobility) ---
+## A shooter whose FeelProfile heft is below this is a MOBILE (light) build: it strafes through
+## its firing window instead of planting (plant-then-fire). At/above it, the build plants.
+## TUNING: raise to make more builds strafe; lower to make only the lightest strafe.
+const MOBILE_HEFT := 0.4
+
+## Mobile-shooter strafe amplitude as a fraction of the build's WEAVE (the lateral throw of the
+## attack-while-strafing weave). A build widens its own strafe by overriding WEAVE in its preset.
+const STRAFE_AMP := 0.6
+
 # --- Dominance series / no-prespoil ---
 ## EMA window in ticks for pressure and sell EMAs. alpha = 2/(W+1).
 ## TUNING: larger W smooths more (longer memory), smaller W reacts faster.

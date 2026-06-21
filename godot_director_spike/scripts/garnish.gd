@@ -62,7 +62,7 @@ func _energy_mat(color: Color, mult := 8.0) -> StandardMaterial3D:
 	m.albedo_color = Color(1, 1, 1)
 	return m
 
-## A beam segment from→to: a single HDR-emissive bar that self-fades.
+## A beam segment from-to: a single HDR-emissive bar that self-fades.
 func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void:
 	var holder := Node3D.new()
 	add_child(holder)
@@ -77,7 +77,7 @@ func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void
 	tw.chain().tween_callback(holder.queue_free)
 
 ## Re-aim a shot so it leaves straight down the barrel (following the rifle's
-## animated rotation) while keeping the original muzzle→aim distance — so a hit
+## animated rotation) while keeping the original muzzle-aim distance - so a hit
 ## still reaches the enemy plane and a miss still overshoots by the same length.
 func _barrel_aim(shooter: Node3D, from: Vector3, aim_point: Vector3) -> Vector3:
 	if not shooter.has_method("muzzle_forward"):
@@ -117,8 +117,6 @@ func _smash_building(b: Node3D, mech: Node3D) -> void:
 	_debris(at)
 	_ring(Vector3(b.position.x, 1.0, b.position.z), Color(0.6, 0.55, 0.5), 70.0)
 	director.shake_strength = maxf(director.shake_strength, 1.8)
-	if mech.has_method("crash_jolt"):
-		mech.crash_jolt()
 	var mat: ShaderMaterial = (b as MeshInstance3D).mesh.material
 	var tw := create_tween().set_parallel(true)
 	# Topple over in the dash direction, slide, sink, and char.
@@ -208,7 +206,7 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	director.shake_strength = maxf(director.shake_strength, 0.8 if payload.get("hit", false) else 0.3)
 
 ## A beam tore through this building: blast at the entry point, then the
-## whole block collapses straight down into a charred slab. Visual-only —
+## whole block collapses straight down into a charred slab. Visual-only -
 ## the city layout and beam line are both deterministic, so the same
 ## buildings die on every run of the same log.
 func _detonate_building(b: Node3D, at: Vector3, from: Vector3) -> void:
@@ -359,7 +357,7 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 
 ## Blade clash: a burst of sparks + light at the contact point between the two
 ## suits. A block locks blades (cool sparks, push apart); a connecting cleave is
-## a hot flash + hitstop. Placed at the rendered midpoint — the outcome is the log.
+## a hot flash + hitstop. Placed at the rendered midpoint - the outcome is the log.
 func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var contact := shooter.position.lerp(target.position, 0.5) + Vector3(0, 11, 0)
 	var blocked: bool = payload.get("blocked", false)
@@ -413,7 +411,7 @@ func _tracer(shooter: Node3D, target: Node3D, is_hit: bool, delay: float) -> voi
 		_impact_flash(to, Color(1.0, 0.7, 0.3), 0.5 if is_hit else 0.9)
 		b.queue_free())
 
-## A short-lived OmniLight that flashes then fades and frees — gives an ordinary
+## A short-lived OmniLight that flashes then fades and frees - gives an ordinary
 ## beam its dynamic cast on mechs and city (F24), scaled by the grammar dial.
 func _beam_light(pos: Vector3, color: Color, peak: float) -> void:
 	var l := OmniLight3D.new()
@@ -555,7 +553,7 @@ func _ring(pos: Vector3, color := Color(1.0, 0.8, 0.5), size := 40.0) -> void:
 
 func _hitstop(dur := 0.07) -> void:
 	if Engine.time_scale < 0.2:
-		return   # already slow (bullet-time or another hitstop) — don't stack/corrupt
+		return   # already slow (bullet-time or another hitstop) - don't stack/corrupt
 	Engine.time_scale = 0.05
 	await get_tree().create_timer(dur, true, false, true).timeout
 	# Restore to what the current shot wants, never to a captured (possibly stale) value.

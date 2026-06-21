@@ -9,6 +9,23 @@ class_name ShotGrammar
 # --- Timing / Cut (F5, F14, F37, F38) ---
 @export var os_len: float = 1.8       # over-shoulder intercut length (tuned independently of cut_len)
 @export var cut_len: float = 1.8      # hero-cut intercut length (tuned independently of os_len)
+@export var min_iso: float = 1.0      # shortest legible iso re-establish BETWEEN cinematic shots; a
+                                      # gap below this is absorbed into the prior shot (no flash-cut)
+@export var dolly_cap: float = 60.0   # max camera linear speed (u/s wall) for the eased orbiting
+                                      # shots, so a fast/violent subject is tracked, never whip-panned
+@export var melee_radius_factor: float = 1.4  # melee_cut orbit radius grows with mech separation by
+                                              # this factor, so both mechs stay framed through a recoil
+
+# --- Render: body feel (F1 mass-ramp + F11 weight + tempo cadence) ---
+# How a build's FeelProfile maps to the rendered body in mech_actor.apply_feel(). Each entry is
+# [value-at-param-0, value-at-param-1], lerped by the named param. Lifting these here makes the
+# fast-vs-slow spread a tunable grammar value instead of a hardcoded curve in the actor.
+@export var feel: Dictionary = {
+	"max_speed": [64.0, 28.0],   # by HEFT: cruise cap — light darts, heavy lumbers
+	"max_accel": [34.0, 10.0],   # by HEFT: accel — light snaps up to speed, heavy ramps slowly
+	"pose_rate": [1.0, 0.5],     # by HEFT: upper-body ease rate — heavy commits/holds a pose (F11)
+	"gait":      [0.6, 1.7],     # by TEMPO: walk-bob/footfall cadence — high tempo = busy/twitchy legs
+}
 @export var bt_pre: float = 0.2       # bullet-time lead before the lethal hit
 @export var bt_post: float = 0.55     # bullet-time hold past the lethal hit (covers the kill)
 @export var bt_scale: float = 0.07    # bullet-time time-scale (slow-mo)

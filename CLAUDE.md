@@ -58,6 +58,25 @@ then an implementation plan — no code yet.
   must be reproducible so a headless re-simulation can verify it.
 - Simulation and animation are separate concerns; keep them architecturally distinct so a
   fight can be skipped, replayed, or re-simulated server-side.
+- Debugging a visual / camera / feel issue: INSTRUMENT AND MEASURE THE ACTUAL SIGNAL — do not
+  infer behaviour from reading code or from proxy data. For camera bugs, log the real runtime
+  camera per frame (position, look-direction, fov, per-frame Δpos and Δaim, and whether each
+  subject is inside the frustum) via `main.gd --camlog` → `tmp/camlog.json`, then separate
+  intentional changes (a spike AT a shot-index boundary = a cut) from artifacts (a spike WITHIN
+  a shot = jerk). For movement/feel, log each actor's real integrated `velocity`, not the
+  choreographer's waypoint positions. This is how the 2026-06-21 melee-camera jerk was actually
+  solved (the framing was fine; the camera *velocity* was the bug) after several inferred guesses
+  missed. Measure, change, re-measure.
+- Combat-feel TUNING lives in the grammar, not scattered magic numbers. Two homes: (1)
+  `scripts/sim/grammar_params.gd` — sim/choreographer constants (range bands, KNOCK, WEAVE,
+  ORBIT_AMP, MOBILE_HEFT, STRAFE_AMP, …), each per-archetype overridable through a preset's
+  `overrides:{CONST: value}` → `_param()`; (2) `scripts/director/shot_grammar.gd` (`ShotGrammar`)
+  — render/camera params (`min_iso`, `dolly_cap`, `melee_radius_factor`, and the `feel` body
+  curves heft→speed/accel/pose + tempo→gait that `mech_actor.apply_feel` reads). A new suit
+  archetype is a DATA ROW in `data/grammar_presets.json` (heft/tempo/mode_mix/weapons/overrides) —
+  no code. The four exchange modes + plant/strafe behaviours stay in code on purpose (a closed
+  grammar vocabulary, not config). So: add an archetype = data; tune the response = edit one
+  grammar resource (or override per-build); add a behaviour = code.
 - Opponent builds are an injected data source behind one interface. The game simulates any
   build identically whether it came from a static file, a designer, or a real player. Near
   term, opponents are local seeded ghost builds shaped like real-player builds; there is no

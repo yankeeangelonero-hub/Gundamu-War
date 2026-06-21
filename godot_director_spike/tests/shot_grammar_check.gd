@@ -19,6 +19,10 @@ func _initialize() -> void:
 		# Timing
 		check(g.os_len == 1.8, "os_len == 1.8")
 		check(g.cut_len == 1.8, "cut_len == 1.8")
+		check(g.min_iso == 1.0, "min_iso == 1.0")
+		check(g.dolly_cap == 60.0, "dolly_cap == 60.0")
+		check(g.melee_radius_factor == 1.4, "melee_radius_factor == 1.4")
+		check(g.feel.has("max_speed") and g.feel.has("gait"), "feel curves present (heft->speed/accel/pose, tempo->gait)")
 		check(g.bt_pre == 0.2, "bt_pre == 0.2")
 		check(g.bt_post == 0.55, "bt_post == 0.55")
 		check(g.bt_scale == 0.07, "bt_scale == 0.07")

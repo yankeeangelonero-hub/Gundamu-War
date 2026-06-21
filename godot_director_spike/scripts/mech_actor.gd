@@ -23,9 +23,10 @@ var _prev_yaw := 0.0
 var velocity := Vector3.ZERO
 var _target := Vector3.ZERO
 var max_speed := 48.0    # keep top speed up (slow mechs linger in the city and
-var max_accel := 24.0    # tank perf); HEAVY comes from low accel — slow ramp, carried momentum
+var max_accel := 24.0    # tank perf); HEAVY comes from low accel - slow ramp, carried momentum
 var pose_rate := 1.0     # F11 weight (smooth): heavy builds ease facing/lean/arms SLOWER (more
                          # committed, longer-held), never stepped. 1.0 = light/unchanged.
+var gait := 1.0          # tempo cadence: walk-bob/footfall frequency multiplier (>1 = busy/twitchy legs)
 var _boost_t := 0.0
 var _boost_cd := 0.0     # cooldown: must walk/strafe before boosting again
 var _was_airborne := false
@@ -60,11 +61,22 @@ func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged :
 ## Apply the build's FeelProfile heft to the body's render mass (F1 mass-ramp): a heavier mech
 ## has a LOWER acceleration cap, so it spins up slower, carries more momentum, and coasts/banks
 ## harder; a light mech starts and stops crisply. Set by main.gd from the presentation hooks.
-func apply_feel(heft: float) -> void:
+func apply_feel(heft: float, tempo := 0.5, grammar: ShotGrammar = null) -> void:
 	var h := clampf(heft, 0.0, 1.0)
-	max_accel = lerpf(30.0, 14.0, h)
+	if grammar == null:
+		grammar = ShotGrammar.default()
+	var f: Dictionary = grammar.feel
+	# Heft governs BOTH cruise speed and acceleration so a light suit visibly out-moves a heavy
+	# one (fast-vs-slow): a light mech darts (high top speed, snappy ramp), a heavy one lumbers
+	# (low top speed, slow ramp + carried momentum). Top speed must differ, not just the ramp -
+	# otherwise both cruise at the same cap and only differ while accelerating.
+	max_speed = lerpf(f.max_speed[0], f.max_speed[1], h)
+	max_accel = lerpf(f.max_accel[0], f.max_accel[1], h)
 	# Heavier -> slower, more committed upper-body pose easing (smooth). Half-speed at full heft.
-	pose_rate = lerpf(1.0, 0.5, h)
+	pose_rate = lerpf(f.pose_rate[0], f.pose_rate[1], h)
+	# Tempo is the gait CADENCE (distinct from heft's weight): a high-tempo suit steps/bobs fast
+	# (busy, twitchy legs), a low-tempo one lumbers. Drives the walk-bob + footfall frequency.
+	gait = lerpf(f.gait[0], f.gait[1], clampf(tempo, 0.0, 1.0))
 
 func _ready() -> void:
 	if rigged:
@@ -163,7 +175,7 @@ func _box(size: Vector3, pos: Vector3, emissive := false) -> Node3D:
 	return m
 
 ## Full-armour loadout: bolt-on plating + shoulder missile pods (with glowing
-## launch tubes), backpack, skirt and leg armour — a heavier, bristling silhouette.
+## launch tubes), backpack, skirt and leg armour - a heavier, bristling silhouette.
 func _add_armor() -> void:
 	var ac := tint.darkened(0.15)
 	_armor_box(Vector3(6.6, 5.2, 4.2), Vector3(0, 11.3, 0.4), ac)     # chest bulk
@@ -192,7 +204,7 @@ func _armor_box(size: Vector3, pos: Vector3, col: Color) -> Node3D:
 
 func look_at_enemy_side() -> void:
 	# Model front (visor band, gun, muzzle) is local +Z. A spawns left (-x) and
-	# faces the enemy on the right (+x) → +90°; B faces left → -90°.
+	# faces the enemy on the right (+x) - +90 deg; B faces left - -90 deg.
 	rotation.y = deg_to_rad(90) if actor_id == "A" else deg_to_rad(-90)
 	_target_yaw = rotation.y
 
@@ -205,7 +217,7 @@ func _process(delta: float) -> void:
 	_land_cd = maxf(0.0, _land_cd - delta)
 	_lock_t = maxf(0.0, _lock_t - delta)
 	if _lock_t > 0.0:
-		# Blades locked: planted, straining — no seeking, no sliding.
+		# Blades locked: planted, straining - no seeking, no sliding.
 		velocity = velocity.lerp(Vector3.ZERO, 14.0 * delta)
 	else:
 		var cap := max_speed + (22.5 if _boost_t > 0.0 else 0.0)
@@ -223,10 +235,10 @@ func _process(delta: float) -> void:
 		if velocity.length() > cap:
 			velocity = velocity.normalized() * cap
 	position += velocity * delta
-	if position.y < 0.0:
-		position.y = 0.0
-		if velocity.y < 0.0:
-			velocity.y = 0.0
+	# Ground-plane only: combat is grounded (boost is a horizontal skim; airborne is disabled), so
+	# the body never leaves the deck - no hops from a building-smash or a boost's vertical component.
+	position.y = 0.0
+	velocity.y = 0.0
 	var spd := velocity.length()
 	moving = spd > 1.0
 	dashing = spd > 28.0
@@ -240,14 +252,14 @@ func _process(delta: float) -> void:
 		if Vector2(fd.x, fd.z).length() > 0.5:
 			_target_yaw = atan2(fd.x, fd.z)
 	# Weight via committed-and-held pose (the smooth F11 translation): a heavy mech eases its
-	# upper-body pose (facing, AMBAC, lean) SLOWER (pose_rate < 1) — it commits to a pose and
+	# upper-body pose (facing, AMBAC, lean) SLOWER (pose_rate < 1) - it commits to a pose and
 	# holds it longer, changing deliberately. Fully smooth, never stepped. Light builds run at
 	# pose_rate 1.0 (unchanged). Position/gait are owned by the integrator (the mass-ramp).
 	rotation.y = lerp_angle(rotation.y, _target_yaw, (16.0 if dashing else 11.0) * pose_rate * delta)
 	if rigged:
 		_drive_rig(delta)
 		return   # skip the block-out box visuals; the rig + clips handle the body
-	# AMBAC: the mech whips its facing by swinging its arms — the limbs counter-rotate the torso
+	# AMBAC: the mech whips its facing by swinging its arms - the limbs counter-rotate the torso
 	# (angular momentum), so a turn reads as limb-driven.
 	var yaw_vel := angle_difference(_prev_yaw, rotation.y) / maxf(delta, 0.0001)
 	_prev_yaw = rotation.y
@@ -268,8 +280,8 @@ func _process(delta: float) -> void:
 	_crouch = lerpf(_crouch, 0.0, 8.0 * delta)
 	if moving and not airborne:
 		# Heavy gait: slow, big bob with a pronounced weight-shift waddle. Each
-		# footfall (every half-cycle) thuds — kicks the camera and dips the torso.
-		_bob_t += delta * (16.0 if dashing else 6.0)
+		# footfall (every half-cycle) thuds - kicks the camera and dips the torso.
+		_bob_t += delta * (16.0 if dashing else 6.0) * gait
 		torso.position.y = 11.0 + sin(_bob_t) * (0.5 if dashing else 0.55) - _crouch
 		rotation.z = sin(_bob_t * 0.5) * 0.03
 		if not dashing:
@@ -297,7 +309,7 @@ func _process(delta: float) -> void:
 	if _swinging and _saber_lit:
 		_spawn_blade_trail()
 
-## Set the move target. The integrator in _process steers there with inertia —
+## Set the move target. The integrator in _process steers there with inertia -
 ## velocity carries across calls, so a new target mid-move curves the mech rather
 ## than restarting it. A boost adds a one-shot thruster impulse + flare and is the
 ## only thing that goes airborne; default movement is grounded and momentum-driven.
@@ -319,7 +331,7 @@ func walk_to(to_x: float, to_y: float, to_z: float, dur: float, boost := false) 
 		_boost_cd = 3.2                               # then must walk/strafe before boosting again
 		_boost_flare(-(_target - position).normalized())
 	elif boost:
-		_target.y = 0.0                               # boost requested but on cooldown → stay grounded
+		_target.y = 0.0                               # boost requested but on cooldown - stay grounded
 
 ## Thruster jet: a bright flare + light kick at the back of the mech, pointing
 ## opposite the boost vector, that flashes and fades on each dash onset.
@@ -348,7 +360,7 @@ func _boost_flare(back_dir: Vector3) -> void:
 	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.3)
 	tw.chain().tween_callback(jet.queue_free)
 
-## Turn (eased in _process) to face a world point — used when firing mid-run.
+## Turn (eased in _process) to face a world point - used when firing mid-run.
 func face_toward(p: Vector3) -> void:
 	var d := p - position
 	if Vector2(d.x, d.z).length() > 0.5:
@@ -441,7 +453,7 @@ func retract_saber() -> void:
 	tw.tween_callback(func(): saber.visible = false)
 
 ## Melee strike: ignite, lunge in, and swing the blade arm in a big cleave arc
-## that lays down a glowing swing trail. Presentation only — whether it connects
+## that lays down a glowing swing trail. Presentation only - whether it connects
 ## is the log event, not this animation.
 func melee_strike(target_pos: Vector3, _style: String) -> void:
 	ignite_saber()
@@ -487,7 +499,7 @@ func parry() -> void:
 	tw.tween_callback(func(): _blocking = false)
 	get_tree().create_timer(1.3).timeout.connect(retract_saber)
 
-## A fading copy of the blade dropped at its current pose each frame of a swing —
+## A fading copy of the blade dropped at its current pose each frame of a swing -
 ## together they read as a glowing arc trailing the cleave.
 func _spawn_blade_trail() -> void:
 	var g := MeshInstance3D.new()
@@ -506,9 +518,6 @@ func _spawn_blade_trail() -> void:
 	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.24)
 	tw.chain().tween_callback(g.queue_free)
 
-## An upward velocity bump when the mech body-checks through a building.
-func crash_jolt() -> void:
-	velocity.y += 6.0
 
 func muzzle_pos() -> Vector3:
 	return muzzle.global_position
@@ -579,7 +588,7 @@ func die() -> void:
 
 # ---- rigged mode: Mixamo Y-bot + bolt-on box armour + box rifle ----
 
-const RIG_SCALE := 11.0   # Mixamo ~1.7u tall → ~19u mech, matching the city scale
+const RIG_SCALE := 11.0   # Mixamo ~1.7u tall - ~19u mech, matching the city scale
 
 func _build_rigged() -> void:
 	var packed := load("res://models/run_rifle.fbx") as PackedScene
@@ -590,7 +599,7 @@ func _build_rigged() -> void:
 	_anim = _find_type(_rig, "AnimationPlayer")
 	if _anim == null or _skel == null:
 		push_error("rigged mech: skeleton/anim not found"); return
-	# Base clip (the run-rifle take) → "run"; pull the others in from their files.
+	# Base clip (the run-rifle take) - "run"; pull the others in from their files.
 	_install_anim("run", _anim.get_animation("mixamo_com"))
 	_add_clip("walk", "res://models/walk.fbx")
 	_add_clip("strafe_l", "res://models/strafe_left.fbx")
@@ -600,7 +609,7 @@ func _build_rigged() -> void:
 	for c in ["run", "walk", "strafe_l", "strafe_r", "stand"]:
 		_prep_loco(c)
 	_prep_oneshot("fire")   # one-shot firing stance for the plant; "stand" is the relaxed idle
-	_attach_rifle()   # weapons only — no bolt-on armour (the real mech brings its own)
+	_attach_rifle()   # weapons only - no bolt-on armour (the real mech brings its own)
 	var start := "stand" if _anim.has_animation("stand") else "walk"
 	_anim.play(start)
 	_cur_clip = start
@@ -648,7 +657,7 @@ func _prep_loco(clip_name: String) -> void:
 			a.remove_track(i)
 			return
 
-## Like _prep_loco but plays once (firing stance) — strip root drift, no loop.
+## Like _prep_loco but plays once (firing stance) - strip root drift, no loop.
 func _prep_oneshot(clip_name: String) -> void:
 	var a := _anim.get_animation(clip_name)
 	if a == null:
@@ -668,7 +677,7 @@ func _drive_rig(delta: float) -> void:
 	var lat := velocity.dot(transform.basis.x)
 	var clip := "stand"
 	# Front (local +Z) tracks the enemy, so a sideways move is a strafe. local +X is
-	# the mech's LEFT (front +Z, up +Y → +X faces left), so +lat = stepping left.
+	# the mech's LEFT (front +Z, up +Y - +X faces left), so +lat = stepping left.
 	if spd > 5.0 and absf(lat) > absf(fwd):
 		clip = "strafe_l" if lat > 0.0 else "strafe_r"
 	elif spd > 14.0:
@@ -676,7 +685,7 @@ func _drive_rig(delta: float) -> void:
 	elif spd > 2.0:
 		clip = "walk"
 	if not _anim.has_animation(clip):
-		clip = "walk"   # stand missing → fall back so a stopped mech still cycles
+		clip = "walk"   # stand missing - fall back so a stopped mech still cycles
 	if clip != _cur_clip and _anim.has_animation(clip):
 		_cur_clip = clip
 		_anim.play(clip, 0.25)
@@ -734,7 +743,7 @@ func _attach_rifle() -> void:
 	ba.bone_name = "mixamorig_RightHand"
 	# Holder carries the (correct) facing rotation; the rifle + muzzle are then
 	# offset along the HOLDER's forward, so they sit in the hand and extend down
-	# the barrel — not along the hand bone's Z (which pointed at the shoulder).
+	# the barrel - not along the hand bone's Z (which pointed at the shoulder).
 	var holder := Node3D.new()
 	holder.rotation_degrees = Vector3(-90, 0, 0)
 	ba.add_child(holder)
@@ -749,5 +758,5 @@ func _attach_rifle() -> void:
 	rifle.position = Vector3(0, 0, 0.34)    # grip at the hand, barrel extends forward
 	holder.add_child(rifle)
 	muzzle = Node3D.new()
-	muzzle.position = Vector3(0, 0, 0.78)   # barrel tip — projectiles originate + aim from here
+	muzzle.position = Vector3(0, 0, 0.78)   # barrel tip - projectiles originate + aim from here
 	holder.add_child(muzzle)

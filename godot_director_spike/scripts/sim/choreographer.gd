@@ -1,5 +1,5 @@
 extends RefCounted
-## Combat Choreographer — stages the positionless combat-truth log for the camera.
+## Combat Choreographer - stages the positionless combat-truth log for the camera.
 ## Spec: docs/superpowers/specs/2026-06-20-choreography-grammar-design.md
 ##   (supersedes the ambient-only 2026-06-17-combat-choreographer-design.md).
 ##
@@ -7,16 +7,16 @@ extends RefCounted
 ## presentation layer merged in (spawn {x,z} + `advance` movement beats). It is the stage
 ## manager in `build -> sim -> log -> CHOREOGRAPHER -> director`: it decides where the two
 ## mechs ARE and how they MOVE so the director has a 3D scene to film. It never edits
-## combat-truth — it only adds. Deterministic and reproducible, but NOT verified (the
+## combat-truth - it only adds. Deterministic and reproducible, but NOT verified (the
 ## presentation layer the contract's INV-VERIFY excludes).
 ##
 ## Pipeline (four layers, outer-to-inner; pass 1 implements the beam-trade path only):
-##   Layer 3 — schedule() groups shots into beats (mode per shot, coalesce, rank by tier,
+##   Layer 3 - schedule() groups shots into beats (mode per shot, coalesce, rank by tier,
 ##     commit screen-time with preemption), then the beam-trade exchange places both mechs in
-##     a range band and structures each beat as Cue·Reaction·Action, emitting `advance` beats.
+##     a range band and structures each beat as Cue-Reaction-Action, emitting `advance` beats.
 ##   Layer 1 prosody and Layer 4 dramaturgy land in later increments.
 ##
-## CG-BLIND: pre-impact staging (cue→fire→track) reads only fire-knowable attributes; the
+## CG-BLIND: pre-impact staging (cue-fire-track) reads only fire-knowable attributes; the
 ## victim's sell/near-miss is staged AT impact, where the truth itself reveals the resolution.
 ## So a hit and a miss are staged identically until the impact tick.
 ##
@@ -28,7 +28,7 @@ extends RefCounted
 const SPAWN_X := 40.0   # mirrored spawn: A at -SPAWN_X, B at +SPAWN_X, on the z=0 line
 const KNOCK := 14.0     # how far an at-impact sell shoves the struck mech away from the shooter
 const WEAVE := 16.0     # lateral offset of a near-miss dodge (a miss reaction, not a sell)
-const ORBIT_AMP := 0.5  # radians the engage strafes off the shooter's home bearing (~28°: circles its own side, never crosses center)
+const ORBIT_AMP := 0.5  # radians the engage strafes off the shooter's home bearing (~28 deg: circles its own side, never crosses center)
 const ORBIT_RATE := 1.1 # how fast the strafe oscillates across successive beats (zig-zag, not a slow drift)
 const ANTICIPATE := 3.0 # how far the mech loads BACK before a dash (weight gathering; heft-scaled). F1/F13.
 const OVERSHOOT := 5.0  # how far a dash carries PAST its mark before settling back (mass can't stop on a dime). F1.
@@ -39,7 +39,7 @@ const OVERSHOOT := 5.0  # how far a dash carries PAST its mark before settling b
 # =========================================================================================
 
 ## Stage the combat-truth log: returns the input truth events (unchanged, in canonical
-## (tick, seq) order) with presentation events merged in — `advance` beats slotted after the
+## (tick, seq) order) with presentation events merged in - `advance` beats slotted after the
 ## truth of their tick (actor A before B), and {x,z} added onto each `spawn`. `feel_profiles`
 ## is required (one {heft, tempo, mode_mix} per actor); seed pins any presentation RNG (the
 ## beam-trade exchange is deterministic geometry, so seed is currently inert but pinned).
@@ -68,7 +68,7 @@ static var _GM := load("res://scripts/sim/grammar_metrics.gd")
 
 
 # =========================================================================================
-# Layer 3 — exchange-mode composition (beat scheduler, Step 0)
+# Layer 3 - exchange-mode composition (beat scheduler, Step 0)
 # =========================================================================================
 
 ## The closed four-mode grammar vocabulary, in the fixed tie-break order
@@ -77,7 +77,7 @@ const GRAMMAR_MODES := ["beam-trade", "swarm", "dodge-pursuit", "melee"]
 
 ## Select a shot's grammar mode from the SHOOTER's FeelProfile mode_mix and the firing
 ## weapon's mode_weights, mapping feel-modes to grammar-modes via mode_map. Pure argmax:
-##   feel_g[g] = Σ_{f → g in mode_map} mode_mix[f];  score[g] = mode_weights[g] · feel_g[g].
+##   feel_g[g] = sum_{f->g in mode_map} mode_mix[f];  score[g] = mode_weights[g] * feel_g[g].
 ## Ties resolve to the earliest mode in GRAMMAR_MODES order. This is the real selection seam;
 ## pass-1 beam-trade gating is applied separately by the caller (gate_mode), so selection is
 ## exercised even while only beam-trade is staged.
@@ -111,10 +111,10 @@ static func select_mode(mode_mix: Dictionary, mode_weights: Dictionary, mode_map
 	return w_best
 
 
-## Path to the feel-mode → grammar-mode data table (a versioned data resource, not code).
+## Path to the feel-mode - grammar-mode data table (a versioned data resource, not code).
 const MODE_MAP_PATH := "res://data/grammar_mode_map.json"
 
-## Load the feel-mode → grammar-mode table from MODE_MAP_PATH.
+## Load the feel-mode - grammar-mode table from MODE_MAP_PATH.
 static func load_mode_map() -> Dictionary:
 	var text := FileAccess.get_file_as_string(MODE_MAP_PATH)
 	var parsed: Variant = JSON.parse_string(text)
@@ -133,7 +133,7 @@ static func validate_mode_map(mode_map: Dictionary, feel_modes: Array) -> bool:
 	return true
 
 
-## Path to the weapon-motif → grammar-mode-weights table (data, not code).
+## Path to the weapon-motif - grammar-mode-weights table (data, not code).
 const MOTIF_WEIGHTS_PATH := "res://data/grammar_motif_weights.json"
 
 ## Per-weapon mode_weights for a motif, from MOTIF_WEIGHTS_PATH. A weapon weights several grammar
@@ -152,7 +152,7 @@ static func _motif_table() -> Variant:
 
 
 # =========================================================================================
-# Layer 3 — beat scheduler (total & deterministic)
+# Layer 3 - beat scheduler (total & deterministic)
 # =========================================================================================
 
 ## Neutral weapon weights used for mode selection: the truth log carries `motif`/`tier`/
@@ -162,19 +162,19 @@ static func _motif_table() -> Variant:
 const NEUTRAL_MODE_WEIGHTS := {"beam-trade": 1.0, "swarm": 1.0, "dodge-pursuit": 1.0, "melee": 1.0}
 
 ## Group the truth shots into beats. Total & deterministic, ordered by (tick, seq).
-##   Step 0 — mode per shot (select_mode on the shooter's mode_mix; gated to beam-trade).
-##   Step 1 — coalesce: same shooter + same selected mode within COALESCE_WINDOW ticks → one
+##   Step 0 - mode per shot (select_mode on the shooter's mode_mix; gated to beam-trade).
+##   Step 1 - coalesce: same shooter + same selected mode within COALESCE_WINDOW ticks - one
 ##     beat. Representative = (tick,seq)-earliest; impact_tick = latest impact; fire_tick =
-##     impact_tick − representative.travel; cue_tick = max(fire_tick − TELEGRAPH, spawn tick).
-##   Step 2 — rank (fire-knowable): heavy (tier ≥ HEAVY_TIER) > normal; tier only, never
+##     impact_tick - representative.travel; cue_tick = max(fire_tick - TELEGRAPH, spawn tick).
+##   Step 2 - rank (fire-knowable): heavy (tier - HEAVY_TIER) > normal; tier only, never
 ##     lethal/damage (CG-BLIND part 2). The lethal resolution is an at-impact treatment.
 ## Step 3 (commit/preemption: is_background/reaction_background) is applied by commit_beats().
-## `connects`/`lethal` record the at-impact resolution for the sell/hero treatment — read only
+## `connects`/`lethal` record the at-impact resolution for the sell/hero treatment - read only
 ## at impact_tick, never by the fire-knowable rank.
 static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictionary) -> Array:
 	var spawn := _spawn_ticks(truth)
 
-	# Step 0 — collect shots in (tick, seq) order, each tagged with its selected mode.
+	# Step 0 - collect shots in (tick, seq) order, each tagged with its selected mode.
 	var shots := []
 	for e in truth:
 		if e.kind != "shot":
@@ -189,7 +189,7 @@ static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictiona
 			return int(et.tick) < int(qt.tick)
 		return int(et.seq) < int(qt.seq))
 
-	# Step 1 — coalesce per (shooter, mode) stream; a shot joins the open group while its tick
+	# Step 1 - coalesce per (shooter, mode) stream; a shot joins the open group while its tick
 	# is within COALESCE_WINDOW of the group's representative (earliest) tick.
 	var groups := []  # each: {shooter, mode, shots:[...]}
 	var open := {}    # key "shooter|mode" -> index into groups of the currently-open group
@@ -203,7 +203,7 @@ static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictiona
 			groups.append({"shooter": shooter, "mode": s.mode, "shots": [s.e]})
 			open[key] = groups.size() - 1
 
-	# Steps 1 (fields) + 2 (rank) — realise each group as a beat.
+	# Steps 1 (fields) + 2 (rank) - realise each group as a beat.
 	var beats := []
 	for g in groups:
 		var rep: Dictionary = g.shots[0]  # (tick,seq)-earliest (shots arrive in order)
@@ -236,11 +236,11 @@ static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictiona
 	return commit_beats(beats)
 
 
-## Step 3 — commit actor screen-time with preemption. Walk beats in (priority desc, tick asc,
+## Step 3 - commit actor screen-time with preemption. Walk beats in (priority desc, tick asc,
 ## seq asc) order; each full-CRA beat claims TWO half-open spans: the shooter's
-## [cue_tick, impact_tick) (cue→fire→track) and the target's [impact_tick, impact_tick+REACT)
+## [cue_tick, impact_tick) (cue-fire-track) and the target's [impact_tick, impact_tick+REACT)
 ## (the victim's sell). The two claims are demoted INDEPENDENTLY: a span overlapping an
-## already-committed (≥-priority) claim on that actor's timeline goes background and yields no
+## already-committed (--priority) claim on that actor's timeline goes background and yields no
 ## claim of its own. Because heavies are processed first, a high-tier beat is never demoted by
 ## an earlier normal commit. Annotates and returns the SAME beat dicts.
 static func commit_beats(beats: Array) -> Array:
@@ -294,20 +294,20 @@ static func _spawn_ticks(events: Array) -> Dictionary:
 
 
 # =========================================================================================
-# Layer 3 — beam-trade exchange (places mechs in a range band; Cue·Reaction·Action)
+# Layer 3 - beam-trade exchange (places mechs in a range band; Cue-Reaction-Action)
 # =========================================================================================
 
 ## Realise the scheduled beats as `advance` beats. Each beat contributes two movement spans,
 ## built in start-tick order so each is placed against the model already built:
-##   engage   [cue_tick, impact_tick) — the shooter closes onto the BAND (range_mid) distance
-##            from the target along the current axis (cue→fire→track). Fire-knowable only.
-##   reaction [impact_tick, impact_tick+REACT) — the target sells: shoved away from the shooter
+##   engage   [cue_tick, impact_tick) - the shooter closes onto the BAND (range_mid) distance
+##            from the target along the current axis (cue-fire-track). Fire-knowable only.
+##   reaction [impact_tick, impact_tick+REACT) - the target sells: shoved away from the shooter
 ##            on a connecting hit (drives the staged_dom sell channel), or weaves laterally on a
 ##            miss (a real near-miss, no sell). Read AT impact, where the truth reveals it.
 static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dictionary) -> Array:
 	var react: int = int(_P.REACT)
 	# Stable home bearing per shooter (target-centric), so the strafe oscillates around a fixed
-	# side instead of compounding: A sits on B's −x arc, B on A's +x arc.
+	# side instead of compounding: A sits on B's -x arc, B on A's +x arc.
 	var home := {
 		"A": (spawn_pos["A"] - spawn_pos["B"]).angle(),
 		"B": (spawn_pos["B"] - spawn_pos["A"]).angle(),
@@ -327,6 +327,13 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 			"orbit": orbit[shooter], "mode": b.exchange_mode,
 		})
 		orbit[shooter] += 1
+		# Mobile shooter (light build): keep strafing through the shot instead of planting, so a
+		# light mech attacks WHILE moving and is never stationary. Heavy builds plant (>= MOBILE_HEFT).
+		if _feel(feel_profiles, shooter, "heft") < _P.MOBILE_HEFT:
+			intents.append({
+				"start": int(b.fire_tick), "end": int(b.impact_tick) + react + 12,
+				"actor": shooter, "kind": "strafe", "shooter": shooter, "target": target,
+			})
 		intents.append({
 			"start": int(b.impact_tick), "end": int(b.impact_tick) + react,
 			"actor": target, "kind": "reaction", "shooter": shooter, "target": target,
@@ -339,8 +346,11 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 
 	var built := []
 	for it in intents:
-		var advs: Array = _engage(it, built, spawn_pos, feel_profiles, home) if it.kind == "engage" \
-			else _reaction(it, built, spawn_pos, feel_profiles)
+		var advs: Array
+		match it.kind:
+			"engage": advs = _engage(it, built, spawn_pos, feel_profiles, home)
+			"strafe": advs = _strafe(it, built, spawn_pos, feel_profiles)
+			_: advs = _reaction(it, built, spawn_pos, feel_profiles)
 		for a in advs:
 			built.append(a)
 	return built
@@ -374,7 +384,7 @@ static func _adv(actor: String, start: int, end: int, to: Vector2, to_y := 0.0, 
 		"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": maxi(end, start + 1)}}
 
 
-## Engage geometry per exchange mode — the shooter's pre-impact movement (fire-knowable only,
+## Engage geometry per exchange mode - the shooter's pre-impact movement (fire-knowable only,
 ## no outcome read). Each mode reads as a distinct silhouette: beam-trade strafes at mid range;
 ## swarm stands off and lobs; dodge-pursuit charges in; melee dashes to contact. The per-side
 ## sign keeps every mode equivariant under (swap A<->B, negate-x) for the CG-BLIND mirror.
@@ -432,7 +442,7 @@ static func _dash_profile(actor: String, start: int, end: int, from_pos: Vector2
 	]
 
 
-## Reaction geometry per exchange mode — the struck mech AT impact (may read the resolution).
+## Reaction geometry per exchange mode - the struck mech AT impact (may read the resolution).
 ## beam-trade sells/weaves once; swarm and dodge-pursuit weave (zig-zag dodging); melee dwells
 ## in a contact then separates. The per-side lateral sign keeps the weave mirror-equivariant.
 static func _reaction(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: Dictionary) -> Array:
@@ -461,8 +471,23 @@ static func _reaction(it: Dictionary, built: Array, spawn_pos: Dictionary, feel:
 			return [_adv(actor, start, end, tp + lat * weave)]
 
 
-## A zig-zag weave: `segments` contiguous sub-advances alternating ±lateral around `base`, so the
-## velocity reverses each segment — the per-mode CG-CONTRAST signature for salvo/pursuit dodging.
+## A mobile (light) shooter's firing-window movement: a lateral weave around the firing mark
+## (perpendicular to the shooter->target line) so a light build attacks WHILE strafing instead of
+## planting. Per-side lateral sign keeps it mirror-equivariant; amplitude is the WEAVE param.
+static func _strafe(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: Dictionary) -> Array:
+	var actor: String = it.shooter
+	var start: int = it.start
+	var end: int = it.end
+	var sp := _pos(built, spawn_pos, actor, start)
+	var tp := _pos(built, spawn_pos, it.target, start)
+	var to := tp - sp
+	to = to.normalized() if to.length() > 0.001 else Vector2.RIGHT
+	var lat := to.orthogonal() * (1.0 if actor == "A" else -1.0)
+	var amp: float = _param(feel, actor, "WEAVE", WEAVE) * float(_P.STRAFE_AMP)
+	return _weave_path(actor, start, end, sp, lat, amp, 3)
+
+## A zig-zag weave: `segments` contiguous sub-advances alternating +/-lateral around `base`, so the
+## velocity reverses each segment - the per-mode CG-CONTRAST signature for salvo/pursuit dodging.
 static func _weave_path(actor: String, start: int, end: int, base: Vector2, lat: Vector2, amp: float, segments: int) -> Array:
 	var out := []
 	var span := end - start
@@ -516,7 +541,7 @@ static func _eval_layered(spawn: Vector2, beats: Array, tick: int) -> Vector2:
 
 
 # =========================================================================================
-# Internals — merge
+# Internals - merge
 # =========================================================================================
 
 static func _actor_id(actor: String) -> int:
@@ -553,12 +578,12 @@ static func _merge(truth: Array, spawn_pos: Dictionary, advances: Array) -> Arra
 
 
 # =========================================================================================
-# Layer 4 — dramaturgy: suspense plan + the root `presentation` hook block
+# Layer 4 - dramaturgy: suspense plan + the root `presentation` hook block
 # =========================================================================================
 
 const TEMPLATES_PATH := "res://data/grammar_templates.json"
 
-## Load the shape → template_id registry (data, not code).
+## Load the shape - template_id registry (data, not code).
 static func load_templates() -> Dictionary:
 	var text := FileAccess.get_file_as_string(TEMPLATES_PATH)
 	var parsed: Variant = JSON.parse_string(text)
@@ -610,7 +635,7 @@ static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> 
 		"lethal_ref": _lethal_ref(truth),
 	}
 	# Per-actor render dials (heft/tempo) so the director can drive the body's mass-ramp +
-	# cadence from the build — the heft -> render bridge the camera reads at boot.
+	# cadence from the build - the heft -> render bridge the camera reads at boot.
 	var actors := {}
 	for actor in feel_profiles:
 		actors[actor] = {"heft": _feel(feel_profiles, actor, "heft"), "tempo": _feel(feel_profiles, actor, "tempo")}
@@ -620,8 +645,8 @@ static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> 
 ## Bundle the staged events with the side-channel `presentation` hook block, the shape the log
 ## document carries once the contract amendment blesses the optional `presentation` root key:
 ##   { "events": [...], "presentation": {...} }.
-## The truth-set keys (events/result/…) project exactly as before — `presentation` is additive
-## and the loader ignores unknown root keys — so the truth hash and re-sim are unaffected.
+## The truth-set keys (events/result/-) project exactly as before - `presentation` is additive
+## and the loader ignores unknown root keys - so the truth hash and re-sim are unaffected.
 static func stage_with_hooks(truth: Array, seed: int, feel_profiles: Dictionary) -> Dictionary:
 	return {"events": stage(truth, seed, feel_profiles), "presentation": presentation(truth, seed, feel_profiles)}
 

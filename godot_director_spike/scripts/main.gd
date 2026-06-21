@@ -15,11 +15,55 @@ var _fps_samples: Array[float] = []
 var _fade: ColorRect
 var _paused_layer: CanvasLayer
 
-func _process(_delta: float) -> void:
+# --camlog: per-frame trace of the ACTUAL runtime camera, for diagnosing transitions /
+# sharp cuts / jerk independent of what the shot list intends. Written to tmp/camlog.json.
+var _camlog_on := false
+var _camlog: Array = []
+var _wall_t := 0.0
+var _cam_prev_pos := Vector3.ZERO
+var _cam_prev_fwd := Vector3.ZERO
+var _cam_prev_valid := false
+
+func _process(delta: float) -> void:
 	if get_tree().paused:
 		return
 	if Engine.get_process_frames() % 30 == 0:
 		_fps_samples.append(Performance.get_monitor(Performance.TIME_FPS))
+	if _camlog_on and director != null and camera != null:
+		_capture_camlog(delta)
+
+## Append one row of the real camera state. dpos/dang are per-frame deltas; a clean shot
+## moves on a smooth curve, an unintended jerk shows a spike WITHIN a shot (shot index
+## unchanged), an intentional cut shows a spike AT a shot-index change.
+func _capture_camlog(delta: float) -> void:
+	_wall_t += delta / maxf(Engine.time_scale, 0.01)
+	var idx := int(director.get("_shot_idx"))
+	var dshots: Array = director.get("shots")
+	var mode := "?"
+	if idx >= 0 and idx < dshots.size():
+		mode = String(dshots[idx].mode)
+	var p := camera.global_position
+	var fwd := -camera.global_transform.basis.z
+	var dpos := 0.0
+	var dang := 0.0
+	if _cam_prev_valid:
+		dpos = p.distance_to(_cam_prev_pos)
+		if fwd.length() > 0.001 and _cam_prev_fwd.length() > 0.001:
+			dang = _cam_prev_fwd.angle_to(fwd)
+	var ha: Vector3 = mech_a.global_position + Vector3(0, 10, 0)
+	var hb: Vector3 = mech_b.global_position + Vector3(0, 10, 0)
+	_camlog.append({
+		"wall": snappedf(_wall_t, 0.001), "shot": idx, "mode": mode,
+		"px": snappedf(p.x, 0.1), "py": snappedf(p.y, 0.1), "pz": snappedf(p.z, 0.1),
+		"fov": snappedf(camera.fov, 0.1), "ortho": camera.projection == Camera3D.PROJECTION_ORTHOGONAL,
+		"dpos": snappedf(dpos, 0.01), "dang": snappedf(dang, 0.001),
+		"a_in": camera.is_position_in_frustum(ha), "b_in": camera.is_position_in_frustum(hb),
+		"a_spd": snappedf(mech_a.velocity.length(), 0.1), "b_spd": snappedf(mech_b.velocity.length(), 0.1),
+		"a_y": snappedf(mech_a.position.y, 0.01), "b_y": snappedf(mech_b.position.y, 0.01),
+	})
+	_cam_prev_pos = p
+	_cam_prev_fwd = fwd
+	_cam_prev_valid = true
 
 ## --frames: dump a PNG every 1.5 game-seconds for offline shot review.
 func _capture_frames(director_name: String) -> void:
@@ -60,8 +104,9 @@ func _ready() -> void:
 	add_child(camera)
 	camera.look_at(Vector3(0, 10, 0), Vector3.UP)
 	print("KM-DIRECTOR-SPIKE boot ok")
+	_camlog_on = "--camlog" in OS.get_cmdline_user_args()
 	if "--still" in OS.get_cmdline_user_args():
-		# Behind mech A (x=-55), looking toward B (x=+40) — sees both mechs + city flanks
+		# Behind mech A (x=-55), looking toward B (x=+40) - sees both mechs + city flanks
 		camera.position = Vector3(-55, 22, 8)
 		camera.fov = 72
 		camera.look_at(Vector3(20, 8, 0), Vector3.UP)
@@ -94,7 +139,7 @@ func _ready() -> void:
 	_paused_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_paused_layer)
 	var paused_label := Label.new()
-	paused_label.text = "❚❚ PAUSED"
+	paused_label.text = "|| PAUSED"
 	paused_label.add_theme_font_size_override("font_size", 28)
 	paused_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	paused_label.position = Vector2(-70, 64)
@@ -118,7 +163,8 @@ func _ready() -> void:
 	var events := FightLog.load_events(log_path)
 	# Director seam: if the log carries the choreographer's side-channel presentation hooks,
 	# surface them (the camera can read shape/climax_window/range_band for framing). Printed
-	# only here — driving the runtime camera from these is the separately-gated v2 cutover.
+	# only here - driving the runtime camera from these is the separately-gated v2 cutover.
+	var grammar := ShotGrammar.default()
 	var presentation := FightLog.load_presentation(log_path)
 	if not presentation.is_empty():
 		var fight: Dictionary = presentation.get("fight", {})
@@ -128,13 +174,12 @@ func _ready() -> void:
 		# Heft -> render: drive each body's mass-ramp from the build's FeelProfile heft.
 		var feel: Dictionary = presentation.get("actors", {})
 		if feel.has("A"):
-			mech_a.apply_feel(float(feel["A"].get("heft", 0.5)))
+			mech_a.apply_feel(float(feel["A"].get("heft", 0.5)), float(feel["A"].get("tempo", 0.5)), grammar)
 		if feel.has("B"):
-			mech_b.apply_feel(float(feel["B"].get("heft", 0.5)))
+			mech_b.apply_feel(float(feel["B"].get("heft", 0.5)), float(feel["B"].get("tempo", 0.5)), grammar)
 	var dur := FightLog.duration_sec(events)
 	# Single source of truth (codex #2): ONE grammar instance flows to shot-gen,
 	# the director's runtime camera (_grammar), the Grade node, and garnish.
-	var grammar := ShotGrammar.default()
 	var shots: Array = DirectorScript.build_shot_list(events, dur, grammar)
 	director = DirectorScript.new()
 	add_child(director)
@@ -154,6 +199,12 @@ func _ready() -> void:
 	if "--frames" in OS.get_cmdline_user_args():
 		_capture_frames(director_name)
 	director.fight_over.connect(func():
+		if _camlog_on:
+			DirAccess.make_dir_recursive_absolute("res://tmp")
+			var fa := FileAccess.open("res://tmp/camlog.json", FileAccess.WRITE)
+			fa.store_string(JSON.stringify(_camlog))
+			fa.close()
+			print("camlog: wrote %d rows to tmp/camlog.json" % _camlog.size())
 		create_tween().tween_property(_fade, "color:a", 1.0, 2.0)
 		await get_tree().create_timer(2.2).timeout
 		_fps_samples.sort()

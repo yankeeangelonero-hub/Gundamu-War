@@ -1,11 +1,16 @@
 extends "res://scripts/director.gd"
-## Variant 6 — Iso Hybrid: the production direction. An isometric tactical view
+## Variant 6 - Iso Hybrid: the production direction. An isometric tactical view
 ## over a destructible city is the BASE the eye lives in (legible, strategy-game
 ## readable), and the camera CUTS to cinematic perspective shots on the big
-## beats — the opening exchange, a mid-fight building-wrecking beam, and the
-## kill — then cuts back to iso. Orthographic backbone, perspective punctuation.
+## beats - the opening exchange, a mid-fight building-wrecking beam, and the
+## kill - then cuts back to iso. Orthographic backbone, perspective punctuation.
 
 const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bullet_time"]
+
+## The ranged-fire family the opening over-shoulder may anchor on when a loadout fires no
+## beam (buster/missiles/burst-only builds). fire_beam stays the primary anchor so beam-trade
+## fights are unchanged; this is only the fallback for the beam-less case.
+const RANGED_FIRE := ["fire_beam", "fire_buster", "fire_missiles", "fire_burst"]
 
 
 static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = null) -> Array:
@@ -16,7 +21,7 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 	var lethal_t := dur
 	var lethal_actor := "A"
 	var mids: Array = []      # non-first, non-lethal beams: candidates to intercut
-	# The kill can be any event kind (beam OR melee cleave) — find it generically.
+	# The kill can be any event kind (beam OR melee cleave) - find it generically.
 	for e in events:
 		if e.payload.get("lethal", false):
 			lethal_t = float(e.tick) * TICK
@@ -30,6 +35,16 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 			first_actor = str(e.actor)
 		else:
 			mids.append({"t": t, "actor": str(e.actor)})
+	# Beam-less loadout (buster/missiles/burst ranged fire): no fire_beam anchored the opening,
+	# so it would degenerate to the t<0 sentinel and open on a phantom hero shot before anyone
+	# fires. Anchor the over-shoulder on the first ranged-fire beat instead. Beam fights set
+	# first_t above and never reach here, so their shot list (and golden snapshot) is unchanged.
+	if first_t < 0.0:
+		for e in events:
+			if e.kind in RANGED_FIRE and not e.payload.get("lethal", false):
+				first_t = float(e.tick) * TICK
+				first_actor = str(e.actor)
+				break
 	# Intercut the beam nearest mid-fight (most likely diagonal across a tower).
 	var target := (first_t + lethal_t) * 0.5
 	var mid: Dictionary = {}
@@ -58,7 +73,13 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 	for f in fixed:
 		var t0 := maxf(float(f.t0), cursor)
 		if t0 - cursor > 0.001:
-			shots.append({"t0": cursor, "t1": t0, "mode": "iso", "focus": "", "time_scale": 1.0})
+			# A sub-min_iso iso wedged BETWEEN two cinematic shots reads as a flash-cut, not a
+			# re-establish - absorb it into the previous shot instead of cutting to it. The opening
+			# establish (no previous shot) is exempt, so it always plays.
+			if t0 - cursor >= grammar.min_iso or shots.is_empty():
+				shots.append({"t0": cursor, "t1": t0, "mode": "iso", "focus": "", "time_scale": 1.0})
+			else:
+				shots[-1]["t1"] = t0
 		shots.append({"t0": t0, "t1": float(f.t1), "mode": f.mode, "focus": f.focus, "time_scale": f.time_scale})
 		cursor = float(f.t1)
 	if dur - cursor > 0.001:
@@ -70,9 +91,13 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 var _zoom := 90.0
 var _cam_shot := -1
 var _wall := 0.0
+# Eased position state for the orbiting close shots (melee_cut/bullet_time): a composition
+# re-pick or orbit step glides instead of snapping. Reset (snap) on each shot's first frame.
+var _smooth_pos := Vector3.ZERO
+var _pos_init := false
 # Runtime framing/timing source. At defaults this matches the grammar build_shot_list()
 # self-defaults to, so the two paths agree. When custom-grammar wiring lands (Phase 3),
-# keep this in sync with the grammar passed to build_shot_list() — give the director one source.
+# keep this in sync with the grammar passed to build_shot_list() - give the director one source.
 var _grammar: ShotGrammar = ShotGrammar.default()
 
 func _update_camera(delta: float) -> void:
@@ -82,6 +107,7 @@ func _update_camera(delta: float) -> void:
 		_cam_shot = _shot_idx
 		_wall = 0.0
 		_aim_init = false
+		_pos_init = false
 	_wall += delta / maxf(Engine.time_scale, 0.01)
 	var s: Dictionary = shots[_shot_idx]
 	var a: Node3D = actors["A"]
@@ -136,7 +162,7 @@ func _update_camera(delta: float) -> void:
 			pos = pick_os.pos
 		"hero_cut":
 			# Low angle beside the shooter, looking down the firing line into the
-			# city — the beam lances past camera and wrecks whatever it crosses.
+			# city - the beam lances past camera and wrecks whatever it crosses.
 			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
@@ -149,17 +175,21 @@ func _update_camera(delta: float) -> void:
 			_pick_idx = pick_cut.idx
 			pos = pick_cut.pos
 		"melee_cut":
-			# Tight, slightly slow close-up orbiting the blade clash point.
+			# Slow close-up orbiting the clash. The orbit RADIUS opens with the mechs' separation
+			# so BOTH stay framed through the charge-in and a hard knockback recoil - a fixed tight
+			# radius frames only the instant of contact and the racing midpoint reads as a jerk.
 			var fr: Dictionary = _grammar.framing[s.mode]
 			var f: Node3D = actors[s.focus]
 			var o: Node3D = actors[_other(str(s.focus))]
 			var contact := f.position.lerp(o.position, 0.5) + Vector3(0, 11, 0)
+			var radius := maxf(float(fr.radius), f.position.distance_to(o.position) * _grammar.melee_radius_factor)
+			var height := float(fr.height) * radius / float(fr.radius)
 			var ang := PI * 0.25 + _wall * 0.6
 			var arc: float = _grammar.composition_search_arc
 			var cands: Array = []
 			for off in [-arc, -arc * 0.5, 0.0, arc * 0.5, arc]:
 				var aa: float = ang + off
-				cands.append(contact + Vector3(cos(aa) * fr.radius, fr.height, sin(aa) * fr.radius))
+				cands.append(contact + Vector3(cos(aa) * radius, height, sin(aa) * radius))
 			var pick := _pick_clear_pose(cands, contact, get_tree().get_nodes_in_group("kb_building"), _pick_idx, 2)
 			_pick_idx = pick.idx
 			pos = pick.pos
@@ -178,8 +208,8 @@ func _update_camera(delta: float) -> void:
 			fov = fr.fov
 			_roll = lerpf(-0.05, 0.03, p)
 	# Compression (F31): on a compressed beat, drop FOV and pull the lens back to
-	# keep the subject the same screen size — flattening perspective (the looming
-	# long-lens look). c=0 (every mode but hero_cut) skips this → unchanged.
+	# keep the subject the same screen size - flattening perspective (the looming
+	# long-lens look). c=0 (every mode but hero_cut) skips this - unchanged.
 	var compression: float = _grammar.compression_by_mode.get(s.mode, 0.0)
 	if compression > 0.0:
 		var comp_fov := lerpf(fov, fov * _grammar.compression_fov_floor, compression)
@@ -188,12 +218,28 @@ func _update_camera(delta: float) -> void:
 		fov = comp_fov
 	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	camera.fov = fov
-	# Footfall/landing rumble — only on these close perspective shots, so the
+	# Footfall/landing rumble - only on these close perspective shots, so the
 	# low hero angles feel the giant's weight while the iso view stays steady.
+	# Ease the orbiting close shots so a composition re-pick (the 5 discrete sightline
+	# candidates) glides to the new clear angle instead of teleporting - a hard index flip
+	# mid-orbit otherwise reads as a cut to a near-identical angle. Snap on the first frame so
+	# the cut INTO the shot stays clean; fixed hero framings keep their direct (hard-cut) set.
+	if s.mode == "melee_cut" or s.mode == "bullet_time":
+		if not _pos_init:
+			_smooth_pos = pos
+			_pos_init = true
+		else:
+			var wd := delta / maxf(Engine.time_scale, 0.05)
+			var move := _smooth_pos.lerp(pos, 1.0 - exp(-6.0 * wd)) - _smooth_pos
+			var cap := _grammar.dolly_cap * wd  # bound linear speed: track a violent subject, never whip-pan
+			if move.length() > cap:
+				move = move.normalized() * cap
+			_smooth_pos += move
+		pos = _smooth_pos
 	if shake_strength > 0.001:
 		pos += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.3
 	camera.position = pos
-	# Clear everything between the lens and just shy of the subject — no rubble,
+	# Clear everything between the lens and just shy of the subject - no rubble,
 	# debris, or towers occluding the close shot (the blade was getting buried).
 	_cull_near(pos, maxf(pos.distance_to(aim) - 6.0, 0.0))
 	_set_focus(pos.distance_to(aim), 0.07)

@@ -26,8 +26,12 @@ extends RefCounted
 
 # --- staging parameters (world staging, separate from camera-craft ShotGrammar) ----------
 const SPAWN_X := 40.0   # mirrored spawn: A at -SPAWN_X, B at +SPAWN_X, on the z=0 line
-const KNOCK := 12.0     # how far an at-impact sell shoves the struck mech away from the shooter
-const WEAVE := 14.0     # lateral offset of a near-miss dodge (a miss reaction, not a sell)
+const KNOCK := 14.0     # how far an at-impact sell shoves the struck mech away from the shooter
+const WEAVE := 16.0     # lateral offset of a near-miss dodge (a miss reaction, not a sell)
+const ORBIT_AMP := 0.5  # radians the engage strafes off the shooter's home bearing (~28°: circles its own side, never crosses center)
+const ORBIT_RATE := 1.1 # how fast the strafe oscillates across successive beats (zig-zag, not a slow drift)
+const HOP_Y := 9.0      # apex height of a boosted (airborne) heavy-beat close
+const BOOST_TIER := 3   # tier at/above which the shooter's close reads as a boosted airborne dash
 
 
 # =========================================================================================
@@ -290,16 +294,27 @@ static func _spawn_ticks(events: Array) -> Dictionary:
 static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> Array:
 	var band: float = _P.RANGE_MID
 	var react: int = int(_P.REACT)
+	# Stable home bearing per shooter (target-centric), so the strafe oscillates around a fixed
+	# side instead of compounding: A sits on B's −x arc, B on A's +x arc.
+	var home := {
+		"A": (spawn_pos["A"] - spawn_pos["B"]).angle(),
+		"B": (spawn_pos["B"] - spawn_pos["A"]).angle(),
+	}
 
-	# Collect both spans of every beat as intents, then realise in (start, actor) order.
+	# Collect both spans of every beat as intents, then realise in (start, actor) order. Each
+	# shooter's engages carry a running orbit index so successive closes strafe around the ring.
+	var orbit := {"A": 0, "B": 0}
 	var intents := []
 	for b in beats:
 		var shooter: String = b.shooter
 		var target := "B" if shooter == "A" else "A"
+		var heavy := int(b.tier) >= BOOST_TIER
 		intents.append({
 			"start": int(b.cue_tick), "end": maxi(int(b.impact_tick), int(b.cue_tick) + 1),
 			"actor": shooter, "kind": "engage", "shooter": shooter, "target": target,
+			"orbit": orbit[shooter], "heavy": heavy,
 		})
+		orbit[shooter] += 1
 		intents.append({
 			"start": int(b.impact_tick), "end": int(b.impact_tick) + react,
 			"actor": target, "kind": "reaction", "shooter": shooter, "target": target,
@@ -319,22 +334,29 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 		var shooter_pos := _pos(built, spawn_pos, shooter, start)
 		var target_pos := _pos(built, spawn_pos, target, start)
 		var to: Vector2
+		var to_y := 0.0
+		var boost := false
 		match it.kind:
 			"engage":
-				# Shooter closes to BAND distance from the target along the shooter's bearing.
-				var dir := shooter_pos - target_pos
-				dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-				to = target_pos + dir * band
+				# Strafe to BAND distance on an oscillating bearing around the shooter's home
+				# side, so the duel circles instead of sliding head-on. Heavy beats boost in
+				# (airborne dash); the bearing/boost are fire-knowable (no outcome read).
+				var bearing: float = float(home[shooter]) + ORBIT_AMP * sin(float(it.orbit) * ORBIT_RATE)
+				to = target_pos + Vector2(cos(bearing), sin(bearing)) * band
+				if bool(it.heavy):
+					boost = true
+					to_y = HOP_Y
 			"reaction":
 				var away := target_pos - shooter_pos
 				away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
 				if bool(it.connects):
 					to = target_pos + away * KNOCK       # sell: shoved away from the shooter
+					boost = true                         # thruster-shove reads as a snap, not a drift
 				else:
 					to = target_pos + away.orthogonal() * WEAVE  # near-miss: lateral weave
 		built.append({
 			"tick": start, "actor": actor, "kind": "advance",
-			"payload": {"to_x": to.x, "to_z": to.y, "end_tick": it.end},
+			"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": it.end},
 		})
 	return built
 

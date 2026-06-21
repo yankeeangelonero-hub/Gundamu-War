@@ -351,6 +351,23 @@ static func _feel(feel_profiles: Dictionary, actor: String, key: String) -> floa
 	return float(feel_profiles.get(actor, {}).get(key, 0.5))
 
 
+## A tunable constant, optionally overridden per-actor by its archetype preset's `overrides`.
+static func _param(feel_profiles: Dictionary, actor: String, key: String, default: float) -> float:
+	return float(feel_profiles.get(actor, {}).get("overrides", {}).get(key, default))
+
+
+## Build a FeelProfile {heft, tempo, mode_mix, overrides} from a named archetype preset
+## (data: grammar_presets.json). A new archetype is a data row, never code.
+static func apply_preset(name: String) -> Dictionary:
+	var p: Dictionary = _P.load_presets().get(name, {})
+	return {
+		"heft": float(p.get("heft_bias", 0.5)),
+		"tempo": float(p.get("tempo_bias", 0.5)),
+		"mode_mix": p.get("mode_mix", {}),
+		"overrides": p.get("overrides", {}),
+	}
+
+
 ## Build one `advance` beat dict (a movement span the position model lerps across).
 static func _adv(actor: String, start: int, end: int, to: Vector2, to_y := 0.0, boost := false) -> Dictionary:
 	return {"tick": start, "actor": actor, "kind": "advance",
@@ -369,16 +386,17 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 	var tp := _pos(built, spawn_pos, it.target, start)
 	var heft := _feel(feel, shooter, "heft")
 	var tempo := _feel(feel, shooter, "tempo")
+	var oamp := _param(feel, shooter, "ORBIT_AMP", ORBIT_AMP)  # archetype-overridable strafe width
 	var sign := 1.0 if shooter == "A" else -1.0
 	var base: float = float(home[shooter])
 	match it.mode:
 		"swarm":
 			var band := lerpf(_P.RANGE_FAR - 5.0, _P.RANGE_MID, heft)  # stand off and lob
-			var bearing := base + sign * (ORBIT_AMP * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
+			var bearing := base + sign * (oamp * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
 			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 		"dodge-pursuit":
 			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in, boosted
-			var bearing := base + sign * (ORBIT_AMP * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
+			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
 			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, HOP_Y * 0.4, true)]
 		"melee":
 			var dir := (sp - tp)  # dash straight to contact range (a speed spike into the clash)
@@ -386,7 +404,7 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7), HOP_Y * 0.5, true)]
 		_:  # beam-trade
 			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
-			var amp := ORBIT_AMP * (1.3 - heft)
+			var amp := oamp * (1.3 - heft)
 			var rate := ORBIT_RATE * (0.5 + tempo)
 			var bearing := base + sign * amp * sin(float(it.orbit) * rate)
 			var to_y := 0.0
@@ -407,21 +425,23 @@ static func _reaction(it: Dictionary, built: Array, spawn_pos: Dictionary, feel:
 	var sp := _pos(built, spawn_pos, it.shooter, start)
 	var tp := _pos(built, spawn_pos, actor, start)
 	var heft := _feel(feel, actor, "heft")
+	var knock := _param(feel, actor, "KNOCK", KNOCK)  # archetype-overridable sell force
+	var weave := _param(feel, actor, "WEAVE", WEAVE)  # archetype-overridable dodge throw
 	var away := tp - sp
 	away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
 	var lat := away.orthogonal() * (1.0 if actor == "A" else -1.0)
 	match it.mode:
 		"swarm":
-			return _weave_path(actor, start, end, tp, lat, WEAVE, 3)
+			return _weave_path(actor, start, end, tp, lat, weave, 3)
 		"dodge-pursuit":
-			return _weave_path(actor, start, end, tp + away * (KNOCK * 0.5), lat, WEAVE, 3)
+			return _weave_path(actor, start, end, tp + away * (knock * 0.5), lat, weave, 3)
 		"melee":
 			var mid := (start + end) / 2  # contact dwell, then break apart
-			return [_adv(actor, start, mid, tp), _adv(actor, mid, end, tp + away * (KNOCK * (1.6 - heft)))]
+			return [_adv(actor, start, mid, tp), _adv(actor, mid, end, tp + away * (knock * (1.6 - heft)))]
 		_:  # beam-trade
 			if bool(it.connects):
-				return [_adv(actor, start, end, tp + away * (KNOCK * (1.5 - heft)))]
-			return [_adv(actor, start, end, tp + lat * WEAVE)]
+				return [_adv(actor, start, end, tp + away * (knock * (1.5 - heft)))]
+			return [_adv(actor, start, end, tp + lat * weave)]
 
 
 ## A zig-zag weave: `segments` contiguous sub-advances alternating ±lateral around `base`, so the

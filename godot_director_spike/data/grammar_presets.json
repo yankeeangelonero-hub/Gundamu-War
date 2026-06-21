@@ -1,0 +1,23 @@
+{
+  "bruiser": {
+    "name": "bruiser",
+    "heft_bias": 0.9,
+    "tempo_bias": 0.3,
+    "mode_mix": {"melee": 0.7, "ranged": 0.3},
+    "overrides": {"KNOCK": 20.0}
+  },
+  "skirmisher": {
+    "name": "skirmisher",
+    "heft_bias": 0.1,
+    "tempo_bias": 0.9,
+    "mode_mix": {"barrage": 0.7, "ranged": 0.3},
+    "overrides": {"ORBIT_AMP": 0.8}
+  },
+  "gunner": {
+    "name": "gunner",
+    "heft_bias": 0.5,
+    "tempo_bias": 0.5,
+    "mode_mix": {"ranged": 1.0},
+    "overrides": {}
+  }
+}

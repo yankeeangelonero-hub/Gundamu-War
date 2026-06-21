@@ -12,6 +12,13 @@ extends RefCounted
 ## (schema: {name, heft_bias, tempo_bias, mode_mix, overrides:{<const>:value}}).
 ## This file holds the global defaults those overrides layer onto.
 
+const PRESETS_PATH := "res://data/grammar_presets.json"
+
+## Load the archetype preset table (data, not code). A new archetype is a data row.
+static func load_presets() -> Dictionary:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PRESETS_PATH))
+	return parsed if parsed is Dictionary else {}
+
 # --- Contrast / prosody ---
 ## Minimum fraction of ticks below speed REF_SPEED to count as "pause-heavy" for bimodal check.
 ## TUNING: raise if beam-trade reads too busy; lower if static duels pass too easily.

@@ -309,8 +309,10 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 		var shooter: String = b.shooter
 		var target := "B" if shooter == "A" else "A"
 		var heavy := int(b.tier) >= BOOST_TIER
+		# Plant-then-fire: arrive by fire_tick, then HOLD through the shot (no advance past
+		# fire), so the mech sets its feet and fires planted instead of sliding through the beam.
 		intents.append({
-			"start": int(b.cue_tick), "end": maxi(int(b.impact_tick), int(b.cue_tick) + 1),
+			"start": int(b.cue_tick), "end": maxi(int(b.fire_tick), int(b.cue_tick) + 1),
 			"actor": shooter, "kind": "engage", "shooter": shooter, "target": target,
 			"orbit": orbit[shooter], "heavy": heavy,
 		})
@@ -350,8 +352,7 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 				var away := target_pos - shooter_pos
 				away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
 				if bool(it.connects):
-					to = target_pos + away * KNOCK       # sell: shoved away from the shooter
-					boost = true                         # thruster-shove reads as a snap, not a drift
+					to = target_pos + away * KNOCK       # sell: a grounded stagger-step back, feet planted
 				else:
 					to = target_pos + away.orthogonal() * WEAVE  # near-miss: lateral weave
 		built.append({

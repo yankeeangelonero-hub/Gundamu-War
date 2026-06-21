@@ -20,3 +20,15 @@ static func load_events(path: String) -> Array:
 
 static func duration_sec(events: Array, tick_seconds := 0.1, tail := 5.0) -> float:
 	return float(events[-1].tick) * tick_seconds + tail
+
+## The optional side-channel `presentation` hook block, or {} if absent. The loader ignores
+## this root key for outcome/event purposes (forward-compatible); the director may read it for
+## framing. Truth projection and the canonical hash never include it.
+static func load_presentation(path: String) -> Dictionary:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	if parsed is Dictionary and parsed.has("presentation"):
+		return parsed.presentation
+	return {}

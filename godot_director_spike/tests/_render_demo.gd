@@ -74,7 +74,9 @@ func _init() -> void:
 			_:
 				events.append(e)
 
-	var doc := {"schema": "km-director-spike-fight-log-v1", "tick_seconds": 0.1, "events": events}
+	# Embed the side-channel presentation hook block alongside events (contract-amendment shape).
+	var doc := {"schema": "km-director-spike-fight-log-v1", "tick_seconds": 0.1, "events": events,
+		"presentation": C.presentation(truth(), 7, profiles())}
 	var f := FileAccess.open("res://data/grammar_demo.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(doc, "  "))
 	f.close()

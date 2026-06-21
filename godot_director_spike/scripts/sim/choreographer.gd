@@ -595,6 +595,15 @@ static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> 
 	return {"beats": beat_hooks, "fight": fight}
 
 
+## Bundle the staged events with the side-channel `presentation` hook block, the shape the log
+## document carries once the contract amendment blesses the optional `presentation` root key:
+##   { "events": [...], "presentation": {...} }.
+## The truth-set keys (events/result/…) project exactly as before — `presentation` is additive
+## and the loader ignores unknown root keys — so the truth hash and re-sim are unaffected.
+static func stage_with_hooks(truth: Array, seed: int, feel_profiles: Dictionary) -> Dictionary:
+	return {"events": stage(truth, seed, feel_profiles), "presentation": presentation(truth, seed, feel_profiles)}
+
+
 ## Merge each beat's [cue_tick, impact_tick + gap] span into contiguous phrase bounds.
 static func _phrase_bounds(beats: Array, gap: int) -> Array:
 	var spans := []

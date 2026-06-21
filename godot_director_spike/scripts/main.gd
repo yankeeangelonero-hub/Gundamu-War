@@ -116,6 +116,15 @@ func _ready() -> void:
 		if arg.begins_with("--log="):
 			log_path = "res://data/%s.json" % arg.trim_prefix("--log=")
 	var events := FightLog.load_events(log_path)
+	# Director seam: if the log carries the choreographer's side-channel presentation hooks,
+	# surface them (the camera can read shape/climax_window/range_band for framing). Printed
+	# only here — driving the runtime camera from these is the separately-gated v2 cutover.
+	var presentation := FightLog.load_presentation(log_path)
+	if not presentation.is_empty():
+		var fight: Dictionary = presentation.get("fight", {})
+		print("KM-PRESENTATION shape=%s template=%s climax=%s beats=%d" % [
+			fight.get("shape", "?"), fight.get("template_id", "?"),
+			str(fight.get("climax_window", [])), (presentation.get("beats", []) as Array).size()])
 	var dur := FightLog.duration_sec(events)
 	# Single source of truth (codex #2): ONE grammar instance flows to shot-gen,
 	# the director's runtime camera (_grammar), the Grade node, and garnish.

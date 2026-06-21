@@ -571,11 +571,12 @@ static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> 
 		beat_hooks.append({
 			"truth_ref": b.truth_ref,
 			"exchange_mode": b.exchange_mode,
-			"range_band": "mid",  # beam-trade band this pass; range bands generalise with the modes
+			"range_band": _mode_band(b.exchange_mode),  # the proxemic band the mode engages at
 			"cue_tick": int(b.cue_tick), "fire_tick": int(b.fire_tick), "impact_tick": int(b.impact_tick),
 			"is_background": bool(b.is_background),
 			"reaction_background": bool(b.reaction_background),
 			"is_impact": bool(b.connects),
+			"heavy_impact": bool(b.connects) and float(_max_damage(truth, b.truth_ref)) >= float(_P.HEAVY_DMG),
 		})
 
 	var q := float(_P.Q)
@@ -638,3 +639,20 @@ static func _end_tick(truth: Array) -> int:
 	for e in truth:
 		last = maxi(last, int(e.tick))
 	return last
+
+
+## The proxemic range band a mode engages at (a structural fact for the director's framing).
+static func _mode_band(mode: String) -> String:
+	match mode:
+		"swarm": return "far"
+		"dodge-pursuit": return "near"
+		"melee": return "close"
+		_: return "mid"
+
+
+## Damage of a beat's representative shot (for the at-impact heavy-emphasis hook).
+static func _max_damage(truth: Array, ref: Dictionary) -> float:
+	for e in truth:
+		if e.kind == "shot" and int(e.tick) == int(ref.tick) and int(e.seq) == int(ref.seq):
+			return float(e.get("payload", {}).get("damage", 0.0))
+	return 0.0

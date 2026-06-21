@@ -1,0 +1,8 @@
+{
+  "beam":     {"beam-trade": 1.0, "swarm": 0.0, "dodge-pursuit": 0.0, "melee": 0.0},
+  "buster":   {"beam-trade": 1.0, "swarm": 0.0, "dodge-pursuit": 0.0, "melee": 0.0},
+  "burst":    {"beam-trade": 0.2, "swarm": 0.6, "dodge-pursuit": 0.2, "melee": 0.0},
+  "missiles": {"beam-trade": 0.0, "swarm": 1.0, "dodge-pursuit": 0.0, "melee": 0.0},
+  "vulcan":   {"beam-trade": 0.1, "swarm": 0.2, "dodge-pursuit": 0.7, "melee": 0.0},
+  "saber":    {"beam-trade": 0.0, "swarm": 0.0, "dodge-pursuit": 0.0, "melee": 1.0}
+}

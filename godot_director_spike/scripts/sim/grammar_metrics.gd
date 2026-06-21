@@ -375,3 +375,53 @@ static func beam_trade_contrast_ok(staged_events: Array, actor: String) -> bool:
 		if dir != 0:
 			last_dir = dir
 	return alternations >= 2
+
+
+# ---------------------------------------------------------------------------
+# Per-mode CG-CONTRAST registry (the other three modes). The closed set is:
+# beam-trade (above), swarm, dodge-pursuit, melee.
+# ---------------------------------------------------------------------------
+
+## Count velocity-direction reversals (>90° between consecutive moving steps) for an actor —
+## the signature of a zig-zag weave.
+static func _velocity_reversals(staged_events: Array, actor: String) -> int:
+	var trace := _MT.movement_trace(staged_events)
+	var prev := Vector2.ZERO
+	var reversals := 0
+	for r in trace:
+		if r.actor != actor:
+			continue
+		var spd := float(r.speed)
+		if spd < 1e-3:
+			continue
+		var ang := deg_to_rad(float(r.bearing_deg))
+		var v := Vector2(cos(ang), sin(ang)) * spd
+		if prev != Vector2.ZERO and prev.dot(v) < 0.0:
+			reversals += 1
+		prev = v
+	return reversals
+
+
+## swarm: salvo present + target weave — the struck actor's path reverses laterally (>= 2).
+static func swarm_contrast_ok(staged_events: Array, actor: String) -> bool:
+	return _velocity_reversals(staged_events, actor) >= 2
+
+
+## dodge-pursuit: a sustained weave over the pursuit window — the dodging actor reverses (>= 2).
+static func dodge_pursuit_contrast_ok(staged_events: Array, actor: String) -> bool:
+	return _velocity_reversals(staged_events, actor) >= 2
+
+
+## melee: clash contrast — a close-range speed spike then a near-still contact dwell at range.
+static func melee_contrast_ok(staged_events: Array, actor: String) -> bool:
+	var trace := _MT.movement_trace(staged_events)
+	var spike := false
+	var contact_dwell := false
+	for r in trace:
+		if r.actor != actor:
+			continue
+		if float(r.speed) >= _P.REF_SPEED * 1.2:
+			spike = true
+		if float(r.speed) < _P.REF_SPEED * 0.3 and float(r.dist_to_enemy) < _P.RANGE_NEAR:
+			contact_dwell = true
+	return spike and contact_dwell

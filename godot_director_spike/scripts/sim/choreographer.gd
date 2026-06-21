@@ -133,11 +133,22 @@ static func validate_mode_map(mode_map: Dictionary, feel_modes: Array) -> bool:
 	return true
 
 
-## Pass-1 gating: only the beam-trade exchange is implemented this pass, so any selected mode
-## is staged as beam-trade. The selection seam (select_mode) is real and exercised; only the
-## staging is gated. Later passes drop this gate as each mode's exchange lands.
-static func gate_mode(_mode: String) -> String:
-	return "beam-trade"
+## Path to the weapon-motif → grammar-mode-weights table (data, not code).
+const MOTIF_WEIGHTS_PATH := "res://data/grammar_motif_weights.json"
+
+## Per-weapon mode_weights for a motif, from MOTIF_WEIGHTS_PATH. A weapon weights several grammar
+## modes (a hybrid leans across them); an unknown motif falls back to neutral (all-equal).
+static func motif_weights(motif: String) -> Dictionary:
+	var table: Variant = _motif_table()
+	if table is Dictionary and table.has(motif):
+		return table[motif]
+	return NEUTRAL_MODE_WEIGHTS
+
+static var _MOTIF_TABLE
+static func _motif_table() -> Variant:
+	if _MOTIF_TABLE == null:
+		_MOTIF_TABLE = JSON.parse_string(FileAccess.get_file_as_string(MOTIF_WEIGHTS_PATH))
+	return _MOTIF_TABLE
 
 
 # =========================================================================================
@@ -169,7 +180,8 @@ static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictiona
 		if e.kind != "shot":
 			continue
 		var mix: Dictionary = feel_profiles.get(e.actor, {}).get("mode_mix", {})
-		shots.append({"e": e, "mode": select_mode(mix, NEUTRAL_MODE_WEIGHTS, mode_map)})
+		var weights: Dictionary = e.payload.get("mode_weights", motif_weights(e.payload.get("motif", "")))
+		shots.append({"e": e, "mode": select_mode(mix, weights, mode_map)})
 	shots.sort_custom(func(p, q):
 		var et: Dictionary = p.e
 		var qt: Dictionary = q.e
@@ -210,7 +222,7 @@ static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictiona
 			"truth_ref": {"tick": int(rep.tick), "seq": int(rep.seq)},
 			"shooter": g.shooter,
 			"selected_mode": g.mode,
-			"exchange_mode": gate_mode(g.mode),
+			"exchange_mode": g.mode,
 			"cue_tick": cue,
 			"fire_tick": fire,
 			"impact_tick": impact,
@@ -303,24 +315,22 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 
 	# Collect both spans of every beat as intents, then realise in (start, actor) order. Each
 	# shooter's engages carry a running orbit index so successive closes strafe around the ring.
+	# Plant-then-fire: the engage arrives by fire_tick, then HOLDS through the shot.
 	var orbit := {"A": 0, "B": 0}
 	var intents := []
 	for b in beats:
 		var shooter: String = b.shooter
 		var target := "B" if shooter == "A" else "A"
-		var heavy := int(b.tier) >= BOOST_TIER
-		# Plant-then-fire: arrive by fire_tick, then HOLD through the shot (no advance past
-		# fire), so the mech sets its feet and fires planted instead of sliding through the beam.
 		intents.append({
 			"start": int(b.cue_tick), "end": maxi(int(b.fire_tick), int(b.cue_tick) + 1),
 			"actor": shooter, "kind": "engage", "shooter": shooter, "target": target,
-			"orbit": orbit[shooter], "heavy": heavy,
+			"orbit": orbit[shooter], "heavy": int(b.tier) >= BOOST_TIER, "mode": b.exchange_mode,
 		})
 		orbit[shooter] += 1
 		intents.append({
 			"start": int(b.impact_tick), "end": int(b.impact_tick) + react,
 			"actor": target, "kind": "reaction", "shooter": shooter, "target": target,
-			"connects": bool(b.get("connects", false)),
+			"connects": bool(b.get("connects", false)), "mode": b.exchange_mode,
 		})
 	intents.sort_custom(func(p, q):
 		if int(p.start) != int(q.start):
@@ -329,55 +339,101 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 
 	var built := []
 	for it in intents:
-		var actor: String = it.actor
-		var shooter: String = it.shooter
-		var target: String = it.target
-		var start: int = it.start
-		var shooter_pos := _pos(built, spawn_pos, shooter, start)
-		var target_pos := _pos(built, spawn_pos, target, start)
-		var to: Vector2
-		var to_y := 0.0
-		var boost := false
-		match it.kind:
-			"engage":
-				# Strafe to the engage band on an oscillating bearing around the shooter's home
-				# side, so the duel circles instead of sliding head-on. The shooter's FeelProfile
-				# biases it: heavier -> closer band, smaller strafe, bigger boost hop; faster
-				# tempo -> quicker strafe cadence. Heavy beats boost in (airborne dash). All
-				# fire-knowable (no outcome read). The per-side sign makes the strafe equivariant
-				# under (swap A<->B, negate-x) so the CG-BLIND mirror invariant holds.
-				var heft_s := _feel(feel_profiles, shooter, "heft")
-				var tempo_s := _feel(feel_profiles, shooter, "tempo")
-				var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft_s)
-				var amp := ORBIT_AMP * (1.3 - heft_s)
-				var rate := ORBIT_RATE * (0.5 + tempo_s)
-				var sign := 1.0 if shooter == "A" else -1.0
-				var bearing: float = float(home[shooter]) + sign * amp * sin(float(it.orbit) * rate)
-				to = target_pos + Vector2(cos(bearing), sin(bearing)) * band
-				if bool(it.heavy):
-					boost = true
-					to_y = HOP_Y * (0.7 + heft_s)
-			"reaction":
-				# The struck mech's heft resists the sell: a heavy mech is thrown less.
-				var heft_t := _feel(feel_profiles, actor, "heft")
-				var away := target_pos - shooter_pos
-				away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
-				if bool(it.connects):
-					to = target_pos + away * (KNOCK * (1.5 - heft_t))  # grounded stagger-step
-				else:
-					# near-miss: lateral weave. Per-side sign keeps it mirror-equivariant too.
-					var wsign := 1.0 if actor == "A" else -1.0
-					to = target_pos + away.orthogonal() * WEAVE * wsign
-		built.append({
-			"tick": start, "actor": actor, "kind": "advance",
-			"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": it.end},
-		})
+		var advs: Array = _engage(it, built, spawn_pos, feel_profiles, home) if it.kind == "engage" \
+			else _reaction(it, built, spawn_pos, feel_profiles)
+		for a in advs:
+			built.append(a)
 	return built
 
 
 ## Read a FeelProfile bias for an actor (heft/tempo), defaulting to the neutral 0.5.
 static func _feel(feel_profiles: Dictionary, actor: String, key: String) -> float:
 	return float(feel_profiles.get(actor, {}).get(key, 0.5))
+
+
+## Build one `advance` beat dict (a movement span the position model lerps across).
+static func _adv(actor: String, start: int, end: int, to: Vector2, to_y := 0.0, boost := false) -> Dictionary:
+	return {"tick": start, "actor": actor, "kind": "advance",
+		"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": maxi(end, start + 1)}}
+
+
+## Engage geometry per exchange mode — the shooter's pre-impact movement (fire-knowable only,
+## no outcome read). Each mode reads as a distinct silhouette: beam-trade strafes at mid range;
+## swarm stands off and lobs; dodge-pursuit charges in; melee dashes to contact. The per-side
+## sign keeps every mode equivariant under (swap A<->B, negate-x) for the CG-BLIND mirror.
+static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: Dictionary, home: Dictionary) -> Array:
+	var shooter: String = it.shooter
+	var start: int = it.start
+	var end: int = it.end
+	var sp := _pos(built, spawn_pos, shooter, start)
+	var tp := _pos(built, spawn_pos, it.target, start)
+	var heft := _feel(feel, shooter, "heft")
+	var tempo := _feel(feel, shooter, "tempo")
+	var sign := 1.0 if shooter == "A" else -1.0
+	var base: float = float(home[shooter])
+	match it.mode:
+		"swarm":
+			var band := lerpf(_P.RANGE_FAR - 5.0, _P.RANGE_MID, heft)  # stand off and lob
+			var bearing := base + sign * (ORBIT_AMP * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
+		"dodge-pursuit":
+			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in, boosted
+			var bearing := base + sign * (ORBIT_AMP * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, HOP_Y * 0.4, true)]
+		"melee":
+			var dir := (sp - tp)  # dash straight to contact range (a speed spike into the clash)
+			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
+			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7), HOP_Y * 0.5, true)]
+		_:  # beam-trade
+			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
+			var amp := ORBIT_AMP * (1.3 - heft)
+			var rate := ORBIT_RATE * (0.5 + tempo)
+			var bearing := base + sign * amp * sin(float(it.orbit) * rate)
+			var to_y := 0.0
+			var boost := false
+			if bool(it.heavy):
+				boost = true
+				to_y = HOP_Y * (0.7 + heft)
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, to_y, boost)]
+
+
+## Reaction geometry per exchange mode — the struck mech AT impact (may read the resolution).
+## beam-trade sells/weaves once; swarm and dodge-pursuit weave (zig-zag dodging); melee dwells
+## in a contact then separates. The per-side lateral sign keeps the weave mirror-equivariant.
+static func _reaction(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: Dictionary) -> Array:
+	var actor: String = it.actor  # the struck mech
+	var start: int = it.start
+	var end: int = it.end
+	var sp := _pos(built, spawn_pos, it.shooter, start)
+	var tp := _pos(built, spawn_pos, actor, start)
+	var heft := _feel(feel, actor, "heft")
+	var away := tp - sp
+	away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
+	var lat := away.orthogonal() * (1.0 if actor == "A" else -1.0)
+	match it.mode:
+		"swarm":
+			return _weave_path(actor, start, end, tp, lat, WEAVE, 3)
+		"dodge-pursuit":
+			return _weave_path(actor, start, end, tp + away * (KNOCK * 0.5), lat, WEAVE, 3)
+		"melee":
+			var mid := (start + end) / 2  # contact dwell, then break apart
+			return [_adv(actor, start, mid, tp), _adv(actor, mid, end, tp + away * (KNOCK * (1.6 - heft)))]
+		_:  # beam-trade
+			if bool(it.connects):
+				return [_adv(actor, start, end, tp + away * (KNOCK * (1.5 - heft)))]
+			return [_adv(actor, start, end, tp + lat * WEAVE)]
+
+
+## A zig-zag weave: `segments` contiguous sub-advances alternating ±lateral around `base`, so the
+## velocity reverses each segment — the per-mode CG-CONTRAST signature for salvo/pursuit dodging.
+static func _weave_path(actor: String, start: int, end: int, base: Vector2, lat: Vector2, amp: float, segments: int) -> Array:
+	var out := []
+	var span := end - start
+	for k in range(segments):
+		var s := start + k * span / segments
+		var e := start + (k + 1) * span / segments
+		out.append(_adv(actor, s, e, base + lat * amp * (1.0 if k % 2 == 0 else -1.0)))
+	return out
 
 
 # =========================================================================================

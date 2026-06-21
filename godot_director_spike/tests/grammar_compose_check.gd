@@ -77,11 +77,6 @@ func _init() -> void:
 	check(C.validate_mode_map({"ranged": "beam-trade", "barrage": "swarm", "melee": "not-a-mode"}, FP.V1_MODES) == false,
 		"a mode-map with a non-grammar-mode value fails validation")
 
-	# --- pass-1 gating: only beam-trade is staged this pass, so every selection is gated to it.
-	check(C.gate_mode("melee") == "beam-trade", "pass-1 gating maps melee selection to beam-trade")
-	check(C.gate_mode("swarm") == "beam-trade", "pass-1 gating maps swarm selection to beam-trade")
-	check(C.gate_mode("beam-trade") == "beam-trade", "pass-1 gating keeps beam-trade as beam-trade")
-
 	if fails == 0:
 		print("---- ALL PASS")
 	else:

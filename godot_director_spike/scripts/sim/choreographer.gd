@@ -201,6 +201,146 @@ static func gate_mode(_mode: String) -> String:
 
 
 # =========================================================================================
+# Layer 3 — beat scheduler (total & deterministic)
+# =========================================================================================
+
+## Neutral weapon weights used for mode selection: the truth log carries `motif`/`tier`/
+## `travel` but not per-weapon `mode_weights` (those are pre-sim build data aggregated into the
+## actor's mode_mix), so in this pass the shooter's mode_mix decides the selected mode. A real
+## per-weapon mode_weights data row is the deferred extension when a second mode is staged.
+const NEUTRAL_MODE_WEIGHTS := {"beam-trade": 1.0, "swarm": 1.0, "dodge-pursuit": 1.0, "melee": 1.0}
+
+## Group the truth shots into beats. Total & deterministic, ordered by (tick, seq).
+##   Step 0 — mode per shot (select_mode on the shooter's mode_mix; gated to beam-trade).
+##   Step 1 — coalesce: same shooter + same selected mode within COALESCE_WINDOW ticks → one
+##     beat. Representative = (tick,seq)-earliest; impact_tick = latest impact; fire_tick =
+##     impact_tick − representative.travel; cue_tick = max(fire_tick − TELEGRAPH, spawn tick).
+##   Step 2 — rank (fire-knowable): heavy (tier ≥ HEAVY_TIER) > normal; tier only, never
+##     lethal/damage (CG-BLIND part 2). The lethal resolution is an at-impact treatment.
+## Step 3 (commit/preemption: is_background/reaction_background) is applied by commit_beats().
+static func schedule(truth: Array, feel_profiles: Dictionary, mode_map: Dictionary) -> Array:
+	var spawn := _spawn_ticks(truth)
+
+	# Step 0 — collect shots in (tick, seq) order, each tagged with its selected mode.
+	var shots := []
+	for e in truth:
+		if e.kind != "shot":
+			continue
+		var mix: Dictionary = feel_profiles.get(e.actor, {}).get("mode_mix", {})
+		shots.append({"e": e, "mode": select_mode(mix, NEUTRAL_MODE_WEIGHTS, mode_map)})
+	shots.sort_custom(func(p, q):
+		var et: Dictionary = p.e
+		var qt: Dictionary = q.e
+		if int(et.tick) != int(qt.tick):
+			return int(et.tick) < int(qt.tick)
+		return int(et.seq) < int(qt.seq))
+
+	# Step 1 — coalesce per (shooter, mode) stream; a shot joins the open group while its tick
+	# is within COALESCE_WINDOW of the group's representative (earliest) tick.
+	var groups := []  # each: {shooter, mode, shots:[...]}
+	var open := {}    # key "shooter|mode" -> index into groups of the currently-open group
+	for s in shots:
+		var shooter: String = s.e.actor
+		var key := "%s|%s" % [shooter, s.mode]
+		var g_idx: int = open.get(key, -1)
+		if g_idx >= 0 and int(s.e.tick) - int(groups[g_idx].shots[0].tick) <= _P.COALESCE_WINDOW:
+			groups[g_idx].shots.append(s.e)
+		else:
+			groups.append({"shooter": shooter, "mode": s.mode, "shots": [s.e]})
+			open[key] = groups.size() - 1
+
+	# Steps 1 (fields) + 2 (rank) — realise each group as a beat.
+	var beats := []
+	for g in groups:
+		var rep: Dictionary = g.shots[0]  # (tick,seq)-earliest (shots arrive in order)
+		var impact := 0
+		var tier := 0
+		var lethal := false
+		for sh in g.shots:
+			impact = maxi(impact, int(sh.tick))
+			tier = maxi(tier, int(sh.payload.get("tier", 0)))
+			lethal = lethal or bool(sh.payload.get("lethal", false))
+		var fire := impact - int(rep.payload.get("travel", 0))
+		var cue: int = maxi(fire - _P.TELEGRAPH, int(spawn.get(g.shooter, 0)))
+		beats.append({
+			"truth_ref": {"tick": int(rep.tick), "seq": int(rep.seq)},
+			"shooter": g.shooter,
+			"selected_mode": g.mode,
+			"exchange_mode": gate_mode(g.mode),
+			"cue_tick": cue,
+			"fire_tick": fire,
+			"impact_tick": impact,
+			"tier": tier,
+			"priority": "heavy" if tier >= _P.HEAVY_TIER else "normal",
+			"lethal": lethal,
+			"is_background": false,
+			"reaction_background": false,
+		})
+	return commit_beats(beats)
+
+
+## Step 3 — commit actor screen-time with preemption. Walk beats in (priority desc, tick asc,
+## seq asc) order; each full-CRA beat claims TWO half-open spans: the shooter's
+## [cue_tick, impact_tick) (cue→fire→track) and the target's [impact_tick, impact_tick+REACT)
+## (the victim's sell). The two claims are demoted INDEPENDENTLY: a span overlapping an
+## already-committed (≥-priority) claim on that actor's timeline goes background and yields no
+## claim of its own. Because heavies are processed first, a high-tier beat is never demoted by
+## an earlier normal commit. Annotates and returns the SAME beat dicts.
+static func commit_beats(beats: Array) -> Array:
+	var order := beats.duplicate()
+	order.sort_custom(func(p, q):
+		var pp := 0 if p.priority == "heavy" else 1  # heavy first
+		var qp := 0 if q.priority == "heavy" else 1
+		if pp != qp:
+			return pp < qp
+		if int(p.truth_ref.tick) != int(q.truth_ref.tick):
+			return int(p.truth_ref.tick) < int(q.truth_ref.tick)
+		return int(p.truth_ref.seq) < int(q.truth_ref.seq))
+
+	var claims := {"A": [], "B": []}  # actor -> committed foreground [start, end) intervals
+	for b in order:
+		var shooter: String = b.shooter
+		var target := "B" if shooter == "A" else "A"
+		var s_span := [int(b.cue_tick), int(b.impact_tick)]
+		var r_span := [int(b.impact_tick), int(b.impact_tick) + int(_P.REACT)]
+
+		if _overlaps_any(claims[shooter], s_span):
+			b.is_background = true
+		else:
+			b.is_background = false
+			claims[shooter].append(s_span)
+
+		if _overlaps_any(claims[target], r_span):
+			b.reaction_background = true
+		else:
+			b.reaction_background = false
+			claims[target].append(r_span)
+	return beats
+
+
+## True if [s, e) overlaps any committed half-open interval. A zero-length span overlaps nothing.
+static func _overlaps_any(intervals: Array, span: Array) -> bool:
+	var s := int(span[0])
+	var e := int(span[1])
+	for iv in intervals:
+		if int(iv[0]) < e and s < int(iv[1]):
+			return true
+	return false
+
+
+static func _spawn_ticks(events: Array) -> Dictionary:
+	var out := {}
+	for e in events:
+		if e.kind == "spawn":
+			out[e.actor] = int(e.tick)
+	return out
+
+
+## Cached reference to grammar_params.gd (tuning constants), loaded once for static calls.
+static var _P := load("res://scripts/sim/grammar_params.gd")
+
+
+# =========================================================================================
 # Beat intents
 # =========================================================================================
 

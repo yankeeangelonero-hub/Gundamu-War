@@ -30,8 +30,6 @@ const KNOCK := 14.0     # how far an at-impact sell shoves the struck mech away 
 const WEAVE := 16.0     # lateral offset of a near-miss dodge (a miss reaction, not a sell)
 const ORBIT_AMP := 0.5  # radians the engage strafes off the shooter's home bearing (~28°: circles its own side, never crosses center)
 const ORBIT_RATE := 1.1 # how fast the strafe oscillates across successive beats (zig-zag, not a slow drift)
-const HOP_Y := 9.0      # apex height of a boosted (airborne) heavy-beat close
-const BOOST_TIER := 3   # tier at/above which the shooter's close reads as a boosted airborne dash
 
 
 # =========================================================================================
@@ -324,7 +322,7 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 		intents.append({
 			"start": int(b.cue_tick), "end": maxi(int(b.fire_tick), int(b.cue_tick) + 1),
 			"actor": shooter, "kind": "engage", "shooter": shooter, "target": target,
-			"orbit": orbit[shooter], "heavy": int(b.tier) >= BOOST_TIER, "mode": b.exchange_mode,
+			"orbit": orbit[shooter], "mode": b.exchange_mode,
 		})
 		orbit[shooter] += 1
 		intents.append({
@@ -395,24 +393,19 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			var bearing := base + sign * (oamp * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
 			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 		"dodge-pursuit":
-			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in on a grounded boost
+			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in (grounded)
 			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, 0.0, true)]
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 		"melee":
 			var dir := (sp - tp)  # grounded lunge straight to contact (speed spike into the clash)
 			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7), 0.0, true)]
+			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7))]
 		_:  # beam-trade
 			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
 			var amp := oamp * (1.3 - heft)
 			var rate := ORBIT_RATE * (0.5 + tempo)
 			var bearing := base + sign * amp * sin(float(it.orbit) * rate)
-			var to_y := 0.0
-			var boost := false
-			if bool(it.heavy):
-				boost = true
-				to_y = HOP_Y * (0.7 + heft)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, to_y, boost)]
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 
 
 ## Reaction geometry per exchange mode — the struck mech AT impact (may read the resolution).

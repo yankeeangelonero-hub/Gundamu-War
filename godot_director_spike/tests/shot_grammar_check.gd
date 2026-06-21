@@ -36,7 +36,7 @@ func _initialize() -> void:
 		check(g.framing.hero_cut.lateral == 9.0, "hero_cut.lateral == 9")
 		check(g.framing.hero_cut.height == 5.0, "hero_cut.height == 5")
 		check(g.framing.hero_cut.fov == 46.0, "hero_cut.fov == 46")
-		check(g.framing.melee_cut.fov == 36.0, "melee_cut.fov == 36")
+		check(g.framing.melee_cut.fov == 46.0, "melee_cut.fov == 46 (pulled out to read full mechs)")
 		check(g.framing.bullet_time.radius == 32.0, "bullet_time.radius == 32")
 		# --- Phase 2: Lighting block ---
 		check(g.chromatic_fill.is_equal_approx(Color(0.10, 0.12, 0.20)), "chromatic_fill == cool non-black ambient")

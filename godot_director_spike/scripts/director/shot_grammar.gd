@@ -43,7 +43,7 @@ class_name ShotGrammar
 @export var framing: Dictionary = {
 	"hero_os":     {"pullback": 18.0, "lateral": 8.0, "height": 16.0, "fov": 40.0},
 	"hero_cut":    {"pullback": 2.0,  "lateral": 9.0, "height": 5.0,  "fov": 46.0, "roll": -0.05},
-	"melee_cut":   {"radius": 15.0, "height": 4.0, "fov": 36.0},
+	"melee_cut":   {"radius": 26.0, "height": 11.0, "fov": 46.0},
 	"bullet_time": {"radius": 32.0, "height_base": 8.0, "height_rise": 9.0, "depth": 14.0, "fov": 48.0},
 }
 

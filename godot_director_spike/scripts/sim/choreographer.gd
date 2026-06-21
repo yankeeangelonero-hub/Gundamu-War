@@ -46,7 +46,7 @@ const BOOST_TIER := 3   # tier at/above which the shooter's close reads as a boo
 static func stage(truth: Array, _seed: int, feel_profiles: Dictionary) -> Array:
 	var spawn_pos := {"A": Vector2(-SPAWN_X, 0.0), "B": Vector2(SPAWN_X, 0.0)}
 	var beats := schedule(truth, feel_profiles, load_mode_map())
-	var built := _beam_trade(beats, truth, spawn_pos)
+	var built := _beam_trade(beats, feel_profiles, spawn_pos)
 	return _merge(truth, spawn_pos, built)
 
 
@@ -292,8 +292,7 @@ static func _spawn_ticks(events: Array) -> Dictionary:
 ##   reaction [impact_tick, impact_tick+REACT) — the target sells: shoved away from the shooter
 ##            on a connecting hit (drives the staged_dom sell channel), or weaves laterally on a
 ##            miss (a real near-miss, no sell). Read AT impact, where the truth reveals it.
-static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> Array:
-	var band: float = _P.RANGE_MID
+static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dictionary) -> Array:
 	var react: int = int(_P.REACT)
 	# Stable home bearing per shooter (target-centric), so the strafe oscillates around a fixed
 	# side instead of compounding: A sits on B's −x arc, B on A's +x arc.
@@ -341,22 +340,30 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 		var boost := false
 		match it.kind:
 			"engage":
-				# Strafe to BAND distance on an oscillating bearing around the shooter's home
-				# side, so the duel circles instead of sliding head-on. Heavy beats boost in
-				# (airborne dash); the bearing/boost are fire-knowable (no outcome read). The
-				# per-side sign makes the strafe equivariant under (swap A<->B, negate-x) so the
-				# CG-BLIND mirror invariant holds (else home π vs 0 would flip the z-sign).
+				# Strafe to the engage band on an oscillating bearing around the shooter's home
+				# side, so the duel circles instead of sliding head-on. The shooter's FeelProfile
+				# biases it: heavier -> closer band, smaller strafe, bigger boost hop; faster
+				# tempo -> quicker strafe cadence. Heavy beats boost in (airborne dash). All
+				# fire-knowable (no outcome read). The per-side sign makes the strafe equivariant
+				# under (swap A<->B, negate-x) so the CG-BLIND mirror invariant holds.
+				var heft_s := _feel(feel_profiles, shooter, "heft")
+				var tempo_s := _feel(feel_profiles, shooter, "tempo")
+				var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft_s)
+				var amp := ORBIT_AMP * (1.3 - heft_s)
+				var rate := ORBIT_RATE * (0.5 + tempo_s)
 				var sign := 1.0 if shooter == "A" else -1.0
-				var bearing: float = float(home[shooter]) + sign * ORBIT_AMP * sin(float(it.orbit) * ORBIT_RATE)
+				var bearing: float = float(home[shooter]) + sign * amp * sin(float(it.orbit) * rate)
 				to = target_pos + Vector2(cos(bearing), sin(bearing)) * band
 				if bool(it.heavy):
 					boost = true
-					to_y = HOP_Y
+					to_y = HOP_Y * (0.7 + heft_s)
 			"reaction":
+				# The struck mech's heft resists the sell: a heavy mech is thrown less.
+				var heft_t := _feel(feel_profiles, actor, "heft")
 				var away := target_pos - shooter_pos
 				away = away.normalized() if away.length() > 0.001 else Vector2.RIGHT
 				if bool(it.connects):
-					to = target_pos + away * KNOCK       # sell: a grounded stagger-step back, feet planted
+					to = target_pos + away * (KNOCK * (1.5 - heft_t))  # grounded stagger-step
 				else:
 					# near-miss: lateral weave. Per-side sign keeps it mirror-equivariant too.
 					var wsign := 1.0 if actor == "A" else -1.0
@@ -366,6 +373,11 @@ static func _beam_trade(beats: Array, _truth: Array, spawn_pos: Dictionary) -> A
 			"payload": {"to_x": to.x, "to_z": to.y, "to_y": to_y, "boost": boost, "end_tick": it.end},
 		})
 	return built
+
+
+## Read a FeelProfile bias for an actor (heft/tempo), defaulting to the neutral 0.5.
+static func _feel(feel_profiles: Dictionary, actor: String, key: String) -> float:
+	return float(feel_profiles.get(actor, {}).get(key, 0.5))
 
 
 # =========================================================================================

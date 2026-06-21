@@ -128,6 +128,79 @@ static var _MT := load("res://scripts/sim/movement_trace.gd")
 
 
 # =========================================================================================
+# Layer 3 — exchange-mode composition (beat scheduler, Step 0)
+# =========================================================================================
+
+## The closed four-mode grammar vocabulary, in the fixed tie-break order
+## (beam-trade < swarm < dodge-pursuit < melee).
+const GRAMMAR_MODES := ["beam-trade", "swarm", "dodge-pursuit", "melee"]
+
+## Select a shot's grammar mode from the SHOOTER's FeelProfile mode_mix and the firing
+## weapon's mode_weights, mapping feel-modes to grammar-modes via mode_map. Pure argmax:
+##   feel_g[g] = Σ_{f → g in mode_map} mode_mix[f];  score[g] = mode_weights[g] · feel_g[g].
+## Ties resolve to the earliest mode in GRAMMAR_MODES order. This is the real selection seam;
+## pass-1 beam-trade gating is applied separately by the caller (gate_mode), so selection is
+## exercised even while only beam-trade is staged.
+static func select_mode(mode_mix: Dictionary, mode_weights: Dictionary, mode_map: Dictionary) -> String:
+	var feel_g := {}
+	for g in GRAMMAR_MODES:
+		feel_g[g] = 0.0
+	for f in mode_map:
+		var g: String = mode_map[f]
+		feel_g[g] = float(feel_g.get(g, 0.0)) + float(mode_mix.get(f, 0.0))
+
+	var best := GRAMMAR_MODES[0]
+	var best_score := 0.0
+	for g in GRAMMAR_MODES:
+		var score := float(mode_weights.get(g, 0.0)) * float(feel_g[g])
+		if score > best_score:
+			best_score = score
+			best = g
+	if best_score > 0.0:
+		return best
+
+	# Degenerate (no feel-mode and weapon weight coincide on any mode): fall back to the
+	# weapon's own argmax; if that is also all-zero, the final fallback is beam-trade.
+	var w_best := GRAMMAR_MODES[0]
+	var w_best_score := 0.0
+	for g in GRAMMAR_MODES:
+		var w := float(mode_weights.get(g, 0.0))
+		if w > w_best_score:
+			w_best_score = w
+			w_best = g
+	return w_best
+
+
+## Path to the feel-mode → grammar-mode data table (a versioned data resource, not code).
+const MODE_MAP_PATH := "res://data/grammar_mode_map.json"
+
+## Load the feel-mode → grammar-mode table from MODE_MAP_PATH.
+static func load_mode_map() -> Dictionary:
+	var text := FileAccess.get_file_as_string(MODE_MAP_PATH)
+	var parsed: Variant = JSON.parse_string(text)
+	return parsed if parsed is Dictionary else {}
+
+
+## Load-time validation: the map must cover EVERY FeelProfile feel-mode (missing key = invalid),
+## and every value must be one of the four grammar modes.
+static func validate_mode_map(mode_map: Dictionary, feel_modes: Array) -> bool:
+	for f in feel_modes:
+		if not mode_map.has(f):
+			return false
+	for f in mode_map:
+		if not GRAMMAR_MODES.has(mode_map[f]):
+			return false
+	return true
+
+
+## Pass-1 gating: only the beam-trade exchange is implemented this pass, so any selected mode
+## is staged as beam-trade. The selection seam (select_mode) is real and exercised; only the
+## staging is gated. Later passes drop this gate as each mode's exchange lands.
+static func gate_mode(_mode: String) -> String:
+	return "beam-trade"
+
+
+# =========================================================================================
 # Beat intents
 # =========================================================================================
 

@@ -77,7 +77,7 @@
     {
       "id": "cf-choreographer",
       "title": "Combat choreographer (log -> staged scene)",
-      "state": "in-progress",
+      "state": "shipped",
       "kind": "slice",
       "version": "0.1",
       "deps": [
@@ -92,7 +92,7 @@
     {
       "id": "cf-choreo-grammar",
       "title": "Combat choreography grammar (theory-grounded staging)",
-      "state": "in-progress",
+      "state": "shipped",
       "kind": "slice",
       "version": "0.1",
       "deps": [
@@ -247,7 +247,7 @@
     }
   ],
   "canon": {
-    "sha": "4bfb2ef48ebc17f8a1e290712f2d0027b026433d",
+    "sha": "2ec4a84db5be90910e8a36ce66ab89b373962e90",
     "ref": "HEAD"
   }
 }

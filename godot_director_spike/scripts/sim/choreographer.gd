@@ -30,6 +30,8 @@ const KNOCK := 14.0     # how far an at-impact sell shoves the struck mech away 
 const WEAVE := 16.0     # lateral offset of a near-miss dodge (a miss reaction, not a sell)
 const ORBIT_AMP := 0.5  # radians the engage strafes off the shooter's home bearing (~28°: circles its own side, never crosses center)
 const ORBIT_RATE := 1.1 # how fast the strafe oscillates across successive beats (zig-zag, not a slow drift)
+const ANTICIPATE := 3.0 # how far the mech loads BACK before a dash (weight gathering; heft-scaled). F1/F13.
+const OVERSHOOT := 5.0  # how far a dash carries PAST its mark before settling back (mass can't stop on a dime). F1.
 
 
 # =========================================================================================
@@ -393,19 +395,41 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			var bearing := base + sign * (oamp * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
 			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 		"dodge-pursuit":
-			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in (grounded)
+			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in on a grounded boost
 			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
+			return _dash_profile(shooter, start, end, sp, tp + Vector2(cos(bearing), sin(bearing)) * band, heft)
 		"melee":
 			var dir := (sp - tp)  # grounded lunge straight to contact (speed spike into the clash)
 			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7))]
+			return _dash_profile(shooter, start, end, sp, tp + dir * (_P.RANGE_CLOSE * 0.7), heft)
 		_:  # beam-trade
 			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
 			var amp := oamp * (1.3 - heft)
 			var rate := ORBIT_RATE * (0.5 + tempo)
 			var bearing := base + sign * amp * sin(float(it.orbit) * rate)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
+			return _dash_profile(shooter, start, end, sp, tp + Vector2(cos(bearing), sin(bearing)) * band, heft)
+
+
+## A weighty grounded boost-dash to `target`, as a burst-coast-snap waypoint sequence (F1/F3/F13):
+##   load BACK (anticipation, weight gathering) -> thrust burst PAST the mark (grounded boost
+##   flare + carried momentum) -> settle back onto the planted firing mark (mass overshoots, can't
+##   stop on a dime). Both the load and the overshoot scale with heft, so a heavy mech gathers and
+##   carries more. Falls back to a single advance when the engage span is too short to shape.
+static func _dash_profile(actor: String, start: int, end: int, from_pos: Vector2, target: Vector2, heft: float) -> Array:
+	var dir := target - from_pos
+	# Degenerate fallback is per-side (RIGHT for A, LEFT for B) so the dash stays mirror-equivariant.
+	dir = dir.normalized() if dir.length() > 0.001 else Vector2(1.0 if actor == "A" else -1.0, 0.0)
+	if end - start < 3:
+		return [_adv(actor, start, end, target, 0.0, true)]
+	var load := from_pos - dir * (ANTICIPATE * (0.5 + heft))
+	var overshoot := target + dir * (OVERSHOOT * (0.5 + heft))
+	var t1 := start + 1   # anticipation beat: a quick load-back
+	var t2 := end - 1     # then the thrust burst (grounded boost) carrying past the mark
+	return [
+		_adv(actor, start, t1, load),
+		_adv(actor, t1, t2, overshoot, 0.0, true),
+		_adv(actor, t2, end, target),
+	]
 
 
 ## Reaction geometry per exchange mode — the struck mech AT impact (may read the resolution).

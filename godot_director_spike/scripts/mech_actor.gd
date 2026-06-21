@@ -55,6 +55,12 @@ func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged :
 	rigged = p_rigged
 	position = Vector3(x, 0, 0)
 
+## Apply the build's FeelProfile heft to the body's render mass (F1 mass-ramp): a heavier mech
+## has a LOWER acceleration cap, so it spins up slower, carries more momentum, and coasts/banks
+## harder; a light mech starts and stops crisply. Set by main.gd from the presentation hooks.
+func apply_feel(heft: float) -> void:
+	max_accel = lerpf(30.0, 14.0, clampf(heft, 0.0, 1.0))
+
 func _ready() -> void:
 	if rigged:
 		_build_rigged()

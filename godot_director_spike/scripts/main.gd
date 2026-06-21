@@ -125,6 +125,12 @@ func _ready() -> void:
 		print("KM-PRESENTATION shape=%s template=%s climax=%s beats=%d" % [
 			fight.get("shape", "?"), fight.get("template_id", "?"),
 			str(fight.get("climax_window", [])), (presentation.get("beats", []) as Array).size()])
+		# Heft -> render: drive each body's mass-ramp from the build's FeelProfile heft.
+		var feel: Dictionary = presentation.get("actors", {})
+		if feel.has("A"):
+			mech_a.apply_feel(float(feel["A"].get("heft", 0.5)))
+		if feel.has("B"):
+			mech_b.apply_feel(float(feel["B"].get("heft", 0.5)))
 	var dur := FightLog.duration_sec(events)
 	# Single source of truth (codex #2): ONE grammar instance flows to shot-gen,
 	# the director's runtime camera (_grammar), the Grade node, and garnish.

@@ -609,7 +609,12 @@ static func presentation(truth: Array, seed: int, feel_profiles: Dictionary) -> 
 		"climax_window": [climax_start, maxi(duration - 1, climax_start)],
 		"lethal_ref": _lethal_ref(truth),
 	}
-	return {"beats": beat_hooks, "fight": fight}
+	# Per-actor render dials (heft/tempo) so the director can drive the body's mass-ramp +
+	# cadence from the build — the heft -> render bridge the camera reads at boot.
+	var actors := {}
+	for actor in feel_profiles:
+		actors[actor] = {"heft": _feel(feel_profiles, actor, "heft"), "tempo": _feel(feel_profiles, actor, "tempo")}
+	return {"beats": beat_hooks, "fight": fight, "actors": actors}
 
 
 ## Bundle the staged events with the side-channel `presentation` hook block, the shape the log

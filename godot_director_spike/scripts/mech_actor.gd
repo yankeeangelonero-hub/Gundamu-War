@@ -24,8 +24,8 @@ var velocity := Vector3.ZERO
 var _target := Vector3.ZERO
 var max_speed := 48.0    # keep top speed up (slow mechs linger in the city and
 var max_accel := 24.0    # tank perf); HEAVY comes from low accel — slow ramp, carried momentum
-var cadence_hz := 0.0    # F11 mass-via-cadence: >0 = update the POSE in held steps (heavy);
-var _cad_t := 0.0        # 0 = continuous (light). Pose-rate only — position stays smooth.
+var pose_rate := 1.0     # F11 weight (smooth): heavy builds ease facing/lean/arms SLOWER (more
+                         # committed, longer-held), never stepped. 1.0 = light/unchanged.
 var _boost_t := 0.0
 var _boost_cd := 0.0     # cooldown: must walk/strafe before boosting again
 var _was_airborne := false
@@ -63,9 +63,8 @@ func setup(id: String, color: Color, x: float, p_full_armor := false, p_rigged :
 func apply_feel(heft: float) -> void:
 	var h := clampf(heft, 0.0, 1.0)
 	max_accel = lerpf(30.0, 14.0, h)
-	# F11 cadence: only mid-heavy builds (heft > ~0.35) update their pose in held steps; light
-	# builds stay continuous (cadence_hz 0). Heavier -> lower step rate -> more deliberate "held".
-	cadence_hz = maxf(0.0, h - 0.35) * 9.0
+	# Heavier -> slower, more committed upper-body pose easing (smooth). Half-speed at full heft.
+	pose_rate = lerpf(1.0, 0.5, h)
 
 func _ready() -> void:
 	if rigged:
@@ -240,41 +239,31 @@ func _process(delta: float) -> void:
 		var fd := combat_face.position - position
 		if Vector2(fd.x, fd.z).length() > 0.5:
 			_target_yaw = atan2(fd.x, fd.z)
-	# Cadence (F11): a heavy mech updates its upper-body POSE in deliberate HELD steps; a light
-	# mech (cadence_hz 0) updates every frame. Position stays continuous — weight is in the
-	# pose-rate, not the travel. Between cadence ticks the pose holds, then snaps to the target.
-	var pose_dt := delta
-	var pose_tick := true
-	if cadence_hz > 0.0:
-		_cad_t += delta
-		if _cad_t >= 1.0 / cadence_hz:
-			pose_dt = _cad_t
-			_cad_t = 0.0
-		else:
-			pose_tick = false
-	if pose_tick:
-		rotation.y = lerp_angle(rotation.y, _target_yaw, (16.0 if dashing else 11.0) * pose_dt)
+	# Weight via committed-and-held pose (the smooth F11 translation): a heavy mech eases its
+	# upper-body pose (facing, AMBAC, lean) SLOWER (pose_rate < 1) — it commits to a pose and
+	# holds it longer, changing deliberately. Fully smooth, never stepped. Light builds run at
+	# pose_rate 1.0 (unchanged). Position/gait are owned by the integrator (the mass-ramp).
+	rotation.y = lerp_angle(rotation.y, _target_yaw, (16.0 if dashing else 11.0) * pose_rate * delta)
 	if rigged:
 		_drive_rig(delta)
 		return   # skip the block-out box visuals; the rig + clips handle the body
-	if pose_tick:
-		# AMBAC: the mech whips its facing by swinging its arms — the limbs counter-rotate the
-		# torso (angular momentum), so a turn reads as limb-driven.
-		var yaw_vel := angle_difference(_prev_yaw, rotation.y) / maxf(pose_dt, 0.0001)
-		_prev_yaw = rotation.y
-		if not _blocking:
-			var swing := clampf(yaw_vel * 0.04, -1.0, 1.0)
-			arm_l.rotation.x = lerpf(arm_l.rotation.x, swing, 14.0 * pose_dt)
-			arm_r.rotation.x = lerpf(arm_r.rotation.x, -swing, 14.0 * pose_dt)
-		# Bank/lean from the integrated velocity; while locked, strain forward into the press.
-		if _lock_t > 0.0:
-			torso.rotation.z = lerpf(torso.rotation.z, 0.0, 9.0 * pose_dt)
-			torso.rotation.x = lerpf(torso.rotation.x, -0.24, 10.0 * pose_dt)
-		else:
-			var lat := velocity.dot(transform.basis.x)
-			var fwd_s := velocity.dot(transform.basis.z)
-			torso.rotation.z = lerpf(torso.rotation.z, clampf(-lat * 0.012, -0.34, 0.34), 9.0 * pose_dt)
-			torso.rotation.x = lerpf(torso.rotation.x, clampf(-fwd_s * 0.007, -0.32, 0.06), 9.0 * pose_dt)
+	# AMBAC: the mech whips its facing by swinging its arms — the limbs counter-rotate the torso
+	# (angular momentum), so a turn reads as limb-driven.
+	var yaw_vel := angle_difference(_prev_yaw, rotation.y) / maxf(delta, 0.0001)
+	_prev_yaw = rotation.y
+	if not _blocking:
+		var swing := clampf(yaw_vel * 0.04, -1.0, 1.0)
+		arm_l.rotation.x = lerpf(arm_l.rotation.x, swing, 14.0 * pose_rate * delta)
+		arm_r.rotation.x = lerpf(arm_r.rotation.x, -swing, 14.0 * pose_rate * delta)
+	# Bank/lean from the integrated velocity; while locked, strain forward into the press.
+	if _lock_t > 0.0:
+		torso.rotation.z = lerpf(torso.rotation.z, 0.0, 9.0 * pose_rate * delta)
+		torso.rotation.x = lerpf(torso.rotation.x, -0.24, 10.0 * pose_rate * delta)
+	else:
+		var lat := velocity.dot(transform.basis.x)
+		var fwd_s := velocity.dot(transform.basis.z)
+		torso.rotation.z = lerpf(torso.rotation.z, clampf(-lat * 0.012, -0.34, 0.34), 9.0 * pose_rate * delta)
+		torso.rotation.x = lerpf(torso.rotation.x, clampf(-fwd_s * 0.007, -0.32, 0.06), 9.0 * pose_rate * delta)
 	var airborne := position.y > 2.0
 	_crouch = lerpf(_crouch, 0.0, 8.0 * delta)
 	if moving and not airborne:

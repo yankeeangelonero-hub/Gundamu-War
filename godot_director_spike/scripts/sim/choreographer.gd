@@ -395,13 +395,13 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			var bearing := base + sign * (oamp * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
 			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
 		"dodge-pursuit":
-			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in, boosted
+			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in on a grounded boost
 			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, HOP_Y * 0.4, true)]
+			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band, 0.0, true)]
 		"melee":
-			var dir := (sp - tp)  # dash straight to contact range (a speed spike into the clash)
+			var dir := (sp - tp)  # grounded lunge straight to contact (speed spike into the clash)
 			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7), HOP_Y * 0.5, true)]
+			return [_adv(shooter, start, end, tp + dir * (_P.RANGE_CLOSE * 0.7), 0.0, true)]
 		_:  # beam-trade
 			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
 			var amp := oamp * (1.3 - heft)

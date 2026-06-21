@@ -329,9 +329,9 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 		orbit[shooter] += 1
 		# Mobile shooter (light build): keep strafing through the shot instead of planting, so a
 		# light mech attacks WHILE moving and is never stationary. Heavy builds plant (>= MOBILE_HEFT).
-		if _feel(feel_profiles, shooter, "heft") < _P.MOBILE_HEFT:
+		if _feel(feel_profiles, shooter, "heft") < _param(feel_profiles, shooter, "MOBILE_HEFT", _P.MOBILE_HEFT):
 			intents.append({
-				"start": int(b.fire_tick), "end": int(b.impact_tick) + react + 12,
+				"start": maxi(int(b.fire_tick), int(b.cue_tick)), "end": int(b.impact_tick) + react + 12,
 				"actor": shooter, "kind": "strafe", "shooter": shooter, "target": target,
 			})
 		intents.append({
@@ -483,7 +483,7 @@ static func _strafe(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 	var to := tp - sp
 	to = to.normalized() if to.length() > 0.001 else Vector2.RIGHT
 	var lat := to.orthogonal() * (1.0 if actor == "A" else -1.0)
-	var amp: float = _param(feel, actor, "WEAVE", WEAVE) * float(_P.STRAFE_AMP)
+	var amp: float = _param(feel, actor, "WEAVE", WEAVE) * _param(feel, actor, "STRAFE_AMP", _P.STRAFE_AMP)
 	return _weave_path(actor, start, end, sp, lat, amp, 3)
 
 ## A zig-zag weave: `segments` contiguous sub-advances alternating +/-lateral around `base`, so the

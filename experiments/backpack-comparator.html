@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Backpack Comparator -- Kitbash Mecha v0.4</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0d0d0d;color:#ccc;font:12px/1.4 monospace;padding:12px;}
+h1{color:#a0c8f0;font-size:14px;margin-bottom:10px;}
+h2{color:#80c080;font-size:12px;margin-bottom:6px;}
+#top{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+#top select,#top input{background:#1a1a1a;border:1px solid #333;color:#ccc;padding:3px 6px;font:inherit;}
+#top button{background:#1a3a5c;border:1px solid #4080c0;color:#7cf;padding:5px 12px;cursor:pointer;font:inherit;}
+#top button:hover{background:#2a4a7c;}
+#main{display:flex;gap:14px;flex-wrap:wrap;}
+.panel{flex:1;min-width:300px;}
+.grid{display:grid;grid-template-columns:repeat(6,40px);grid-template-rows:repeat(5,40px);gap:2px;margin-bottom:8px;}
+.cell{width:40px;height:40px;background:#1a1a1a;border:1px solid #2a2a2a;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:7px;color:#444;user-select:none;}
+.cell:hover{border-color:#555;}
+.occ{border-color:#4a6a90!important;}
+.pv{background:#1a3020!important;border-color:#3a6040!important;cursor:crosshair;}
+.pi{background:#3a1010!important;border-color:#6a2020!important;cursor:not-allowed;}
+.pal{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;}
+.pb{background:#181828;border:1px solid #2a2a40;color:#88a;padding:2px 6px;font:10px monospace;cursor:pointer;}
+.pb:hover,.pb.sel{background:#2a2a40;border-color:#6080c0;color:#ccf;}
+.ctr{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.rb{background:#1a2010;border:1px solid #3a4020;color:#ac8;padding:3px 8px;font:inherit;cursor:pointer;}
+.adj{font-size:10px;border:1px solid #1a2a1a;padding:5px;min-height:38px;background:#0e120e;}
+#result{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;}
+#log{flex:1;min-width:250px;max-height:180px;overflow-y:auto;background:#0a0a0a;border:1px solid #1a1a1a;padding:6px;font-size:10px;}
+#dbr{flex:1;min-width:250px;background:#0a0a0a;border:1px solid #1a1a1a;padding:6px;font-size:10px;}
+.ea{color:#5080ff;}.eb{color:#ff5050;}
+.win{color:#ffd060;font-size:13px;margin-bottom:5px;}
+</style>
+</head>
+<body>
+<h1>Backpack Comparator -- Kitbash Mecha v0.4</h1>
+<div id="top">
+  <label>A: <select id="sa"></select></label>
+  <label>B: <select id="sb"></select></label>
+  <label>Seed: <input id="sd" type="number" value="42" style="width:70px"></label>
+  <button id="deploy">Deploy</button>
+</div>
+<div id="main">
+  <div class="panel">
+    <h2>Build A</h2>
+    <div class="grid" id="ga"></div>
+    <div class="ctr"><button class="rb" id="ra">Rotate 0deg</button><span id="sA" style="color:#88a;font-size:10px">select from palette</span></div>
+    <div class="pal" id="pa"></div>
+    <div class="adj" id="adja"></div>
+  </div>
+  <div class="panel">
+    <h2>Build B</h2>
+    <div class="grid" id="gb"></div>
+    <div class="ctr"><button class="rb" id="rb">Rotate 0deg</button><span id="sB" style="color:#88a;font-size:10px">select from palette</span></div>
+    <div class="pal" id="pb"></div>
+    <div class="adj" id="adjb"></div>
+  </div>
+</div>
+<div id="result">
+  <div id="log"><span style="color:#333">deploy to see fight log</span></div>
+  <div id="dbr"><span style="color:#333">debrief after deploy</span></div>
+</div>
+<script src="backpack-comparator/backpack-core.js"></script>
+<script>
+(function(){
+var BP=BACKPACK;
+var S={a:{placements:[],rot:0,sel:null,hover:null},b:{placements:[],rot:0,sel:null,hover:null}};
+var IC={'pulse-core':'#1c3458','power-conduit':'#1a3818','capacitor-cell':'#1c2645','thermal-sink':'#382c10','beam-lance':'#3a1a1a','razor-saber-pair':'#352a0e','arc-rifle':'#1c2e0c','rail-javelin':'#0e2828','missile-hive':'#341020','reactive-plate':'#1e3218','prism-shield':'#1e0e44','vector-thruster':'#0e2035','targeting-fin':'#2a2010'};
+function buildSel(side){
+  var el=document.getElementById('s'+side);
+  el.innerHTML='<option value="">custom</option>';
+  Object.keys(BP.PRESETS).forEach(function(k){var o=document.createElement('option');o.value=k;o.text=BP.PRESETS[k].name;el.appendChild(o);});
+  el.value=side==='a'?'dawn-knife':'bastion-choir';
+  el.addEventListener('change',function(){if(el.value)loadPreset(side,el.value);else{S[side].placements=[];renderAll(side);}});
+}
+function loadPreset(side,key){if(!BP.PRESETS[key])return;S[side].placements=BP.PRESETS[key].placements.slice();S[side].sel=null;renderAll(side);}
+function buildGrid(side){
+  var g=document.getElementById('g'+side);
+  for(var r=0;r<5;r++)for(var c=0;c<6;c++){
+    var cell=document.createElement('div');cell.className='cell';cell.dataset.c=c;cell.dataset.r=r;
+    (function(col,row){
+      cell.addEventListener('click',function(){onCell(side,col,row);});
+      cell.addEventListener('mouseenter',function(){S[side].hover=[col,row];renderGrid(side);renderAdj(side);});
+      cell.addEventListener('mouseleave',function(){S[side].hover=null;renderGrid(side);renderAdj(side);});
+    })(c,r);
+    g.appendChild(cell);
+  }
+}
+function buildPal(side){
+  var pal=document.getElementById('p'+side);
+  BP.ITEMS.forEach(function(item){
+    var btn=document.createElement('div');btn.className='pb';btn.textContent=item.name;btn.dataset.id=item.id;
+    btn.addEventListener('click',function(){S[side].sel=S[side].sel===item.id?null:item.id;renderAll(side);});
+    pal.appendChild(btn);
+  });
+}
+function onCell(side,col,row){
+  var st=S[side];
+  if(st.sel){
+    var g=BP.buildGridFromPlacements(st.placements);
+    if(BP.canPlace(g,st.sel,col,row,st.rot)){
+      st.placements.push({itemId:st.sel,col:col,row:row,rot:st.rot});
+      document.getElementById('s'+side).value='';renderAll(side);
+    }
+  }else{
+    var g=BP.buildGridFromPlacements(st.placements);
+    var key=g[row][col];
+    if(key){
+      var parts=key.split('@')[1].split(',');
+      var c=+parts[0],r=+parts[1],ro=+parts[2];
+      st.placements=st.placements.filter(function(p){return!(p.col===c&&p.row===r&&p.rot===ro&&key.indexOf(p.itemId+'@')===0);});
+      document.getElementById('s'+side).value='';renderAll(side);
+    }
+  }
+}
+function renderGrid(side){
+  var st=S[side],g=BP.buildGridFromPlacements(st.placements);
+  var lmap={};
+  st.placements.forEach(function(p){
+    var cells=BP.getOccupiedCells(p.itemId,p.col,p.row,p.rot);
+    var item=null;for(var i=0;i<BP.ITEMS.length;i++)if(BP.ITEMS[i].id===p.itemId){item=BP.ITEMS[i];break;}
+    cells.forEach(function(cell,idx){lmap[cell[0]+','+cell[1]]={label:idx===0?(item?item.name.slice(0,6):''):'',color:IC[p.itemId]||'#1c2c3c'};});
+  });
+  var hmap={};
+  if(st.sel&&st.hover){
+    var pc=BP.getOccupiedCells(st.sel,st.hover[0],st.hover[1],st.rot);
+    var ok=BP.canPlace(g,st.sel,st.hover[0],st.hover[1],st.rot);
+    pc.forEach(function(cell){hmap[cell[0]+','+cell[1]]=ok?'pv':'pi';});
+  }
+  var cells=document.getElementById('g'+side).querySelectorAll('.cell');
+  cells.forEach(function(cell){
+    var col=+cell.dataset.c,row=+cell.dataset.r,k=col+','+row;
+    cell.style.background='';cell.className='cell';cell.textContent='';
+    if(lmap[k]){cell.classList.add('occ');cell.style.background=lmap[k].color;if(lmap[k].label)cell.textContent=lmap[k].label;}
+    else if(hmap[k])cell.classList.add(hmap[k]);
+  });
+}
+function renderAdj(side){
+  var st=S[side],adj=BP.getActiveAdjacencies(st.placements);
+  var pids=st.placements.map(function(p){return p.itemId;});
+  var adlbls={};adj.forEach(function(a){adlbls[a.label]=true;});
+  var html='';
+  if(adj.length){
+    html+='<span style="color:#5c5">Active: </span>';
+    html+=adj.map(function(r){var b=Object.keys(r.bonus).map(function(k){return'+'+r.bonus[k]+' '+k;}).join(' ');return'<span style="color:#7d7">'+r.label+'</span><span style="color:#555"> ('+b+')</span>';}).join(' ');
+    html+='<br>';
+  }
+  var inactive=BP.ADJ_RULES.filter(function(r){return pids.indexOf(r.a)>=0&&pids.indexOf(r.b)>=0&&!adlbls[r.label];});
+  if(inactive.length)html+='<span style="color:#554">Inactive: </span>'+inactive.map(function(r){return'<span style="color:#443">~'+r.label+'</span>';}).join(' ')+'<br>';
+  var missing=BP.ADJ_RULES.filter(function(r){var ha=pids.indexOf(r.a)>=0,hb=pids.indexOf(r.b)>=0;return ha!==hb;});
+  if(missing.length){
+    html+='<span style="color:#444">Need partner: </span>';
+    html+=missing.map(function(r){var need=pids.indexOf(r.a)<0?r.a:r.b;var ni=null;for(var i=0;i<BP.ITEMS.length;i++)if(BP.ITEMS[i].id===need){ni=BP.ITEMS[i];break;}return'<span style="color:#443">'+r.label+' needs '+(ni?ni.name:need)+'</span>';}).join(' ');
+  }
+  if(!html)html='<span style="color:#333">no items placed</span>';
+  if(st.sel&&st.hover){
+    var g2=BP.buildGridFromPlacements(st.placements);
+    if(BP.canPlace(g2,st.sel,st.hover[0],st.hover[1],st.rot)){
+      var pa=BP.previewAdjacency(st.placements,st.sel,st.hover[0],st.hover[1],st.rot);
+      if(pa.length)html+='<br><span style="color:#a80">Place here activates: </span>'+pa.map(function(r){return'<span style="color:#ca6">+'+r.label+'</span>';}).join(' ');
+    }
+  }
+  document.getElementById('adj'+side).innerHTML=html;
+}
+function renderAll(side){
+  renderGrid(side);renderAdj(side);
+  var st=S[side];
+  document.getElementById('p'+side).querySelectorAll('.pb').forEach(function(btn){btn.classList.toggle('sel',btn.dataset.id===st.sel);});
+  document.getElementById('r'+side).textContent='Rotate '+(st.rot*90)+'deg';
+  var selNm=null;if(st.sel)for(var i=0;i<BP.ITEMS.length;i++)if(BP.ITEMS[i].id===st.sel){selNm=BP.ITEMS[i].name;break;}
+  document.getElementById('s'+side.toUpperCase()).textContent=selNm?'placing: '+selNm:'select from palette';
+}
+document.getElementById('ra').addEventListener('click',function(){S.a.rot=(S.a.rot+1)%4;renderAll('a');});
+document.getElementById('rb').addEventListener('click',function(){S.b.rot=(S.b.rot+1)%4;renderAll('b');});
+document.addEventListener('keydown',function(e){if(e.key==='r'||e.key==='R'){if(S.a.sel){S.a.rot=(S.a.rot+1)%4;renderAll('a');}if(S.b.sel){S.b.rot=(S.b.rot+1)%4;renderAll('b');}}});
+document.getElementById('deploy').addEventListener('click',function(){
+  var seed=parseInt(document.getElementById('sd').value)||42;
+  var saEl=document.getElementById('sa'),sbEl=document.getElementById('sb');
+  var nA=saEl.options[saEl.selectedIndex]?saEl.options[saEl.selectedIndex].text:'Build A';
+  var nB=sbEl.options[sbEl.selectedIndex]?sbEl.options[sbEl.selectedIndex].text:'Build B';
+  var result=BP.simulate({placements:S.a.placements},{placements:S.b.placements},seed);
+  showResult(result,nA,nB,seed);
+});
+function showResult(r,nA,nB,seed){
+  var logEl=document.getElementById('log');
+  var html='<div style="color:#666;margin-bottom:3px">'+nA+' vs '+nB+' seed:'+seed+'</div>';
+  r.events.forEach(function(ev){html+='<div class="e'+ev.actor.toLowerCase()+'">T'+ev.tick+' ['+ev.actor+'] dmg '+ev.damage+' | A:'+ev.hpA+' B:'+ev.hpB+'</div>';});
+  logEl.innerHTML=html;logEl.scrollTop=logEl.scrollHeight;
+  var ws=r.winner==='A'?nA+' wins':r.winner==='B'?nB+' wins':'Draw';
+  var db='<div class="win">'+ws+' ('+r.ticks+' ticks)</div>';
+  function stbl(stats,adj,name){
+    var h='<b style="color:#7c9">'+name+'</b><br>';
+    ['hp','attack','defense','speed','energy'].forEach(function(k){h+=k+':'+(stats[k]||0)+'  ';});
+    if(adj.length)h+='<br><span style="color:#6a6">'+adj.map(function(a){return a.label;}).join(' + ')+'</span>';
+    return h;
+  }
+  db+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">';
+  db+='<div>'+stbl(r.statsA,r.adjA,nA)+'<br><span style="color:'+(r.winner==='A'?'#7f7':'#f77')+'">HP left: '+r.hpA+'</span></div>';
+  db+='<div>'+stbl(r.statsB,r.adjB,nB)+'<br><span style="color:'+(r.winner==='B'?'#7f7':'#f77')+'">HP left: '+r.hpB+'</span></div>';
+  db+='</div>';
+  document.getElementById('dbr').innerHTML=db;
+}
+buildSel('a');buildSel('b');buildGrid('a');buildGrid('b');buildPal('a');buildPal('b');
+loadPreset('a','dawn-knife');loadPreset('b','bastion-choir');
+})();
+</script>
+</body>
+</html>

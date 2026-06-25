@@ -1,0 +1,38 @@
+{
+  "preset": "dawn-knife",
+  "placements": [
+    {
+      "itemId": "vector-thruster",
+      "col": 0,
+      "row": 0,
+      "rot": 0
+    },
+    {
+      "itemId": "razor-saber-pair",
+      "col": 1,
+      "row": 0,
+      "rot": 0
+    },
+    {
+      "itemId": "targeting-fin",
+      "col": 3,
+      "row": 0,
+      "rot": 0
+    },
+    {
+      "itemId": "power-conduit",
+      "col": 4,
+      "row": 0,
+      "rot": 0
+    },
+    {
+      "itemId": "capacitor-cell",
+      "col": 5,
+      "row": 0,
+      "rot": 0
+    }
+  ],
+  "allOk": true,
+  "overlapRejected": true,
+  "oobRejected": true
+}

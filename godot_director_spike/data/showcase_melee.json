@@ -1,0 +1,1454 @@
+{
+  "events": [
+    {
+      "actor": "A",
+      "kind": "spawn",
+      "payload": {
+        "hp": 100,
+        "x": -40.0,
+        "z": 0.0
+      },
+      "seq": 0,
+      "tick": 0
+    },
+    {
+      "actor": "B",
+      "kind": "spawn",
+      "payload": {
+        "hp": 100,
+        "x": 40.0,
+        "z": 0.0
+      },
+      "seq": 1,
+      "tick": 0
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 2,
+        "to_x": -43.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 1
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 4,
+        "to_x": 31.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 2
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 5,
+        "to_x": 26.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 4
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 8,
+        "to_x": 37.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 7
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 10,
+        "to_x": 73.5,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 8
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 12,
+        "hit": true
+      },
+      "tick": 10
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 11,
+        "to_x": 68.5,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 10
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 13,
+        "to_x": 73.5,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 10
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 16,
+        "to_x": 88.9000015258789,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 13
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 16,
+        "to_x": 23.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 15
+    },
+    {
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 12,
+        "hit": true
+      },
+      "tick": 16
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 18,
+        "to_x": 73.0999984741211,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 16
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 22,
+        "to_x": 9.0,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 16
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 19,
+        "to_x": 68.0999984741211,
+        "to_y": 0.0,
+        "to_z": 0.0
+      },
+      "tick": 18
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 22,
+        "to_x": 91.6921081542969,
+        "to_y": 0.0,
+        "to_z": 1.09732723236084
+      },
+      "tick": 21
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 24,
+        "to_x": 46.5078468322754,
+        "to_y": 0.0,
+        "to_z": -16.6605491638184
+      },
+      "tick": 22
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": false
+      },
+      "tick": 24
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 27,
+        "to_x": 46.5078468322754,
+        "to_y": 0.0,
+        "to_z": -16.6605491638184
+      },
+      "tick": 24
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 25,
+        "to_x": 51.1613616943359,
+        "to_y": 0.0,
+        "to_z": -14.8316698074341
+      },
+      "tick": 24
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 30,
+        "to_x": 34.3154220581055,
+        "to_y": 0.0,
+        "to_z": -26.0682487487793
+      },
+      "tick": 27
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 30,
+        "to_x": 70.4512405395508,
+        "to_y": 0.0,
+        "to_z": 1.86324012279511
+      },
+      "tick": 29
+    },
+    {
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 10,
+        "hit": true
+      },
+      "tick": 30
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 32,
+        "to_x": 46.9844551086426,
+        "to_y": 0.0,
+        "to_z": -16.7330017089844
+      },
+      "tick": 30
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 36,
+        "to_x": 81.5279922485352,
+        "to_y": 0.0,
+        "to_z": 10.4251089096069
+      },
+      "tick": 30
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 33,
+        "to_x": 50.903190612793,
+        "to_y": 0.0,
+        "to_z": -13.6276016235352
+      },
+      "tick": 32
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 14,
+        "hit": true
+      },
+      "tick": 38
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 41,
+        "to_x": 34.3154220581055,
+        "to_y": 0.0,
+        "to_z": -26.0682487487793
+      },
+      "tick": 38
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 42,
+        "to_x": 53.3032035827637,
+        "to_y": 0.0,
+        "to_z": -11.8276176452637
+      },
+      "tick": 41
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 44,
+        "to_x": 21.9953575134277,
+        "to_y": 0.0,
+        "to_z": -35.308162689209
+      },
+      "tick": 41
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 44,
+        "to_x": 41.5154609680176,
+        "to_y": 0.0,
+        "to_z": -20.6683006286621
+      },
+      "tick": 42
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 45,
+        "to_x": 45.5154800415039,
+        "to_y": 0.0,
+        "to_z": -17.668327331543
+      },
+      "tick": 44
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 50,
+        "to_x": 19.0016307830811,
+        "to_y": 0.0,
+        "to_z": -35.5020790100098
+      },
+      "tick": 49
+    },
+    {
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "connected": true,
+        "damage": 16,
+        "style": "cleave"
+      },
+      "tick": 50
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 52,
+        "to_x": 90.8018569946289,
+        "to_y": 0.0,
+        "to_z": -30.8512382507324
+      },
+      "tick": 50
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 53,
+        "to_x": 19.0016307830811,
+        "to_y": 0.0,
+        "to_z": -35.5020790100098
+      },
+      "tick": 50
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 53,
+        "to_x": 85.8123168945313,
+        "to_y": 0.0,
+        "to_z": -31.1744346618652
+      },
+      "tick": 52
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 56,
+        "to_x": 6.22327613830566,
+        "to_y": 0.0,
+        "to_z": -44.0970611572266
+      },
+      "tick": 53
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 58,
+        "to_x": 48.004768371582,
+        "to_y": 0.0,
+        "to_z": -15.9939804077148
+      },
+      "tick": 57
+    },
+    {
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 12,
+        "hit": true
+      },
+      "tick": 58
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 60,
+        "to_x": 13.6911458969116,
+        "to_y": 0.0,
+        "to_z": -39.0740203857422
+      },
+      "tick": 58
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 64,
+        "to_x": 59.621452331543,
+        "to_y": 0.0,
+        "to_z": -8.1803617477417
+      },
+      "tick": 58
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 61,
+        "to_x": 17.8399620056152,
+        "to_y": 0.0,
+        "to_z": -36.2834434509277
+      },
+      "tick": 60
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "hit": false
+      },
+      "tick": 66
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 69,
+        "to_x": 6.22327613830566,
+        "to_y": 0.0,
+        "to_z": -44.0970611572266
+      },
+      "tick": 66
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 68,
+        "to_x": 14.8399620056152,
+        "to_y": 0.0,
+        "to_z": -36.2834434509277
+      },
+      "tick": 67
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 70,
+        "to_x": 22.8399620056152,
+        "to_y": 0.0,
+        "to_z": -36.2834434509277
+      },
+      "tick": 68
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 72,
+        "to_x": -6.55507850646973,
+        "to_y": 0.0,
+        "to_z": -52.6920394897461
+      },
+      "tick": 69
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 71,
+        "to_x": 17.8399620056152,
+        "to_y": 0.0,
+        "to_z": -36.2834434509277
+      },
+      "tick": 70
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 74,
+        "to_x": -9.43965339660645,
+        "to_y": 0.0,
+        "to_z": -53.5161933898926
+      },
+      "tick": 73
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 76,
+        "to_x": 65.0630111694336,
+        "to_y": 0.0,
+        "to_z": -32.2299537658691
+      },
+      "tick": 74
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 14,
+        "hit": true
+      },
+      "tick": 76
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 79,
+        "to_x": 65.0630111694336,
+        "to_y": 0.0,
+        "to_z": -32.2299537658691
+      },
+      "tick": 76
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 77,
+        "to_x": 60.2553863525391,
+        "to_y": 0.0,
+        "to_z": -33.6035461425781
+      },
+      "tick": 76
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 82,
+        "to_x": 80.4065856933594,
+        "to_y": 0.0,
+        "to_z": -30.9129047393799
+      },
+      "tick": 79
+    },
+    {
+      "actor": "B",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 10,
+        "hit": true
+      },
+      "tick": 82
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 88,
+        "to_x": 3.89125537872314,
+        "to_y": 0.0,
+        "to_z": -37.4807586669922
+      },
+      "tick": 82
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 84,
+        "to_x": 12.5261688232422,
+        "to_y": 0.0,
+        "to_z": -36.7395629882813
+      },
+      "tick": 83
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 86,
+        "to_x": 71.4395599365234,
+        "to_y": 0.0,
+        "to_z": -31.6826095581055
+      },
+      "tick": 84
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 87,
+        "to_x": 66.457878112793,
+        "to_y": 0.0,
+        "to_z": -32.110221862793
+      },
+      "tick": 86
+    },
+    {
+      "actor": "A",
+      "kind": "fire_beam",
+      "payload": {
+        "damage": 16,
+        "hit": true
+      },
+      "tick": 92
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 95,
+        "to_x": 80.4065856933594,
+        "to_y": 0.0,
+        "to_z": -30.9129047393799
+      },
+      "tick": 92
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 96,
+        "to_x": 63.457878112793,
+        "to_y": 0.0,
+        "to_z": -32.110221862793
+      },
+      "tick": 95
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 98,
+        "to_x": 95.7501678466797,
+        "to_y": 0.0,
+        "to_z": -29.5958557128906
+      },
+      "tick": 95
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": true,
+        "end_tick": 98,
+        "to_x": 71.457878112793,
+        "to_y": 0.0,
+        "to_z": -32.110221862793
+      },
+      "tick": 96
+    },
+    {
+      "actor": "A",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 99,
+        "to_x": 66.457878112793,
+        "to_y": 0.0,
+        "to_z": -32.110221862793
+      },
+      "tick": 98
+    },
+    {
+      "actor": "A",
+      "kind": "melee",
+      "payload": {
+        "connected": true,
+        "damage": 30,
+        "lethal": true,
+        "style": "cleave"
+      },
+      "tick": 104
+    },
+    {
+      "actor": "B",
+      "kind": "destroyed",
+      "payload": {
+
+      },
+      "seq": 14,
+      "tick": 104
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 107,
+        "to_x": 95.7501678466797,
+        "to_y": 0.0,
+        "to_z": -29.5958557128906
+      },
+      "tick": 104
+    },
+    {
+      "actor": "B",
+      "kind": "advance",
+      "payload": {
+        "boost": false,
+        "end_tick": 110,
+        "to_x": 111.09375,
+        "to_y": 0.0,
+        "to_z": -28.2788066864014
+      },
+      "tick": 107
+    }
+  ],
+  "presentation": {
+    "beats": [
+      {
+        "cue_tick": 1,
+        "exchange_mode": "melee",
+        "fire_tick": 5,
+        "heavy_impact": false,
+        "impact_tick": 10,
+        "is_background": false,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 2,
+          "tick": 10
+        }
+      },
+      {
+        "cue_tick": 7,
+        "exchange_mode": "beam-trade",
+        "fire_tick": 11,
+        "heavy_impact": false,
+        "impact_tick": 16,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "mid",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 3,
+          "tick": 16
+        }
+      },
+      {
+        "cue_tick": 15,
+        "exchange_mode": "melee",
+        "fire_tick": 19,
+        "heavy_impact": false,
+        "impact_tick": 24,
+        "is_background": true,
+        "is_impact": false,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 4,
+          "tick": 24
+        }
+      },
+      {
+        "cue_tick": 21,
+        "exchange_mode": "beam-trade",
+        "fire_tick": 25,
+        "heavy_impact": false,
+        "impact_tick": 30,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "mid",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 5,
+          "tick": 30
+        }
+      },
+      {
+        "cue_tick": 29,
+        "exchange_mode": "melee",
+        "fire_tick": 33,
+        "heavy_impact": false,
+        "impact_tick": 38,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 6,
+          "tick": 38
+        }
+      },
+      {
+        "cue_tick": 41,
+        "exchange_mode": "melee",
+        "fire_tick": 45,
+        "heavy_impact": false,
+        "impact_tick": 50,
+        "is_background": false,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 7,
+          "tick": 50
+        }
+      },
+      {
+        "cue_tick": 49,
+        "exchange_mode": "beam-trade",
+        "fire_tick": 53,
+        "heavy_impact": false,
+        "impact_tick": 58,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "mid",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 8,
+          "tick": 58
+        }
+      },
+      {
+        "cue_tick": 57,
+        "exchange_mode": "melee",
+        "fire_tick": 61,
+        "heavy_impact": false,
+        "impact_tick": 66,
+        "is_background": true,
+        "is_impact": false,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 9,
+          "tick": 66
+        }
+      },
+      {
+        "cue_tick": 67,
+        "exchange_mode": "melee",
+        "fire_tick": 71,
+        "heavy_impact": false,
+        "impact_tick": 76,
+        "is_background": false,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 10,
+          "tick": 76
+        }
+      },
+      {
+        "cue_tick": 73,
+        "exchange_mode": "beam-trade",
+        "fire_tick": 77,
+        "heavy_impact": false,
+        "impact_tick": 82,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "mid",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 11,
+          "tick": 82
+        }
+      },
+      {
+        "cue_tick": 83,
+        "exchange_mode": "melee",
+        "fire_tick": 87,
+        "heavy_impact": false,
+        "impact_tick": 92,
+        "is_background": true,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 12,
+          "tick": 92
+        }
+      },
+      {
+        "cue_tick": 95,
+        "exchange_mode": "melee",
+        "fire_tick": 99,
+        "heavy_impact": false,
+        "impact_tick": 104,
+        "is_background": false,
+        "is_impact": true,
+        "range_band": "close",
+        "reaction_background": false,
+        "truth_ref": {
+          "seq": 13,
+          "tick": 104
+        }
+      }
+    ],
+    "fight": {
+      "apparent_initiative": [
+        {
+          "lead": 0.0,
+          "tick": 0
+        },
+        {
+          "lead": 0.0,
+          "tick": 1
+        },
+        {
+          "lead": 0.15,
+          "tick": 2
+        },
+        {
+          "lead": -0.05,
+          "tick": 3
+        },
+        {
+          "lead": -0.25,
+          "tick": 4
+        },
+        {
+          "lead": 0.0,
+          "tick": 5
+        },
+        {
+          "lead": 0.0,
+          "tick": 6
+        },
+        {
+          "lead": 0.0,
+          "tick": 7
+        },
+        {
+          "lead": 0.15,
+          "tick": 8
+        },
+        {
+          "lead": -0.1,
+          "tick": 9
+        },
+        {
+          "lead": -0.15,
+          "tick": 10
+        },
+        {
+          "lead": -0.15,
+          "tick": 11
+        },
+        {
+          "lead": -0.1,
+          "tick": 12
+        },
+        {
+          "lead": 0.1,
+          "tick": 13
+        },
+        {
+          "lead": -0.05,
+          "tick": 14
+        },
+        {
+          "lead": -0.15,
+          "tick": 15
+        },
+        {
+          "lead": -0.25,
+          "tick": 16
+        },
+        {
+          "lead": -0.35,
+          "tick": 17
+        },
+        {
+          "lead": -0.2,
+          "tick": 18
+        },
+        {
+          "lead": -0.15,
+          "tick": 19
+        },
+        {
+          "lead": -0.05,
+          "tick": 20
+        },
+        {
+          "lead": 0.0,
+          "tick": 21
+        },
+        {
+          "lead": -0.35,
+          "tick": 22
+        },
+        {
+          "lead": -0.1,
+          "tick": 23
+        },
+        {
+          "lead": -0.25,
+          "tick": 24
+        },
+        {
+          "lead": -0.2,
+          "tick": 25
+        },
+        {
+          "lead": -0.15,
+          "tick": 26
+        },
+        {
+          "lead": -0.15,
+          "tick": 27
+        },
+        {
+          "lead": -0.3,
+          "tick": 28
+        },
+        {
+          "lead": -0.4,
+          "tick": 29
+        },
+        {
+          "lead": -0.45,
+          "tick": 30
+        },
+        {
+          "lead": -0.55,
+          "tick": 31
+        },
+        {
+          "lead": -0.35,
+          "tick": 32
+        },
+        {
+          "lead": -0.25,
+          "tick": 33
+        },
+        {
+          "lead": -0.15,
+          "tick": 34
+        },
+        {
+          "lead": -0.1,
+          "tick": 35
+        },
+        {
+          "lead": -0.25,
+          "tick": 36
+        },
+        {
+          "lead": -0.2,
+          "tick": 37
+        },
+        {
+          "lead": -0.2,
+          "tick": 38
+        },
+        {
+          "lead": -0.15,
+          "tick": 39
+        },
+        {
+          "lead": -0.1,
+          "tick": 40
+        },
+        {
+          "lead": -0.1,
+          "tick": 41
+        },
+        {
+          "lead": -0.05,
+          "tick": 42
+        },
+        {
+          "lead": -0.35,
+          "tick": 43
+        },
+        {
+          "lead": -0.65,
+          "tick": 44
+        },
+        {
+          "lead": -0.35,
+          "tick": 45
+        },
+        {
+          "lead": -0.3,
+          "tick": 46
+        },
+        {
+          "lead": -0.25,
+          "tick": 47
+        },
+        {
+          "lead": -0.2,
+          "tick": 48
+        },
+        {
+          "lead": -0.15,
+          "tick": 49
+        },
+        {
+          "lead": -0.15,
+          "tick": 50
+        },
+        {
+          "lead": -0.15,
+          "tick": 51
+        },
+        {
+          "lead": -0.1,
+          "tick": 52
+        },
+        {
+          "lead": 0.1,
+          "tick": 53
+        },
+        {
+          "lead": 0.25,
+          "tick": 54
+        },
+        {
+          "lead": 0.4,
+          "tick": 55
+        },
+        {
+          "lead": 0.15,
+          "tick": 56
+        },
+        {
+          "lead": 0.1,
+          "tick": 57
+        },
+        {
+          "lead": 0.15,
+          "tick": 58
+        },
+        {
+          "lead": -0.05,
+          "tick": 59
+        },
+        {
+          "lead": 0.05,
+          "tick": 60
+        },
+        {
+          "lead": 0.1,
+          "tick": 61
+        },
+        {
+          "lead": 0.1,
+          "tick": 62
+        },
+        {
+          "lead": 0.1,
+          "tick": 63
+        },
+        {
+          "lead": -0.1,
+          "tick": 64
+        },
+        {
+          "lead": -0.05,
+          "tick": 65
+        },
+        {
+          "lead": -0.05,
+          "tick": 66
+        },
+        {
+          "lead": -0.05,
+          "tick": 67
+        },
+        {
+          "lead": -0.15,
+          "tick": 68
+        },
+        {
+          "lead": 0.0,
+          "tick": 69
+        },
+        {
+          "lead": 0.0,
+          "tick": 70
+        },
+        {
+          "lead": -0.4,
+          "tick": 71
+        },
+        {
+          "lead": -0.5,
+          "tick": 72
+        },
+        {
+          "lead": -0.4,
+          "tick": 73
+        },
+        {
+          "lead": -0.45,
+          "tick": 74
+        },
+        {
+          "lead": -0.2,
+          "tick": 75
+        },
+        {
+          "lead": -0.25,
+          "tick": 76
+        },
+        {
+          "lead": -0.2,
+          "tick": 77
+        },
+        {
+          "lead": -0.2,
+          "tick": 78
+        },
+        {
+          "lead": -0.15,
+          "tick": 79
+        },
+        {
+          "lead": -0.25,
+          "tick": 80
+        },
+        {
+          "lead": -0.3,
+          "tick": 81
+        },
+        {
+          "lead": -0.4,
+          "tick": 82
+        },
+        {
+          "lead": -0.3,
+          "tick": 83
+        },
+        {
+          "lead": -0.2,
+          "tick": 84
+        },
+        {
+          "lead": -0.35,
+          "tick": 85
+        },
+        {
+          "lead": -0.2,
+          "tick": 86
+        },
+        {
+          "lead": -0.1,
+          "tick": 87
+        },
+        {
+          "lead": -0.3,
+          "tick": 88
+        },
+        {
+          "lead": -0.25,
+          "tick": 89
+        },
+        {
+          "lead": -0.2,
+          "tick": 90
+        },
+        {
+          "lead": -0.15,
+          "tick": 91
+        },
+        {
+          "lead": -0.15,
+          "tick": 92
+        },
+        {
+          "lead": -0.1,
+          "tick": 93
+        },
+        {
+          "lead": -0.1,
+          "tick": 94
+        },
+        {
+          "lead": -0.05,
+          "tick": 95
+        },
+        {
+          "lead": -0.05,
+          "tick": 96
+        },
+        {
+          "lead": -0.3,
+          "tick": 97
+        },
+        {
+          "lead": -0.6,
+          "tick": 98
+        },
+        {
+          "lead": -0.35,
+          "tick": 99
+        },
+        {
+          "lead": -0.25,
+          "tick": 100
+        },
+        {
+          "lead": -0.2,
+          "tick": 101
+        },
+        {
+          "lead": -0.2,
+          "tick": 102
+        },
+        {
+          "lead": -0.15,
+          "tick": 103
+        },
+        {
+          "lead": -0.1,
+          "tick": 104
+        },
+        {
+          "lead": -0.1,
+          "tick": 105
+        },
+        {
+          "lead": -0.1,
+          "tick": 106
+        },
+        {
+          "lead": -0.05,
+          "tick": 107
+        }
+      ],
+      "climax_window": [
+        104,
+        104
+      ],
+      "lethal_ref": {
+        "seq": 13,
+        "tick": 104
+      },
+      "phrase_bounds": [
+        [
+          1,
+          110
+        ]
+      ],
+      "shape": "grind",
+      "template_id": "escalating_duel"
+    }
+  },
+  "schema": "km-director-spike-fight-log-v1",
+  "tick_seconds": 0.1
+}

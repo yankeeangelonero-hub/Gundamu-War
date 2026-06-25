@@ -122,7 +122,7 @@
     {
       "id": "dbg-director",
       "title": "Debug director — live feel/balance tuning bench",
-      "state": "ready",
+      "state": "in-progress",
       "kind": "slice",
       "version": "0.1",
       "deps": [
@@ -263,7 +263,7 @@
     }
   ],
   "canon": {
-    "sha": "de2f7df8d515c2fc48779fbc9f2e290e7cd99e66",
+    "sha": "f4754bafbf9b7245cdad72d7212d65ed24df5b44",
     "ref": "HEAD"
   }
 }

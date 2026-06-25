@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DUAL-LAYER COMBAT TEST // Kitbash Mecha</title>
+<!--
+  DUAL-LAYER DECK-COMBAT FEEL TEST  (throwaway prototype, 2026-06-07)
+  ---------------------------------------------------------------------------
+  Feel how a behaviour deck should RUN. Modes:
+    construction — whole live deck always available, played by priority (no draw) [ADR: chosen]
+    draw         — per-turn 3-card hand from a seeded shuffle
+    hybrid       — always-available core + a small drawn pool
+    round        — Slay-the-Spire rhythm: each round refill energy + draw a hand of 5 and play
+                   several cards until energy runs out (AI-played; you still watch)
+
+  Combat core is shared with the headless check in dual-layer/sim.js (single source of truth).
+  BODY = kitbash + weight/power budget; MIND = a body-gated behaviour deck; the fight IS the
+  readout (no sync meter); deterministic (same seed => identical fight).
+-->
+<style>
+  :root{
+    --void:#070608; --hull:#12131a; --panel:#15161e; --line:#2a2d3a;
+    --ink:#e7ecf2; --muted:#8b93a6; --dim:#5b6273;
+    --cyan:#3fd6f0; --amber:#ffb43a; --red:#ff4d3a; --green:#56e08a; --blue:#6aa3ff;
+    --mono:'Courier New',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--void);color:var(--ink);font-family:Segoe UI,Roboto,system-ui,sans-serif;font-size:13px;
+    background-image:linear-gradient(rgba(63,214,240,.025) 1px,transparent 1px);background-size:100% 4px;}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:.06em}
+  .mono{font-family:var(--mono)}
+  .dim{color:var(--dim)} .muted{color:var(--muted)}
+  .wrap{max-width:1280px;margin:0 auto;padding:14px 16px 60px}
+  .topbar{display:flex;align-items:center;gap:14px;border-bottom:2px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+  .brand{font-size:18px;letter-spacing:.12em}
+  .brand b{color:var(--cyan)}
+  .tag{font-family:var(--mono);font-size:10px;color:var(--amber);border:1px solid var(--amber);padding:2px 6px;border-radius:2px}
+  .ctrls{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .seg button{background:var(--hull);color:var(--muted);border:0;padding:6px 11px;font-family:var(--mono);font-size:11px;cursor:pointer}
+  .seg button.on{background:var(--cyan);color:#04222b;font-weight:700}
+  input[type=number]{width:64px;background:var(--hull);border:1px solid var(--line);color:var(--ink);font-family:var(--mono);padding:5px}
+  .grid{display:grid;grid-template-columns:280px 1fr 300px;gap:14px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:12px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-top:2px solid var(--cyan);
+    clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));padding:10px 11px}
+  .panel.amber{border-top-color:var(--amber)}
+  .panel.red{border-top-color:var(--red)}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .jp{color:var(--dim);font-weight:400}
+  .opt{display:flex;gap:6px;margin-bottom:8px}
+  .opt button{flex:1;background:var(--hull);border:1px solid var(--line);color:var(--muted);padding:7px 6px;cursor:pointer;
+    font-size:11px;border-radius:2px;text-align:left;line-height:1.25}
+  .opt button.on{border-color:var(--cyan);color:var(--ink);box-shadow:inset 0 0 0 1px var(--cyan)}
+  .opt button small{display:block;font-family:var(--mono);font-size:9px;color:var(--dim)}
+  .budget{margin-top:6px}
+  .barlbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .bar{height:7px;background:#0a0b10;border:1px solid var(--line);margin:3px 0 8px;position:relative;overflow:hidden}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--cyan)}
+  .bar.over i{background:var(--red)}
+  .card{border:1px solid var(--line);background:var(--hull);border-left:3px solid var(--catc,var(--cyan));
+    padding:6px 8px;margin-bottom:6px;cursor:pointer;border-radius:2px;position:relative}
+  .card:hover{border-color:var(--muted)}
+  .card.in{box-shadow:inset 0 0 0 1px var(--cyan);border-left-color:var(--cyan)}
+  .card.dead{opacity:.42}
+  .card.maxed{opacity:.55}
+  .card.dead::after{content:'DEAD · no 'attr(data-need);position:absolute;right:6px;top:6px;font-family:var(--mono);font-size:8px;color:var(--red)}
+  .card .cn{font-weight:700;font-size:12px;letter-spacing:.03em}
+  .card .cn .j{color:var(--dim);font-weight:400;font-size:11px;margin-right:4px}
+  .card .cw{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px}
+  .card .cd{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .card .pip{font-family:var(--mono);font-size:9px;color:var(--amber)}
+  .deckrow{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--hull);padding:5px 7px;margin-bottom:5px;border-radius:2px}
+  .deckrow .pri{font-family:var(--mono);font-size:10px;color:var(--cyan);width:16px}
+  .deckrow .nm{flex:1;font-size:11px}
+  .deckrow button{background:#0a0b10;border:1px solid var(--line);color:var(--muted);cursor:pointer;width:20px;height:18px;font-size:10px;border-radius:2px}
+  .deckrow.dead{opacity:.5}
+  .preset{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap}
+  .preset button{flex:1;background:var(--hull);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:9px;padding:5px 4px;cursor:pointer;border-radius:2px}
+  .preset button:hover{border-color:var(--cyan);color:var(--ink)}
+  .deploy{width:100%;background:var(--red);color:#1a0400;border:0;padding:12px;font-weight:800;letter-spacing:.1em;font-size:15px;cursor:pointer;
+    clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));box-shadow:0 0 22px rgba(255,77,58,.35)}
+  .deploy:disabled{background:var(--dim);box-shadow:none;cursor:not-allowed}
+  .arena{height:118px;border:1px solid var(--line);background:#08090d;position:relative;overflow:hidden;margin:6px 0 4px;
+    background-image:linear-gradient(90deg,rgba(63,214,240,.06) 1px,transparent 1px);background-size:28px 100%}
+  .fighter{position:absolute;bottom:14px;width:30px;text-align:center;transition:left .18s linear}
+  .fighter .body{width:22px;height:40px;margin:0 auto;border:2px solid var(--c);background:rgba(255,255,255,.04);position:relative}
+  .fighter .body::before{content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:11px;height:9px;border:2px solid var(--c);border-bottom:0}
+  .fighter.hit .body{background:var(--red);border-color:var(--red)}
+  .fighter .lbl{font-family:var(--mono);font-size:8px;color:var(--c);margin-top:3px;white-space:nowrap}
+  .floater{position:absolute;font-family:var(--mono);font-size:11px;font-weight:700;pointer-events:none;animation:rise .9s ease-out forwards}
+  @keyframes rise{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-26px)}}
+  .hpwrap{display:flex;gap:12px;margin-bottom:4px}
+  .hpwrap>div{flex:1}
+  .hpbar{height:11px;border:1px solid var(--line);background:#0a0b10;position:relative}
+  .hpbar i{position:absolute;left:0;top:0;bottom:0;transition:width .18s}
+  .hp-a i{background:var(--cyan)} .hp-b i{background:var(--amber)}
+  .hpnum{font-family:var(--mono);font-size:10px;display:flex;justify-content:space-between}
+  .log{height:230px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.5;background:#08090d;border:1px solid var(--line);padding:8px}
+  .log .t{color:var(--dim)}
+  .log .a{color:var(--cyan)} .log .b{color:var(--amber)}
+  .log .hit{color:var(--green)} .log .whiff{color:var(--red)} .log .sys{color:var(--muted)} .log .dead{color:var(--red)}
+  .log .rd{color:var(--blue);border-top:1px dashed var(--line);margin-top:3px;padding-top:3px}
+  .debrief{font-size:12px;line-height:1.5}
+  .debrief .win{color:var(--green);font-weight:700;font-size:15px}
+  .debrief .lose{color:var(--red);font-weight:700;font-size:15px}
+  .debrief ul{margin:6px 0 0;padding-left:16px} .debrief li{margin-bottom:4px}
+  .debrief .flag{color:var(--amber)}
+  .note{font-size:11px;color:var(--muted);line-height:1.45}
+  .speedseg button{padding:4px 8px;font-size:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">KITBASH // <b>DUAL-LAYER COMBAT TEST</b></div>
+    <span class="tag">throwaway feel-test</span>
+    <div class="ctrls">
+      <span class="mono dim">MODE</span>
+      <div class="seg" id="modeSeg">
+        <button data-m="construction" class="on">Construction</button>
+        <button data-m="round">Round</button>
+        <button data-m="draw">Draw</button>
+        <button data-m="hybrid">Hybrid</button>
+      </div>
+      <span class="mono dim">SEED</span>
+      <input type="number" id="seed" value="42" />
+      <span class="mono dim">SPD</span>
+      <div class="seg speedseg" id="spdSeg">
+        <button data-s="520">1×</button>
+        <button data-s="240" class="on">2×</button>
+        <button data-s="60">fast</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- ============ LEFT: BODY (the machine) ============ -->
+    <div class="col">
+      <div class="panel">
+        <div class="eyebrow"><span>① BODY · THE MACHINE</span><span class="jp">機体</span></div>
+        <div class="note" style="margin-bottom:8px">Snap parts on. The weight/power budget is the constraint — over-budget = penalties.</div>
+
+        <div class="mono dim" style="font-size:10px;margin-bottom:3px">FRAME</div>
+        <div class="opt" id="frameOpt"></div>
+        <div class="mono dim" style="font-size:10px;margin-bottom:3px">WEAPON</div>
+        <div class="opt" id="weaponOpt"></div>
+        <div class="mono dim" style="font-size:10px;margin-bottom:3px">SUPPORT</div>
+        <div class="opt" id="supportOpt"></div>
+
+        <div class="budget">
+          <div class="barlbl"><span>WEIGHT</span><span id="wTxt"></span></div>
+          <div class="bar" id="wBar"><i></i></div>
+          <div class="barlbl"><span>POWER</span><span id="pTxt"></span></div>
+          <div class="bar" id="pBar"><i></i></div>
+        </div>
+        <div class="mono" id="bodyState" style="font-size:10px;margin-top:4px"></div>
+      </div>
+
+      <div class="panel amber">
+        <div class="eyebrow"><span>RIVAL ACE</span><span class="jp">敵機</span></div>
+        <div id="ghostCard" class="note"></div>
+      </div>
+    </div>
+
+    <!-- ============ CENTER: WATCH ============ -->
+    <div class="col">
+      <div class="panel">
+        <div class="eyebrow"><span>③ THE WATCH · ALIGNMENT PROVES ITSELF</span><span id="watchMode" class="jp"></span></div>
+        <div class="hpwrap">
+          <div><div class="hpnum"><span class="a" id="aName">YOUR ACE</span><span id="aHp"></span></div><div class="hpbar hp-a"><i id="aHpBar"></i></div></div>
+          <div><div class="hpnum"><span id="bHp"></span><span class="b" id="bName">RIVAL</span></div><div class="hpbar hp-b"><i id="bHpBar" style="left:auto;right:0"></i></div></div>
+        </div>
+        <div class="arena" id="arena">
+          <div class="fighter" id="fA" style="left:6%;--c:var(--cyan)"><div class="body"></div><div class="lbl">YOU</div></div>
+          <div class="fighter" id="fB" style="left:72%;--c:var(--amber)"><div class="body"></div><div class="lbl">RIVAL</div></div>
+        </div>
+        <button class="deploy" id="deployBtn">▶ DEPLOY · RUN DUEL</button>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="panel red">
+        <div class="eyebrow"><span>DEBRIEF · WHY IT PLAYED OUT</span><span class="jp">報告</span></div>
+        <div class="debrief" id="debrief"><span class="muted">Build a body + a deck, then deploy. The debrief reads back what aligned and what fought itself.</span></div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT: MIND (the deck) ============ -->
+    <div class="col">
+      <div class="panel">
+        <div class="eyebrow"><span>② MIND · HER DECK</span><span class="jp">思考</span></div>
+        <div class="note" style="margin-bottom:6px">Build her doctrine from cards. Cards grey out if the body can't run them — that's the body gating the mind.</div>
+        <div class="preset" id="presets"></div>
+        <div class="mono dim" style="font-size:10px;margin:2px 0 4px">HER DECK · top = highest priority</div>
+        <div id="deckList"></div>
+        <div class="mono dim" style="font-size:10px;margin:10px 0 4px">CARD POOL · click to add · copies limited by rarity</div>
+        <div id="pool"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- shared deterministic core (also used by the headless check) -->
+<script src="dual-layer/sim.js"></script>
+<script>
+/* UI only — combat logic lives in dual-layer/sim.js (window.KX_SIM) */
+(function(){
+const { FRAMES, WEAPONS, SUPPORTS, CARDS, POOL_ORDER, PRESETS, GHOST,
+  bodyWeight, bodyPower, overWeight, overPower, cardDead, makeCombatant, simulate,
+  cardMax, cardRarity, RARITY_COLOR, DECK_MAX } = window.KX_SIM;
+
+/* ===================== STATE ===================== */
+let S={ frame:'light', weapon:'saber', support:'none', deck:['rush','slash','feint','overdrive','close'], mode:'construction', spd:240 };
+
+/* ===================== RENDER UI ===================== */
+const $=s=>document.querySelector(s);
+function renderBody(){
+  const mk=(coll,key,sel)=>Object.values(coll).map(o=>{
+    return `<button data-k="${key}" data-v="${o.id}" class="${S[key]===o.id?'on':''}">${o.name} <small>${o.jp?o.jp+' · ':''}${o.w?('w'+o.w+' p'+o.p):'free'}${o.reach?(' · reach '+o.reach):''}</small></button>`;
+  }).join('');
+  $('#frameOpt').innerHTML=mk(FRAMES,'frame');
+  $('#weaponOpt').innerHTML=mk(WEAPONS,'weapon');
+  $('#supportOpt').innerHTML=mk(SUPPORTS,'support');
+  document.querySelectorAll('.opt button').forEach(b=>b.onclick=()=>{S[b.dataset.k]=b.dataset.v;renderAll();});
+  const b=S, w=bodyWeight(b),wc=FRAMES[b.frame].wcap,p=bodyPower(b),pc=FRAMES[b.frame].pcap;
+  $('#wTxt').textContent=`${w} / ${wc}`; $('#pTxt').textContent=`${p} / ${pc}`;
+  const wb=$('#wBar'),pb=$('#pBar');
+  wb.querySelector('i').style.width=Math.min(100,w/wc*100)+'%'; wb.classList.toggle('over',overWeight(b));
+  pb.querySelector('i').style.width=Math.min(100,p/pc*100)+'%'; pb.classList.toggle('over',overPower(b));
+  let st=[]; if(overWeight(b))st.push('<span style="color:var(--red)">OVER WEIGHT → −40% move</span>');
+  if(overPower(b))st.push('<span style="color:var(--red)">OVER POWER → −energy regen</span>');
+  if(!st.length)st.push('<span style="color:var(--green)">within budget · NOMINAL</span>');
+  $('#bodyState').innerHTML=st.join(' · ');
+  const g=GHOST;$('#ghostCard').innerHTML=`<b style="color:var(--amber)">${g.name}</b> — ${FRAMES[g.frame].name} + ${WEAPONS[g.weapon].name} + ${SUPPORTS[g.support].name}<br><span class="dim mono" style="font-size:10px">deck: ${g.deck.map(id=>CARDS[id].name).join(' · ')}</span><br><span class="note">A rifle spacer: it kites and punishes. Close the gap or out-range it.</span>`;
+}
+function renderDeck(){
+  $('#presets').innerHTML=Object.keys(PRESETS).map(n=>`<button data-p="${n}">${n}</button>`).join('');
+  document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>{S.deck=PRESETS[b.dataset.p].slice();renderAll();});
+  $('#deckList').innerHTML=S.deck.map((id,i)=>{
+    const c=CARDS[id],dead=cardDead(id,S);
+    return `<div class="deckrow ${dead?'dead':''}"><span class="pri">${i+1}</span><span class="nm">${c.name} ${dead?'<span class="mono" style="color:var(--red);font-size:9px">DEAD</span>':''}</span>
+      <button data-up="${i}">▲</button><button data-dn="${i}">▼</button><button data-rm="${i}">✕</button></div>`;
+  }).join('')||'<span class="dim mono" style="font-size:10px">empty — add cards below</span>';
+  $('#deckList').querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{const i=+(b.dataset.up??b.dataset.dn??b.dataset.rm);
+      if(b.dataset.up!=null&&i>0){[S.deck[i-1],S.deck[i]]=[S.deck[i],S.deck[i-1]];}
+      else if(b.dataset.dn!=null&&i<S.deck.length-1){[S.deck[i+1],S.deck[i]]=[S.deck[i],S.deck[i+1]];}
+      else if(b.dataset.rm!=null){S.deck.splice(i,1);}
+      renderAll();};
+  });
+  $('#pool').innerHTML=POOL_ORDER.map(id=>{
+    const c=CARDS[id],dead=cardDead(id,S),n=S.deck.filter(x=>x===id).length,mx=cardMax(id),rar=cardRarity(id),full=n>=mx;
+    return `<div class="card ${n?'in':''} ${dead?'dead':''} ${full?'maxed':''}" data-id="${id}" data-need="${c.need||''}" style="--catc:${c.cat}">
+      <div class="cn"><span class="j">${c.jp}</span>${c.name}${n?' <span class="pip" style="color:var(--cyan)">×'+n+'/'+mx+'</span>':''} <span class="pip">⚡${c.cost}${c.cd?(' ⟳'+c.cd):''}</span></div>
+      <div class="cw"><span style="color:${RARITY_COLOR[rar]}">${rar}</span> · max ${mx} · ${c.need?('needs ['+c.need+']'):'any body'}</div>
+      <div class="cd">${c.desc}</div></div>`;
+  }).join('');
+  $('#pool').querySelectorAll('.card').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.id, n=S.deck.filter(x=>x===id).length;
+    if(S.deck.length<DECK_MAX && n<cardMax(id)) S.deck.push(id);
+    renderAll(); // copies limited by rarity; ✕ in deck to remove
+  });
+}
+function renderWatchStatic(){
+  const A=makeCombatant(S,S.deck,'YOUR ACE','a');
+  $('#aHp').textContent=A.hp+'/'+A.maxhp; $('#aHpBar').style.width='100%';
+  const g=GHOST,gb={frame:g.frame,weapon:g.weapon,support:g.support};
+  const B=makeCombatant(gb,g.deck,GHOST.name,'b');
+  $('#bHp').textContent=B.hp+'/'+B.maxhp; $('#bHpBar').style.width='100%';
+  $('#bName').textContent='RIVAL '+GHOST.name;
+  $('#watchMode').textContent=S.mode.toUpperCase();
+  $('#fA').style.left='6%'; $('#fB').style.left='72%';
+}
+function renderAll(){renderBody();renderDeck();renderWatchStatic();}
+
+/* ===================== PLAYBACK ===================== */
+let playTimer=null;
+function deploy(){
+  if(playTimer){clearInterval(playTimer);playTimer=null;}
+  const seed=parseInt($('#seed').value)||0;
+  const A=makeCombatant(S,S.deck,'YOUR ACE','a');
+  const gb={frame:GHOST.frame,weapon:GHOST.weapon,support:GHOST.support};
+  const B=makeCombatant(gb,GHOST.deck,GHOST.name,'b');
+  const res=simulate(A,B,seed,S.mode);
+  const log=$('#log');log.innerHTML='';
+  $('#deployBtn').disabled=true;
+  let i=0, lastRound=0;
+  const step=()=>{
+    if(i>=res.events.length){finish(res);return;}
+    const e=res.events[i++];
+    const bx=8+ (e.dist/100)*64; $('#fB').style.left=bx+'%';
+    $('#aHpBar').style.width=(e.aHp/A.maxhp*100)+'%';
+    $('#bHpBar').style.width=(e.bHp/B.maxhp*100)+'%';
+    $('#aHp').textContent=Math.max(0,Math.round(e.aHp))+'/'+A.maxhp+(e.aBlk?(' ⛊'+e.aBlk):'');
+    $('#bHp').textContent=Math.max(0,Math.round(e.bHp))+'/'+B.maxhp+(e.bBlk?(' ⛊'+e.bBlk):'');
+    const who=e.who;
+    if(e.dmg){
+      const hitEl=who==='a'?'#fB':'#fA'; const el=$(hitEl);
+      el.classList.add('hit');setTimeout(()=>el.classList.remove('hit'),140);
+      const fl=document.createElement('div');fl.className='floater';fl.style.color=e.crit?'var(--green)':'var(--red)';
+      fl.textContent='-'+e.dmg+(e.crit?'!':''); fl.style.left=(hitEl==='#fB'?$('#fB').style.left:'6%');fl.style.bottom='60px';
+      $('#arena').appendChild(fl);setTimeout(()=>fl.remove(),900);
+    }
+    if(e.round&&e.round!==lastRound){
+      lastRound=e.round;
+      const rd=document.createElement('div');rd.className='rd mono';rd.textContent='— round '+e.round+' —';
+      log.appendChild(rd);
+    }
+    const cls=e.sys?'dead':(e.whiff?'whiff':(e.dmg?'hit':'sys'));
+    const tag=e.round?('r'+String(e.round).padStart(2,'0')):('t'+String(e.turn).padStart(2,'0'));
+    const line=document.createElement('div');
+    line.innerHTML=`<span class="t">${tag}</span> <span class="${who}">${who==='a'?'YOU ':'RIV '}</span><span class="${cls}">${e.txt}</span>`;
+    log.appendChild(line);log.scrollTop=log.scrollHeight;
+  };
+  playTimer=setInterval(step,S.spd);
+}
+function finish(res){
+  clearInterval(playTimer);playTimer=null;$('#deployBtn').disabled=false;
+  const youWin=res.win==='a';
+  const A=res.A,B=res.B;
+  const used=res.counts.a, deadCards=A.dead, neverFired=A.live.filter(id=>!used[id]);
+  const flags=[];
+  if(deadCards.length)flags.push(`<span class="flag">${deadCards.length} card(s) were DEAD on this body</span> — ${deadCards.map(id=>CARDS[id].name+' (needs '+CARDS[id].need+')').join(', ')}. They never had a chance to fire.`);
+  if(neverFired.length)flags.push(`<span class="flag">${neverFired.length} live card(s) never fired</span> — ${neverFired.map(id=>CARDS[id].name).join(', ')}. Their trigger never matched the fight (wrong range? out-prioritised?).`);
+  const hesitations=res.events.filter(e=>e.who==='a'&&e.sys).length;
+  if(hesitations>2)flags.push(`<span class="flag">She stalled ${hesitations}×</span> — no card fit the moment. The deck has gaps for the situations she actually faced.`);
+  const whiffs=res.events.filter(e=>e.who==='a'&&e.whiff).length;
+  if(whiffs>2)flags.push(`<span class="flag">${whiffs} strikes whiffed out of range</span> — her weapon reach and her behaviour disagree (telling her to strike before she's closed).`);
+  if(!flags.length)flags.push('Body and deck were well aligned — almost every card pulled its weight.');
+  const topCard=Object.entries(used).sort((a,b)=>b[1]-a[1])[0];
+  const dur = res.rounds ? (res.rounds+' rounds / '+res.turns+' plays') : (res.turns+' turns');
+  let html=`<div class="${youWin?'win':'lose'}">${youWin?'◢ YOUR ACE WINS':'◣ YOUR ACE FALLS'}${res.draw?' (timeout)':''}</div>`;
+  html+=`<div class="mono dim" style="font-size:10px;margin:3px 0 6px">${dur} · mode: ${S.mode} · seed ${$('#seed').value} · ${topCard?('most-used: '+CARDS[topCard[0]].name+' ×'+topCard[1]):'—'}</div>`;
+  html+='<ul>'+flags.map(f=>'<li>'+f+'</li>').join('')+'</ul>';
+  html+=`<div class="note" style="margin-top:8px">Re-run with the same seed → identical fight (deterministic). Switch <b>MODE</b> (construction / round / draw / hybrid) and re-deploy to feel each with the same deck.</div>`;
+  $('#debrief').innerHTML=html;
+}
+
+/* ===================== WIRE ===================== */
+$('#modeSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  S.mode=b.dataset.m;$('#modeSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));renderWatchStatic();});
+$('#spdSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  S.spd=+b.dataset.s;$('#spdSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));});
+$('#deployBtn').onclick=deploy;
+renderAll();
+})();
+</script>
+</body>
+</html>

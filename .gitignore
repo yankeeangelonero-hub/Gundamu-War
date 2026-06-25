@@ -27,3 +27,18 @@ __pycache__/
 # --gundam viewer (~113 MB glb, over GitHub's 100 MB push limit). Source lives in
 # Research/Gundam Reference/. Matches gundam_mk2.glb and gundam_mk2_*BaseColor.png etc.
 godot_director_spike/models/gundam_mk2*
+
+# Combat-feel render outputs and binary dumps — local artifacts, never committed
+# (hundreds of MB of video; PNG contact sheets/screenshots are still tracked).
+*.mp4
+*.bin
+
+# Heavy art handoff (extracted gundam textures, same reason as the model above)
+design_handoff/
+
+# Agent / tooling caches and scratch review output
+.claude-octopus/
+.superpowers/
+graphify-out/
+.codex-*
+smoke_*.txt

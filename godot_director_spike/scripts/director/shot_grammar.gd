@@ -7,11 +7,14 @@ class_name ShotGrammar
 ## so lifting these out of hybrid.gd changes nothing visually.
 
 # --- Timing / Cut (F5, F14, F37, F38) ---
-@export var os_len: float = 1.8       # over-shoulder intercut length (tuned independently of cut_len)
-@export var cut_len: float = 1.8      # hero-cut intercut length (tuned independently of os_len)
+@export var os_len: float = 4.0       # over-shoulder intercut length (tuned independently of cut_len)
+@export var cut_len: float = 4.0      # hero-cut intercut length (tuned independently of os_len)
 @export var min_iso: float = 1.0      # shortest legible iso re-establish BETWEEN cinematic shots; a
                                       # gap below this is absorbed into the prior shot (no flash-cut)
-@export var dolly_cap: float = 60.0   # max camera linear speed (u/s wall) for the eased orbiting
+@export var camera_min_duration: float = 1.5 # ordinary perspective cut-ins shorter than this are skipped
+@export var camera_max_duration: float = 5.0 # longest ordinary perspective hold before returning to iso
+@export var camera_speed_scale: float = 0.25 # global camera follow/cap speed multiplier
+@export var dolly_cap: float = 42.0   # max camera linear speed (u/s wall) for the eased orbiting
                                       # shots, so a fast/violent subject is tracked, never whip-panned
 @export var melee_radius_factor: float = 1.4  # melee_cut orbit radius grows with mech separation by
                                               # this factor, so both mechs stay framed through a recoil
@@ -34,6 +37,8 @@ class_name ShotGrammar
 @export var melee_cut_pre: float = 0.5     # lead-in before the clash tick
 @export var melee_cut_post: float = 1.7    # hold after the clash tick
 @export var melee_cut_scale: float = 0.5   # melee close-up slow-mo
+@export var melee_cut_spacing: float = 4.0 # minimum seconds between melee close-ups; rapid
+                                           # A/B saber trades stay one readable exchange
 
 # --- Time-emphasis arbiter (Phase 3 Slice 1; F37/F14) ---
 # One tool owns a contact beat: bullet-time (kill cam) > hitstop (heavy hit) >
@@ -51,6 +56,8 @@ class_name ShotGrammar
 @export var iso_zoom_factor: float = 0.7   # * mech separation
 @export var iso_zoom_base: float = 30.0    # + base
 @export var aftermath_zoom: float = 58.0
+@export var iso_follow_rate: float = 1.2   # slower tactical pan; melee dashes should not yank the plate
+@export var iso_dolly_cap: float = 42.0    # max iso camera linear speed (u/s wall)
 
 # --- Composition: per-shot-mode framing table (F6, F8) ---
 # Each entry holds the framing numbers the runtime camera reads for that mode.
@@ -61,6 +68,9 @@ class_name ShotGrammar
 	"hero_os":     {"pullback": 18.0, "lateral": 8.0, "height": 16.0, "fov": 40.0},
 	"hero_cut":    {"pullback": 2.0,  "lateral": 9.0, "height": 5.0,  "fov": 46.0, "roll": -0.05},
 	"melee_cut":   {"radius": 26.0, "height": 11.0, "fov": 46.0},
+	"melee_chase": {"pullback": 20.0, "lateral": 6.0, "height": 9.0, "fov": 50.0, "roll": -0.03},
+	"melee_profile": {"distance": 34.0, "height": 13.0, "fov": 42.0},
+	"melee_high":  {"radius": 38.0, "height": 28.0, "fov": 52.0},
 	"bullet_time": {"radius": 32.0, "height_base": 8.0, "height_rise": 9.0, "depth": 14.0, "fov": 48.0},
 }
 

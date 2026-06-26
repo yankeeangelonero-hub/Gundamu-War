@@ -83,6 +83,7 @@ var shake_strength := 0.0
 var _dur := 0.0
 var _smooth_aim := Vector3.ZERO
 var _aim_init := false
+var _melee_log_on := false
 # X-ray gate: per-mech enable, faded toward 1 only while that mech is actually
 # occluded by a building (>= XRAY_OCCLUDED_RAYS of its silhouette rays blocked).
 var _xray_enable := {"A": 0.0, "B": 0.0}
@@ -95,6 +96,7 @@ func start(p_events: Array, p_shots: Array, p_camera: Camera3D, p_actors: Dictio
 	camera = p_camera
 	actors = p_actors
 	_dur = dur
+	_melee_log_on = "--melee-log" in OS.get_cmdline_user_args()
 	# It's a duel: each mech keeps its aim on the other, so movement strafes.
 	if actors.has("A") and actors.has("B"):
 		actors["A"].combat_face = actors["B"]
@@ -170,7 +172,7 @@ func _dispatch(e: Dictionary) -> void:
 			var dur := (float(e.payload.end_tick) - float(e.tick)) * TICK
 			var raw := Vector3(float(e.payload.to_x), float(e.payload.get("to_y", 0.0)),
 				float(e.payload.get("to_z", actor.position.z)))
-			var to := _engage(raw, target.position)   # keep the move at duel range, not away
+			var to := _melee_engage(raw, target.position) if _advance_sets_up_melee(e) else _engage(raw, target.position)
 			actor.walk_to(to.x, to.y, to.z, dur, bool(e.payload.get("boost", false)))
 		"fire_beam":
 			actor.face_toward(target.position)
@@ -194,20 +196,10 @@ func _dispatch(e: Dictionary) -> void:
 			# the heavy recoil/knockback + impact fire after the charge, in garnish
 		"melee":
 			actor.face_toward(target.position)
-			actor.melee_strike(target.position, str(e.payload.get("style", "cleave")))
+			_log_melee_contact("event", e, actor, target)
+			actor.melee_strike(target, str(e.payload.get("style", "cleave")))
 			target.face_toward(actor.position)
-			var away: Vector3 = target.position - actor.position
-			if e.payload.get("blocked", false):
-				target.parry()          # defender draws + catches
-				if str(e.payload.get("result", "lock")) == "knockback":
-					actor.clash_lock(0.6)               # attacker drives through
-					target.knockback(away, 40.0)        # defender shoved back
-				else:
-					actor.clash_lock(0.8)               # blades lock — both planted, straining
-					target.clash_lock(0.8)
-			elif e.payload.get("hit", false):
-				target.flinch(true)
-				target.knockback(away, 34.0)            # a connecting blow drives them back
+			_resolve_melee_physics(e, actor, target)
 			shake_strength = maxf(shake_strength, 1.0)
 		"destroyed":
 			actor.die()
@@ -220,6 +212,8 @@ func _dispatch(e: Dictionary) -> void:
 ## Pure function of the log target + enemy position, so it stays deterministic.
 const ENGAGE_MIN := 34.0
 const ENGAGE_MAX := 80.0
+const MELEE_HIT_RANGE := 17.0
+const MELEE_CONTACT_GAP := 8.0
 func _engage(raw: Vector3, enemy: Vector3) -> Vector3:
 	var off := Vector3(raw.x - enemy.x, 0.0, raw.z - enemy.z)
 	var d := off.length()
@@ -228,6 +222,94 @@ func _engage(raw: Vector3, enemy: Vector3) -> Vector3:
 	var clamped := clampf(d, ENGAGE_MIN, ENGAGE_MAX)
 	var p := enemy + off / d * clamped
 	return Vector3(p.x, raw.y, p.z)
+
+## Melee setup uses the choreographer's authored bearing, but clamps inside
+## saber reach instead of the ranged engagement ring.
+func _melee_engage(raw: Vector3, enemy: Vector3) -> Vector3:
+	var off := Vector3(raw.x - enemy.x, 0.0, raw.z - enemy.z)
+	var d := off.length()
+	if d < 0.5:
+		off = Vector3(1.0, 0.0, 0.0)
+		d = 1.0
+	var clamped := clampf(d, MELEE_CONTACT_GAP, MELEE_HIT_RANGE)
+	var p := enemy + off / d * clamped
+	return Vector3(p.x, raw.y, p.z)
+
+func _advance_sets_up_melee(e: Dictionary) -> bool:
+	var actor_id := str(e.actor)
+	var start := int(e.tick)
+	var end := int(e.payload.get("end_tick", start))
+	for next in events:
+		if next == e:
+			continue
+		if str(next.get("actor", "")) != actor_id:
+			continue
+		var tick := int(next.get("tick", 0))
+		if tick < start:
+			continue
+		if tick > end + 4:
+			continue
+		if str(next.get("kind", "")) == "melee":
+			return true
+	return false
+
+func _resolve_melee_physics(e: Dictionary, actor: Node3D, target: Node3D) -> void:
+	var connected: bool = await _wait_for_melee_contact(actor, target)
+	if not is_instance_valid(actor) or not is_instance_valid(target):
+		return
+	if not connected:
+		_log_melee_contact("no_contact", e, actor, target)
+		return
+	_log_melee_contact("hit", e, actor, target)
+	var away: Vector3 = target.position - actor.position
+	if e.payload.get("blocked", false):
+		target.parry()
+		if str(e.payload.get("result", "lock")) == "knockback":
+			actor.clash_lock(0.6)
+			target.knockback(away, 40.0)
+		else:
+			actor.clash_lock(0.8)
+			target.clash_lock(0.8)
+	elif e.payload.get("hit", false):
+		target.flinch(true)
+		target.knockback(away, 34.0)
+
+func _wait_for_melee_contact(actor: Node3D, target: Node3D) -> bool:
+	var waited := 0.0
+	while waited < 1.5:
+		if not is_instance_valid(actor) or not is_instance_valid(target):
+			return false
+		var dist := _flat_distance(actor.position, target.position)
+		if dist <= MELEE_HIT_RANGE:
+			return true
+		var dir := actor.position - target.position
+		dir.y = 0.0
+		if dir.length() < 0.1:
+			dir = Vector3(1.0, 0.0, 0.0)
+		var contact := target.position + dir.normalized() * MELEE_CONTACT_GAP
+		actor.walk_to(contact.x, 0.0, contact.z, 0.12, true)
+		await get_tree().create_timer(0.03).timeout
+		waited += 0.03
+	return is_instance_valid(actor) and is_instance_valid(target) \
+		and _flat_distance(actor.position, target.position) <= MELEE_HIT_RANGE
+
+func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+func _log_melee_contact(phase: String, e: Dictionary, actor: Node3D, target: Node3D) -> void:
+	if not _melee_log_on:
+		return
+	var actor_vel: Variant = actor.get("velocity")
+	var target_vel: Variant = target.get("velocity")
+	var actor_speed := 0.0
+	var target_speed := 0.0
+	if actor_vel is Vector3:
+		actor_speed = (actor_vel as Vector3).length()
+	if target_vel is Vector3:
+		target_speed = (target_vel as Vector3).length()
+	print("KM-MELEE %s tick=%d actor=%s dist=%.2f actor_speed=%.2f target_speed=%.2f actor_pos=%s target_pos=%s" % [
+		phase, int(e.tick), str(e.actor), _flat_distance(actor.position, target.position),
+		actor_speed, target_speed, str(actor.position), str(target.position)])
 
 func _update_shot() -> void:
 	while _shot_idx + 1 < shots.size() and float(shots[_shot_idx + 1].t0) <= t:

@@ -8,7 +8,7 @@ var fails := 0
 # String.hash() is not guaranteed stable across Godot releases, so a Godot upgrade
 # may require re-baking: run this test, copy the printed "got hash N", and replace
 # the value below.
-const GOLDEN_SHOTLIST_HASH := 2543717900
+const GOLDEN_SHOTLIST_HASH := 2899376618
 
 func check(cond: bool, label: String) -> void:
 	if cond:

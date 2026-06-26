@@ -455,13 +455,21 @@ func retract_saber() -> void:
 ## Melee strike: ignite, lunge in, and swing the blade arm in a big cleave arc
 ## that lays down a glowing swing trail. Presentation only - whether it connects
 ## is the log event, not this animation.
-func melee_strike(target_pos: Vector3, _style: String) -> void:
+const MELEE_SWING_RANGE := 17.0
+const MELEE_CONTACT_GAP := 8.0
+func melee_strike(target_ref: Variant, _style: String) -> void:
 	ignite_saber()
+	await _boost_to_melee_range(target_ref)
+	if dead:
+		return
+	var target_pos := _melee_target_position(target_ref)
+	if _flat_distance_to(target_pos) > MELEE_SWING_RANGE:
+		return
 	var dir := target_pos - position
 	dir.y = 0.0
 	if dir.length() > 0.1:
 		_target_yaw = atan2(dir.x, dir.z)
-		velocity += dir.normalized() * 30.0       # lunge onto the target
+		velocity += dir.normalized() * 18.0       # carry the cleave through contact
 	if arm_r == null:
 		return                                    # rigged: lunge done, clips/garnish do the rest
 	_blocking = true                              # hold the arm from AMBAC during the swing
@@ -473,6 +481,38 @@ func melee_strike(target_pos: Vector3, _style: String) -> void:
 	_swinging = true                              # lay down the trail through the cleave
 	get_tree().create_timer(0.36).timeout.connect(func(): _swinging = false)
 	get_tree().create_timer(1.3).timeout.connect(retract_saber)
+
+func _boost_to_melee_range(target_ref: Variant) -> void:
+	var waited := 0.0
+	var started_dash := false
+	while waited < 1.5:
+		var target_pos := _melee_target_position(target_ref)
+		var dist := _flat_distance_to(target_pos)
+		if dist <= MELEE_SWING_RANGE:
+			return
+		var dir := position - target_pos
+		dir.y = 0.0
+		if dir.length() < 0.1:
+			dir = Vector3(1.0, 0.0, 0.0)
+		var contact := target_pos + dir.normalized() * MELEE_CONTACT_GAP
+		if not started_dash:
+			_boost_cd = 0.0
+			walk_to(contact.x, 0.0, contact.z, 0.38, true)
+			started_dash = true
+		else:
+			walk_to(contact.x, 0.0, contact.z, 0.12, false)
+		await get_tree().create_timer(0.03).timeout
+		waited += 0.03
+
+func _melee_target_position(target_ref: Variant) -> Vector3:
+	if target_ref is Node3D and is_instance_valid(target_ref):
+		return target_ref.position
+	if target_ref is Vector3:
+		return target_ref
+	return position
+
+func _flat_distance_to(target_pos: Vector3) -> float:
+	return Vector2(position.x - target_pos.x, position.z - target_pos.z).length()
 
 ## Blades lock: plant in place and strain (no sliding) for the given duration.
 func clash_lock(dur: float) -> void:

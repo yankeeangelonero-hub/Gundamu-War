@@ -5,7 +5,8 @@ extends "res://scripts/director.gd"
 ## beats - the opening exchange, a mid-fight building-wrecking beam, and the
 ## kill - then cuts back to iso. Orthographic backbone, perspective punctuation.
 
-const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bullet_time"]
+const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "melee_chase", "melee_profile", "melee_high", "bullet_time"]
+const MELEE_COVERAGE := ["melee_cut", "melee_chase", "melee_profile", "melee_high"]
 
 ## The ranged-fire family the opening over-shoulder may anchor on when a loadout fires no
 ## beam (buster/missiles/burst-only builds). fire_beam stays the primary anchor so beam-trade
@@ -61,11 +62,19 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 			"focus": str(mid.actor), "time_scale": 1.0})
 	# Every non-lethal melee clash gets a tight close-up so the blade reads.
 	if _mode_enabled(enabled_modes, "melee_cut"):
+		var last_melee_cut_t := -999.0
+		var melee_cut_idx := 0
+		var melee_modes := _melee_coverage_modes(enabled_modes)
 		for e in events:
 			if e.kind == "melee" and not e.payload.get("lethal", false):
 				var mt := float(e.tick) * TICK
-				fixed.append({"t0": mt - grammar.melee_cut_pre, "t1": mt + grammar.melee_cut_post, "mode": "melee_cut",
+				if mt - last_melee_cut_t < grammar.melee_cut_spacing:
+					continue
+				var mode: String = melee_modes[melee_cut_idx % melee_modes.size()]
+				fixed.append({"t0": mt - grammar.melee_cut_pre, "t1": mt + grammar.melee_cut_post, "mode": mode,
 					"focus": str(e.actor), "time_scale": grammar.melee_cut_scale})
+				melee_cut_idx += 1
+				last_melee_cut_t = mt
 	if _mode_enabled(enabled_modes, "bullet_time"):
 		fixed.append({"t0": lethal_t - grammar.bt_pre, "t1": lethal_t + grammar.bt_post, "mode": "bullet_time",
 			"focus": lethal_actor, "time_scale": grammar.bt_scale})
@@ -74,18 +83,30 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 	# Iso fills every gap; the tail after the kill is the iso aftermath read.
 	var shots: Array = []
 	var cursor := 0.0
+	var camera_min := maxf(float(grammar.camera_min_duration), 0.0)
+	var camera_max := maxf(float(grammar.camera_max_duration), camera_min)
 	for f in fixed:
 		var t0 := maxf(float(f.t0), cursor)
+		var gap := t0 - cursor
 		if t0 - cursor > 0.001:
 			# A sub-min_iso iso wedged BETWEEN two cinematic shots reads as a flash-cut, not a
 			# re-establish - absorb it into the previous shot instead of cutting to it. The opening
 			# establish (no previous shot) is exempt, so it always plays.
-			if t0 - cursor >= grammar.min_iso or shots.is_empty():
+			if gap >= grammar.min_iso or shots.is_empty():
 				shots.append({"t0": cursor, "t1": t0, "mode": "iso", "focus": "", "time_scale": 1.0})
-			else:
+			elif _is_iso_mode(str(shots[-1].mode)):
 				shots[-1]["t1"] = t0
-		shots.append({"t0": t0, "t1": float(f.t1), "mode": f.mode, "focus": f.focus, "time_scale": f.time_scale})
-		cursor = float(f.t1)
+			elif str(f.mode) != "bullet_time":
+				continue
+		elif not shots.is_empty() and not _is_iso_mode(str(shots[-1].mode)) and str(f.mode) != "bullet_time":
+			continue
+		var is_bullet_time := str(f.mode) == "bullet_time"
+		var t1 := float(f.t1) if is_bullet_time else minf(float(f.t1), t0 + camera_max)
+		shots.append({"t0": t0, "t1": t1, "mode": f.mode, "focus": f.focus, "time_scale": f.time_scale})
+		if not is_bullet_time and t1 - t0 < camera_min:
+			shots.pop_back()
+			continue
+		cursor = t1
 	if dur - cursor > 0.001:
 		shots.append({"t0": cursor, "t1": dur, "mode": "iso_aftermath", "focus": "", "time_scale": 1.0})
 	return shots
@@ -93,6 +114,22 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 
 static func _mode_enabled(enabled_modes: Dictionary, mode: String) -> bool:
 	return bool(enabled_modes.get(mode, true))
+
+
+static func _melee_coverage_modes(enabled_modes: Dictionary) -> Array:
+	var out := []
+	for mode in MELEE_COVERAGE:
+		if _mode_enabled(enabled_modes, mode):
+			out.append(mode)
+	return out if not out.is_empty() else ["melee_cut"]
+
+
+static func _is_iso_mode(mode: String) -> bool:
+	return mode == "iso" or mode == "iso_aftermath"
+
+
+static func _is_eased_mode(mode: String) -> bool:
+	return mode == "bullet_time" or mode in MELEE_COVERAGE
 
 # ---- runtime camera ----
 
@@ -136,11 +173,18 @@ func _update_camera(delta: float) -> void:
 		if s.mode == "iso_aftermath":
 			focus_pt = (b.position if b.dead else a.position)
 			want = _grammar.aftermath_zoom
-		var k := 1.0 - exp(-3.0 * delta / maxf(Engine.time_scale, 0.05))
+		var wd := delta / maxf(Engine.time_scale, 0.05)
+		var speed_scale := maxf(_grammar.camera_speed_scale, 0.05)
+		var k := 1.0 - exp(-_grammar.iso_follow_rate * speed_scale * wd)
 		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 		_zoom = lerpf(_zoom, want, k)
 		camera.size = _zoom
-		camera.position = camera.position.lerp(focus_pt + _grammar.iso_offset, k)
+		var want_pos: Vector3 = focus_pt + _grammar.iso_offset
+		var move := camera.position.lerp(want_pos, k) - camera.position
+		var cap := _grammar.iso_dolly_cap * speed_scale * wd
+		if move.length() > cap:
+			move = move.normalized() * cap
+		camera.position += move
 		_set_focus(-1.0)
 		_cull_near(camera.position, 0.0)   # tactical view sees the whole city
 		_apply_aim(focus_pt, delta, 5.0)
@@ -203,6 +247,54 @@ func _update_camera(delta: float) -> void:
 			pos = pick.pos
 			aim = contact
 			fov = fr.fov
+		"melee_chase":
+			# Pursuit coverage: tucked behind the attacking suit, reading the boost chase
+			# into contact instead of another neutral clash orbit.
+			var fr: Dictionary = _grammar.framing[s.mode]
+			var f: Node3D = actors[s.focus]
+			var o: Node3D = actors[_other(str(s.focus))]
+			var dir := o.position - f.position
+			dir.y = 0.0
+			dir = dir.normalized() if dir.length() > 0.01 else Vector3.RIGHT
+			var lat_signed := _keyed_lateral(f.position, o.position, float(fr.pullback), float(fr.height), float(fr.lateral), a.position, b.position, _axis_keyed_side)
+			pos = f.position - dir * float(fr.pullback) + dir.cross(Vector3.UP) * lat_signed + Vector3(0, float(fr.height), 0)
+			aim = f.position.lerp(o.position, 0.72) + Vector3(0, 9, 0)
+			fov = fr.fov
+			_roll = fr.roll
+		"melee_profile":
+			# Side-on profile: a readable two-suit plate that shows reach, collision,
+			# and separation without orbiting around the action axis.
+			var fr: Dictionary = _grammar.framing[s.mode]
+			var f: Node3D = actors[s.focus]
+			var o: Node3D = actors[_other(str(s.focus))]
+			var contact := f.position.lerp(o.position, 0.5) + Vector3(0, 10, 0)
+			var dir := o.position - f.position
+			dir.y = 0.0
+			dir = dir.normalized() if dir.length() > 0.01 else Vector3.RIGHT
+			var side := dir.cross(Vector3.UP).normalized()
+			if _axis_side(contact + side * float(fr.distance), a.position, b.position) != _axis_keyed_side:
+				side = -side
+			pos = contact + side * float(fr.distance) + Vector3(0, float(fr.height), 0)
+			aim = contact
+			fov = fr.fov
+		"melee_high":
+			# High diagonal: keeps the duel geography and city scale visible between
+			# close reads, without dropping all the way back to orthographic iso.
+			var fr: Dictionary = _grammar.framing[s.mode]
+			var f: Node3D = actors[s.focus]
+			var o: Node3D = actors[_other(str(s.focus))]
+			var contact := f.position.lerp(o.position, 0.5) + Vector3(0, 9, 0)
+			var dir := f.position - o.position
+			dir.y = 0.0
+			dir = dir.normalized() if dir.length() > 0.01 else Vector3.RIGHT
+			var side := dir.cross(Vector3.UP).normalized()
+			if _axis_side(contact + side * float(fr.radius), a.position, b.position) != _axis_keyed_side:
+				side = -side
+			var radius := maxf(float(fr.radius), f.position.distance_to(o.position) * 0.75)
+			var diag := (dir * 0.55 + side * 0.45).normalized()
+			pos = contact + diag * radius + Vector3(0, float(fr.height), 0)
+			aim = contact
+			fov = fr.fov
 		"bullet_time":
 			var fr: Dictionary = _grammar.framing[s.mode]
 			var shooter: Node3D = actors[s.focus]
@@ -232,24 +324,34 @@ func _update_camera(delta: float) -> void:
 	# candidates) glides to the new clear angle instead of teleporting - a hard index flip
 	# mid-orbit otherwise reads as a cut to a near-identical angle. Snap on the first frame so
 	# the cut INTO the shot stays clean; fixed hero framings keep their direct (hard-cut) set.
-	if s.mode == "melee_cut" or s.mode == "bullet_time":
+	if _is_eased_mode(str(s.mode)):
 		if not _pos_init:
 			_smooth_pos = pos
 			_pos_init = true
 		else:
 			var wd := delta / maxf(Engine.time_scale, 0.05)
-			var move := _smooth_pos.lerp(pos, 1.0 - exp(-6.0 * wd)) - _smooth_pos
-			var cap := _grammar.dolly_cap * wd  # bound linear speed: track a violent subject, never whip-pan
+			var speed_scale := maxf(_grammar.camera_speed_scale, 0.05)
+			var move := _smooth_pos.lerp(pos, 1.0 - exp(-6.0 * speed_scale * wd)) - _smooth_pos
+			var cap := _grammar.dolly_cap * speed_scale * wd  # bound linear speed: track a violent subject, never whip-pan
 			if move.length() > cap:
 				move = move.normalized() * cap
 			_smooth_pos += move
 		pos = _smooth_pos
 	if shake_strength > 0.001:
-		pos += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * shake_strength * 0.3
+		pos += _camera_shake_offset(_wall, shake_strength, str(s.mode))
 	camera.position = pos
 	# Clear everything between the lens and just shy of the subject - no rubble,
 	# debris, or towers occluding the close shot (the blade was getting buried).
 	_cull_near(pos, maxf(pos.distance_to(aim) - 6.0, 0.0))
 	_set_focus(pos.distance_to(aim), 0.07)
 	_apply_aim(aim, delta, 9.0)
+
+
+func _camera_shake_offset(wall: float, strength: float, mode: String) -> Vector3:
+	var amp := strength * (0.12 if mode in MELEE_COVERAGE else 0.22)
+	return Vector3(
+		sin(wall * 37.0),
+		sin(wall * 29.0 + 1.7),
+		sin(wall * 43.0 + 0.9)
+	) * amp
 

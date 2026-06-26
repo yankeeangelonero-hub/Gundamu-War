@@ -6,6 +6,8 @@ var director: Node3D
 var rng := RandomNumberGenerator.new()
 var grammar: ShotGrammar = ShotGrammar.default()
 var _last_kill_class := ""
+const MELEE_FX_HIT_RANGE := 17.0
+const MELEE_FX_CONTACT_WAIT := 1.5
 
 func setup(p_actors: Dictionary, p_director: Node3D, p_grammar: ShotGrammar = null) -> void:
 	actors = p_actors
@@ -359,10 +361,17 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 ## suits. A block locks blades (cool sparks, push apart); a connecting cleave is
 ## a hot flash + hitstop. Placed at the rendered midpoint - the outcome is the log.
 func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var connected: bool = await _wait_for_melee_fx_contact(shooter, target)
+	if not is_instance_valid(shooter) or not is_instance_valid(target):
+		return
+	if not connected:
+		return
 	var contact := shooter.position.lerp(target.position, 0.5) + Vector3(0, 11, 0)
 	var blocked: bool = payload.get("blocked", false)
 	var col := Color(0.7, 0.9, 1.0) if blocked else Color(1.0, 0.85, 0.6)
 	_impact_flash(contact, col, 1.8)
+	if not blocked and payload.get("hit", false):
+		_melee_collision_explosion(contact)
 	var flash := OmniLight3D.new()
 	flash.light_color = col
 	flash.light_energy = 28.0 * grammar.fx_light_energy
@@ -377,6 +386,33 @@ func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var melee_dmg := grammar.hitstop_threshold + 1.0 if payload.get("lethal", false) \
 		else float(payload.get("damage", 0))
 	_emphasize(melee_dmg, grammar.melee_hitstop_dur)
+
+func _wait_for_melee_fx_contact(shooter: Node3D, target: Node3D) -> bool:
+	var waited := 0.0
+	while waited < MELEE_FX_CONTACT_WAIT:
+		if not is_instance_valid(shooter) or not is_instance_valid(target):
+			return false
+		var dist := Vector2(shooter.position.x - target.position.x, shooter.position.z - target.position.z).length()
+		if dist <= MELEE_FX_HIT_RANGE:
+			return true
+		await get_tree().create_timer(0.03).timeout
+		waited += 0.03
+	return is_instance_valid(shooter) and is_instance_valid(target) \
+		and Vector2(shooter.position.x - target.position.x, shooter.position.z - target.position.z).length() <= MELEE_FX_HIT_RANGE
+
+func _melee_collision_explosion(contact: Vector3) -> void:
+	_fireball(contact)
+	_smoke(contact)
+	_ring(contact, Color(1.0, 0.72, 0.28), 30.0)
+	var flash := OmniLight3D.new()
+	flash.light_color = Color(1.0, 0.62, 0.25)
+	flash.light_energy = 42.0 * grammar.fx_light_energy
+	flash.omni_range = 52.0
+	add_child(flash)
+	flash.global_position = contact
+	create_tween().tween_property(flash, "light_energy", 0.0, 0.75)
+	get_tree().create_timer(1.5).timeout.connect(func(): flash.queue_free())
+	director.shake_strength = maxf(director.shake_strength, 1.8)
 
 func _burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var rounds := int(payload.rounds)

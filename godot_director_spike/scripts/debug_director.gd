@@ -2,8 +2,7 @@ extends CanvasLayer
 ## Debug Director - live feel/balance tuning bench (behind main.gd --debug).
 ## Spec: docs/superpowers/specs/2026-06-22-debug-director-tuning-ui-design.md
 ## Slices 1-4: side panel, Replay, live ShotGrammar sliders, shot-type toggles,
-## and per-mech FeelProfile/preset controls. Gameplay generation and metrics HUD
-## land in later slices.
+## per-mech FeelProfile/preset controls, and a scaffold spectacle metrics readout.
 
 signal replay_requested
 signal live_changed(enabled)
@@ -53,9 +52,11 @@ var _shot_checks: Dictionary = {}
 var _preset_buttons: Dictionary = {}
 var _relays: Array = []
 var _root_col: VBoxContainer = null
+var _metrics_label: Label = null
 var _live := true
 var _suppress := false
 var _pending_config: Dictionary = {}
+var _pending_metrics: Dictionary = {}
 
 func _ready() -> void:
 	layer = 10
@@ -95,6 +96,7 @@ func _ready() -> void:
 	replay.pressed.connect(func(): replay_requested.emit())
 	col.add_child(replay)
 
+	_add_metrics_section(col)
 	_add_shot_toggles(col)
 	_add_camera_controls(col)
 	_add_actor_controls(col, "A")
@@ -104,6 +106,10 @@ func _ready() -> void:
 		var p := _pending_config
 		_pending_config = {}
 		configure(p.grammar, p.feel_profiles, p.enabled_modes)
+	if not _pending_metrics.is_empty():
+		var metrics := _pending_metrics
+		_pending_metrics = {}
+		set_metrics_summary(metrics)
 
 
 func configure(grammar: ShotGrammar, feel_profiles: Dictionary, enabled_modes: Dictionary) -> void:
@@ -118,7 +124,11 @@ func configure(grammar: ShotGrammar, feel_profiles: Dictionary, enabled_modes: D
 	_set_slider("grammar:os_len", grammar.os_len)
 	_set_slider("grammar:cut_len", grammar.cut_len)
 	_set_slider("grammar:min_iso", grammar.min_iso)
+	_set_slider("grammar:camera_min_duration", grammar.camera_min_duration)
+	_set_slider("grammar:camera_max_duration", grammar.camera_max_duration)
+	_set_slider("grammar:camera_speed_scale", grammar.camera_speed_scale)
 	_set_slider("grammar:dolly_cap", grammar.dolly_cap)
+	_set_slider("grammar:iso_dolly_cap", grammar.iso_dolly_cap)
 	_set_slider("grammar:melee_radius_factor", grammar.melee_radius_factor)
 	_set_slider("grammar:bt_pre", grammar.bt_pre)
 	_set_slider("grammar:bt_post", grammar.bt_post)
@@ -143,6 +153,39 @@ func configure(grammar: ShotGrammar, feel_profiles: Dictionary, enabled_modes: D
 	_suppress = false
 
 
+func set_metrics_summary(profile: Dictionary) -> void:
+	if _metrics_label == null:
+		_pending_metrics = profile.duplicate(true)
+		return
+	var mix: Dictionary = profile.get("weapon_mix", {}) if profile.get("weapon_mix", {}) is Dictionary else {}
+	var weapons := mix.keys()
+	weapons.sort()
+	var finisher: Dictionary = profile.get("finisher", {}) if profile.get("finisher", {}) is Dictionary else {}
+	var movement: Dictionary = profile.get("movement_profile", {}) if profile.get("movement_profile", {}) is Dictionary else {}
+	_metrics_label.text = "%.1fs | %d atk | %.2f/s | dead %.1fs\nboost %d | heavy %d | def %d\n%s | finish %s%s" % [
+		float(profile.get("duration_sec", 0.0)),
+		int(profile.get("attack_count", 0)),
+		float(profile.get("attack_density_per_sec", 0.0)),
+		float(profile.get("longest_dead_air_sec", 0.0)),
+		int(movement.get("boost_count", 0)),
+		int(profile.get("heavy_beat_count", 0)),
+		int(profile.get("defensive_reversal_count", 0)),
+		", ".join(weapons),
+		str(finisher.get("kind", "none")),
+		(" heavy" if bool(finisher.get("heavy", false)) else ""),
+	]
+
+
+func _add_metrics_section(col: VBoxContainer) -> void:
+	_add_section_label(col, "Spectacle")
+	_metrics_label = Label.new()
+	_metrics_label.text = "profile pending"
+	_metrics_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_metrics_label.add_theme_font_size_override("font_size", 10)
+	_metrics_label.modulate = Color(1, 1, 1, 0.72)
+	col.add_child(_metrics_label)
+
+
 func _add_shot_toggles(col: VBoxContainer) -> void:
 	_add_section_label(col, "Shot types")
 	var note := Label.new()
@@ -164,10 +207,14 @@ func _add_shot_toggles(col: VBoxContainer) -> void:
 
 func _add_camera_controls(col: VBoxContainer) -> void:
 	_add_section_label(col, "Camera")
-	_add_slider(col, "OS length", "grammar:os_len", 1.8, 0.4, 4.0, 0.05)
-	_add_slider(col, "Cut length", "grammar:cut_len", 1.8, 0.4, 4.0, 0.05)
+	_add_slider(col, "OS length", "grammar:os_len", 4.0, 0.4, 4.0, 0.05)
+	_add_slider(col, "Cut length", "grammar:cut_len", 4.0, 0.4, 4.0, 0.05)
 	_add_slider(col, "Min iso", "grammar:min_iso", 1.0, 0.0, 3.0, 0.05)
-	_add_slider(col, "Dolly cap", "grammar:dolly_cap", 60.0, 10.0, 140.0, 1.0)
+	_add_slider(col, "Cam min dur", "grammar:camera_min_duration", 1.5, 0.1, 1.5, 0.05)
+	_add_slider(col, "Cam max dur", "grammar:camera_max_duration", 5.0, 0.6, 5.0, 0.05)
+	_add_slider(col, "Cam speed", "grammar:camera_speed_scale", 0.25, 0.25, 2.0, 0.05)
+	_add_slider(col, "Close cap", "grammar:dolly_cap", 42.0, 10.0, 140.0, 1.0)
+	_add_slider(col, "Iso cap", "grammar:iso_dolly_cap", 42.0, 10.0, 140.0, 1.0)
 	_add_slider(col, "Melee radius", "grammar:melee_radius_factor", 1.4, 0.7, 3.0, 0.05)
 	_add_slider(col, "BT lead", "grammar:bt_pre", 0.2, 0.0, 1.0, 0.025)
 	_add_slider(col, "BT hold", "grammar:bt_post", 0.55, 0.05, 2.0, 0.025)

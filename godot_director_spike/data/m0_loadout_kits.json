@@ -1,0 +1,99 @@
+{
+  "pilots": {
+    "pilot_aya": {
+      "name": "Aya",
+      "callsign": "Brightknife",
+      "signature": "linked targeting core",
+      "kit_modifier": {
+        "accuracy_bonus": 0.03
+      }
+    }
+  },
+  "kits": {
+    "rifle_missile_pressure": {
+      "name": "Rifle / Missile Pressure",
+      "archetype": "rifle_missile_pressure",
+      "grammar_preset": "gunner",
+      "hp": 185,
+      "power_identity": "sustained pressure",
+      "defense_beats": ["evade"],
+      "spectacle_intent": {
+        "matchup_shape": "ranged pressure",
+        "summary": "Frequent beam and missile beats keep the opponent moving."
+      },
+      "grid": [
+        {"x": 0, "y": 0, "w": 1, "h": 2, "kind": "reactor"},
+        {"x": 1, "y": 0, "w": 2, "h": 1, "kind": "weapon", "label": "rifle"},
+        {"x": 3, "y": 0, "w": 2, "h": 1, "kind": "weapon", "label": "missiles"},
+        {"x": 1, "y": 1, "w": 1, "h": 1, "kind": "support", "label": "link"},
+        {"x": 2, "y": 1, "w": 2, "h": 1, "kind": "support", "label": "rack"}
+      ],
+      "weapons": [
+        {"id": "beam_rifle", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "cooldown": 25, "accuracy": 0.86, "initiative": 20, "travel": 5, "variance": 0.12, "start": 10},
+        {"id": "micro_missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 9, "cooldown": 31, "accuracy": 0.78, "initiative": 15, "travel": 8, "variance": 0.18, "start": 17, "count": 8}
+      ]
+    },
+    "buster_artillery": {
+      "name": "Buster Artillery",
+      "archetype": "buster_artillery",
+      "grammar_preset": "anvil",
+      "hp": 205,
+      "power_identity": "heavy charge windows",
+      "defense_beats": ["block"],
+      "spectacle_intent": {
+        "matchup_shape": "artillery execution",
+        "summary": "A slow cannon build creates heavy punctuation and dangerous commits."
+      },
+      "grid": [
+        {"x": 0, "y": 0, "w": 2, "h": 2, "kind": "reactor"},
+        {"x": 2, "y": 0, "w": 3, "h": 1, "kind": "weapon", "label": "buster"},
+        {"x": 2, "y": 1, "w": 1, "h": 1, "kind": "support", "label": "charge"},
+        {"x": 3, "y": 1, "w": 2, "h": 1, "kind": "support", "label": "shield"}
+      ],
+      "weapons": [
+        {"id": "buster_cannon", "motif": "buster", "viewer_kind": "fire_buster", "tier": 3, "damage": 28, "cooldown": 48, "accuracy": 0.74, "initiative": 8, "travel": 10, "variance": 0.20, "start": 24},
+        {"id": "heavy_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 10, "cooldown": 34, "accuracy": 0.82, "initiative": 11, "travel": 6, "variance": 0.12, "start": 15}
+      ]
+    },
+    "saber_booster_chase": {
+      "name": "Saber / Booster Chase",
+      "archetype": "saber_booster_chase",
+      "grammar_preset": "lancer",
+      "hp": 175,
+      "power_identity": "close-range burst",
+      "defense_beats": ["evade", "parry"],
+      "spectacle_intent": {
+        "matchup_shape": "melee chase",
+        "summary": "A fast melee frame hunts openings and forces close-up blade beats."
+      },
+      "grid": [
+        {"x": 0, "y": 0, "w": 1, "h": 2, "kind": "reactor"},
+        {"x": 1, "y": 0, "w": 1, "h": 2, "kind": "booster", "label": "boost"},
+        {"x": 2, "y": 0, "w": 2, "h": 1, "kind": "weapon", "label": "saber"},
+        {"x": 4, "y": 0, "w": 1, "h": 1, "kind": "support", "label": "edge"},
+        {"x": 2, "y": 1, "w": 2, "h": 1, "kind": "support", "label": "drive"}
+      ],
+      "weapons": [
+        {"id": "beam_saber", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 15, "cooldown": 24, "accuracy": 0.82, "initiative": 28, "travel": 1, "variance": 0.15, "start": 11, "style": "cleave"},
+        {"id": "snap_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 1, "damage": 7, "cooldown": 33, "accuracy": 0.78, "initiative": 18, "travel": 4, "variance": 0.14, "start": 19}
+      ]
+    }
+  },
+  "opponents": {
+    "pressure_ghost": {
+      "name": "Pressure Ghost",
+      "kit": "rifle_missile_pressure",
+      "hp_bonus": 10
+    },
+    "artillery_ghost": {
+      "name": "Artillery Ghost",
+      "kit": "buster_artillery",
+      "hp_bonus": 15
+    },
+    "duelist_ghost": {
+      "name": "Duelist Ghost",
+      "kit": "saber_booster_chase",
+      "hp_bonus": 5
+    }
+  }
+}

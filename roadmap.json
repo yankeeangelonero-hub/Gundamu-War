@@ -37,6 +37,17 @@
       "spec": "docs/slices/CF-FIREWORKS-cinematic-combat-sandbox.md"
     },
     {
+      "id": "dec-m0-m1-bridge",
+      "title": "M0/M1 loadout-to-fight bridge",
+      "state": "decision",
+      "kind": "decision",
+      "version": "0.1",
+      "deps": [],
+      "goal": "Draft owner decision: prove different cinematic fights first, start the next player-facing prototype from a backpack/grid-facing build surface, and connect it through a future-proof resolved-loadout contract consumed by M0 and later produced by M1. No dependency graft until reviewed.",
+      "next": "Review the draft spec, then decide whether to graft updates into m0-sandbox-sim, build-picker, and m1-grid-editor.",
+      "spec": "docs/superpowers/specs/2026-06-26-m0-m1-game-system-bridge-design.md"
+    },
+    {
       "id": "cf-log-contract",
       "title": "Fight event-log contract",
       "state": "shipped",
@@ -263,7 +274,7 @@
     }
   ],
   "canon": {
-    "sha": "d98b7cdefdea03ffa8edcadc52e17a28e8a552f4",
+    "sha": "b5c622f0c0e8a0dc442fe0c5984e8f277a71987f",
     "ref": "HEAD"
   }
 }

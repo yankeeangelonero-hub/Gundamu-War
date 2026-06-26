@@ -7,7 +7,10 @@ const Garnish := preload("res://scripts/garnish.gd")
 const SpikeAudio := preload("res://scripts/spike_audio.gd")
 const PauseController := preload("res://scripts/pause_controller.gd")
 const DebugDirector := preload("res://scripts/debug_director.gd")
+const BuildLauncher := preload("res://scripts/build_launcher.gd")
 const Choreographer := preload("res://scripts/sim/choreographer.gd")
+const LoadoutGenerator := preload("res://scripts/sim/loadout_fight_generator.gd")
+const SpectacleProfile := preload("res://scripts/sim/spectacle_profile.gd")
 const DEBUG_LOADOUTS_PATH := "res://data/debug_archetype_loadouts.json"
 
 var camera: Camera3D
@@ -21,6 +24,8 @@ var _paused_layer: CanvasLayer
 # --debug: live feel/balance tuning bench. The fight is rebuildable so the panel can re-film.
 var _debug_on := false
 var _panel: CanvasLayer
+var _build_ui_on := false
+var _launcher: CanvasLayer
 var _DirectorScript: GDScript
 var _world_env
 var _full_armor := false
@@ -64,6 +69,10 @@ var _wall_t := 0.0
 var _cam_prev_pos := Vector3.ZERO
 var _cam_prev_fwd := Vector3.ZERO
 var _cam_prev_valid := false
+var _camlog_flushed := false
+
+func _exit_tree() -> void:
+	_flush_camlog("exit_tree")
 
 func _process(delta: float) -> void:
 	if get_tree().paused:
@@ -81,8 +90,12 @@ func _capture_camlog(delta: float) -> void:
 	var idx := int(director.get("_shot_idx"))
 	var dshots: Array = director.get("shots")
 	var mode := "?"
+	var shot_t0 := 0.0
+	var shot_t1 := 0.0
 	if idx >= 0 and idx < dshots.size():
 		mode = String(dshots[idx].mode)
+		shot_t0 = float(dshots[idx].t0)
+		shot_t1 = float(dshots[idx].t1)
 	var p := camera.global_position
 	var fwd := -camera.global_transform.basis.z
 	var dpos := 0.0
@@ -93,13 +106,19 @@ func _capture_camlog(delta: float) -> void:
 			dang = _cam_prev_fwd.angle_to(fwd)
 	var ha: Vector3 = mech_a.global_position + Vector3(0, 10, 0)
 	var hb: Vector3 = mech_b.global_position + Vector3(0, 10, 0)
+	var sep := mech_a.global_position.distance_to(mech_b.global_position)
 	_camlog.append({
 		"wall": snappedf(_wall_t, 0.001), "shot": idx, "mode": mode,
+		"shot_t0": snappedf(shot_t0, 0.001), "shot_t1": snappedf(shot_t1, 0.001),
+		"shot_phase": snappedf((_wall_t - shot_t0) / maxf(shot_t1 - shot_t0, 0.001), 0.001),
 		"px": snappedf(p.x, 0.1), "py": snappedf(p.y, 0.1), "pz": snappedf(p.z, 0.1),
 		"fov": snappedf(camera.fov, 0.1), "ortho": camera.projection == Camera3D.PROJECTION_ORTHOGONAL,
 		"dpos": snappedf(dpos, 0.01), "dang": snappedf(dang, 0.001),
 		"a_in": camera.is_position_in_frustum(ha), "b_in": camera.is_position_in_frustum(hb),
 		"a_spd": snappedf(mech_a.velocity.length(), 0.1), "b_spd": snappedf(mech_b.velocity.length(), 0.1),
+		"ax": snappedf(mech_a.global_position.x, 0.1), "az": snappedf(mech_a.global_position.z, 0.1),
+		"bx": snappedf(mech_b.global_position.x, 0.1), "bz": snappedf(mech_b.global_position.z, 0.1),
+		"sep": snappedf(sep, 0.1),
 		"a_y": snappedf(mech_a.position.y, 0.01), "b_y": snappedf(mech_b.position.y, 0.01),
 	})
 	_cam_prev_pos = p
@@ -141,6 +160,7 @@ func _ready() -> void:
 	print("KM-DIRECTOR-SPIKE boot ok")
 	_camlog_on = "--camlog" in OS.get_cmdline_user_args()
 	_debug_on = "--debug" in OS.get_cmdline_user_args()
+	_build_ui_on = "--build-ui" in OS.get_cmdline_user_args()
 	if "--still" in OS.get_cmdline_user_args():
 		_spawn_mechs()
 		# Behind mech A (x=-55), looking toward B (x=+40) - sees both mechs + city flanks
@@ -198,8 +218,17 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--log="):
 			log_path = "res://data/%s.json" % arg.trim_prefix("--log=")
-	_load_debug_source_log(log_path)
 	_grammar = ShotGrammar.default()
+	if _build_ui_on:
+		_spawn_mechs()
+		_launcher = BuildLauncher.new()
+		_launcher.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(_launcher)
+		_launcher.fight_requested.connect(_on_build_launcher_fight_requested)
+		if "--auto-fight" in OS.get_cmdline_user_args():
+			call_deferred("_auto_fight_from_args")
+		return
+	_load_debug_source_log(log_path)
 	# Director seam: if the log carries the choreographer's side-channel presentation hooks,
 	# surface them (the camera can read shape/climax_window/range_band for framing). Printed
 	# only here - driving the runtime camera from these is the separately-gated v2 cutover.
@@ -225,6 +254,7 @@ func _ready() -> void:
 		_panel.preset_changed.connect(_on_debug_preset_changed)
 		_panel.shot_mode_changed.connect(_on_debug_shot_mode_changed)
 		_panel.configure(_grammar, _feel, _enabled_modes)
+		_refresh_debug_metrics()
 
 ## (Re)create the two mech bodies, freeing any prior pair first. Used by the initial build,
 ## by --still, and by every debug re-film.
@@ -257,6 +287,8 @@ func _build_fight() -> void:
 	# Single source of truth: ONE grammar instance flows to shot-gen, the director's runtime
 	# camera (_grammar), the Grade node, and garnish.
 	var shots: Array = _DirectorScript.build_shot_list(_events, dur, _grammar, _enabled_modes)
+	if _camlog_on:
+		_write_shotlog(shots, dur)
 	director = _DirectorScript.new()
 	add_child(director)
 	director.set("_grammar", _grammar)
@@ -273,16 +305,13 @@ func _build_fight() -> void:
 	add_child(_audio)
 	_audio.wire(director)
 	director.fight_over.connect(_on_fight_over)
+	_refresh_debug_metrics()
+	_refresh_launcher_profile()
 
 ## End-of-fight: flush the camlog. In --debug, stay open for replay/tuning; otherwise fade + quit.
 func _on_fight_over() -> void:
-	if _camlog_on:
-		DirAccess.make_dir_recursive_absolute("res://tmp")
-		var fa := FileAccess.open("res://tmp/camlog.json", FileAccess.WRITE)
-		fa.store_string(JSON.stringify(_camlog))
-		fa.close()
-		print("camlog: wrote %d rows to tmp/camlog.json" % _camlog.size())
-	if _debug_on:
+	_flush_camlog("fight_over")
+	if _debug_on or _build_ui_on:
 		return
 	create_tween().tween_property(_fade, "color:a", 1.0, 2.0)
 	await get_tree().create_timer(2.2).timeout
@@ -297,9 +326,47 @@ func _on_fight_over() -> void:
 func _replay() -> void:
 	_fade.color = Color(0, 0, 0, 0)
 	_camlog.clear()
+	_camlog_flushed = false
 	_cam_prev_valid = false
 	_wall_t = 0.0
 	_build_fight()
+
+
+func _flush_camlog(reason: String) -> void:
+	if not _camlog_on or _camlog_flushed:
+		return
+	DirAccess.make_dir_recursive_absolute("res://tmp")
+	var fa := FileAccess.open("res://tmp/camlog.json", FileAccess.WRITE)
+	if fa == null:
+		push_warning("camlog: failed to open tmp/camlog.json")
+		return
+	fa.store_string(JSON.stringify(_camlog))
+	fa.close()
+	_camlog_flushed = true
+	print("camlog: wrote %d rows to tmp/camlog.json (%s)" % [_camlog.size(), reason])
+
+
+func _write_shotlog(shots: Array, dur: float) -> void:
+	DirAccess.make_dir_recursive_absolute("res://tmp")
+	var out := {"dur": snappedf(dur, 0.001), "shots": []}
+	for i in shots.size():
+		var s: Dictionary = shots[i]
+		out.shots.append({
+			"idx": i,
+			"t0": snappedf(float(s.t0), 0.001),
+			"t1": snappedf(float(s.t1), 0.001),
+			"len": snappedf(float(s.t1) - float(s.t0), 0.001),
+			"mode": str(s.mode),
+			"focus": str(s.get("focus", "")),
+			"time_scale": snappedf(float(s.get("time_scale", 1.0)), 0.001),
+		})
+	var fa := FileAccess.open("res://tmp/shotlog.json", FileAccess.WRITE)
+	if fa == null:
+		push_warning("shotlog: failed to open tmp/shotlog.json")
+		return
+	fa.store_string(JSON.stringify(out))
+	fa.close()
+	print("shotlog: wrote %d shots to tmp/shotlog.json" % shots.size())
 
 
 func _load_debug_source_log(log_path: String) -> void:
@@ -336,6 +403,7 @@ func _on_debug_feel_number_changed(actor: String, property_name: String, value: 
 	fp[property_name] = value
 	_feel[actor] = fp
 	_restage_debug_truth()
+	_refresh_debug_metrics()
 	_debug_refilm_if_live()
 
 
@@ -348,12 +416,88 @@ func _on_debug_preset_changed(actor: String, preset_name: String) -> void:
 	if _panel != null and is_instance_valid(_panel):
 		_panel.configure(_grammar, _feel, _enabled_modes)
 	_restage_debug_truth()
+	_refresh_debug_metrics()
 	_debug_refilm_if_live()
 
 
 func _on_debug_shot_mode_changed(mode: String, enabled: bool) -> void:
 	_enabled_modes[mode] = enabled
 	_debug_refilm_if_live()
+
+
+func _refresh_debug_metrics() -> void:
+	if not _debug_on:
+		return
+	if _panel == null or not is_instance_valid(_panel):
+		return
+	if not _panel.has_method("set_metrics_summary"):
+		return
+	var archetypes: Dictionary = _debug_archetypes.duplicate(true)
+	var profile := SpectacleProfile.profile(_events, "debug-current", {
+		"source": "debug",
+		"seed": _debug_seed,
+		"archetypes": archetypes,
+	})
+	_panel.set_metrics_summary(profile)
+
+
+func _refresh_launcher_profile() -> void:
+	if not _build_ui_on:
+		return
+	if _launcher == null or not is_instance_valid(_launcher):
+		return
+	if not _launcher.has_method("set_profile"):
+		return
+	if _events.is_empty():
+		return
+	var archetypes: Dictionary = _debug_archetypes.duplicate(true)
+	var profile := SpectacleProfile.profile(_events, "launcher-current", {
+		"source": "generated",
+		"seed": _debug_seed,
+		"archetypes": archetypes,
+	})
+	profile["summary"] = SpectacleProfile.format_summary(profile)
+	_launcher.set_profile(profile)
+
+
+func _on_build_launcher_fight_requested(player_kit_id: String, opponent_id: String, chaos: float, seed: int) -> void:
+	var catalog := LoadoutGenerator.load_catalog()
+	var player_loadout: Dictionary = LoadoutGenerator.resolve_player_loadout(catalog, player_kit_id, "pilot_aya")
+	var opponent_loadout: Dictionary = LoadoutGenerator.resolve_opponent_loadout(catalog, opponent_id)
+	_debug_seed = seed
+	_debug_archetypes = {
+		"A": str(player_loadout.get("archetype", player_kit_id)),
+		"B": str(opponent_loadout.get("archetype", opponent_id)),
+	}
+	_feel = {
+		"A": Choreographer.apply_preset(str(player_loadout.get("grammar_preset", "gunner"))),
+		"B": Choreographer.apply_preset(str(opponent_loadout.get("grammar_preset", "gunner"))),
+	}
+	var generated: Dictionary = LoadoutGenerator.generate(player_loadout, opponent_loadout, seed, chaos)
+	_debug_truth = generated.get("events", [])
+	var staged: Array = Choreographer.stage(_debug_truth, seed, {
+		"A": _feel_profile_for_stage("A"),
+		"B": _feel_profile_for_stage("B"),
+	})
+	_events = _debug_staged_truth_to_viewer_events(staged)
+	print("KM-BUILD-UI fight A=%s B=%s chaos=%.2f seed=%d events=%d" % [
+		player_kit_id, opponent_id, chaos, seed, _events.size()])
+	_replay()
+
+
+func _auto_fight_from_args() -> void:
+	var player_kit := _arg_value("--player-kit=", "rifle_missile_pressure")
+	var opponent := _arg_value("--opponent=", "artillery_ghost")
+	var chaos := float(_arg_value("--chaos=", "0.50"))
+	var seed := int(_arg_value("--seed=", "77"))
+	_on_build_launcher_fight_requested(player_kit, opponent, chaos, seed)
+
+
+func _arg_value(prefix: String, fallback: String) -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with(prefix):
+			return arg.trim_prefix(prefix)
+	return fallback
 
 
 func _feel_profile_for(actor: String) -> Dictionary:

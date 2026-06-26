@@ -1,0 +1,52 @@
+{
+  "gunner": {
+    "hp": 100,
+    "weapons": [
+      {"name": "beam rifle", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 10, "travel": 5, "cooldown": 13, "start": 10},
+      {"name": "vulcan burst", "motif": "burst", "viewer_kind": "fire_burst", "tier": 1, "damage": 7, "travel": 4, "cooldown": 21, "start": 16, "rounds": 8, "hits": 3}
+    ]
+  },
+  "bruiser": {
+    "hp": 115,
+    "weapons": [
+      {"name": "beam saber", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 14, "travel": 1, "cooldown": 15, "start": 12},
+      {"name": "buster cannon", "motif": "buster", "viewer_kind": "fire_buster", "tier": 3, "damage": 24, "travel": 6, "cooldown": 34, "start": 24}
+    ]
+  },
+  "skirmisher": {
+    "hp": 90,
+    "weapons": [
+      {"name": "needle vulcans", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 6, "travel": 3, "cooldown": 9, "start": 8, "rounds": 10, "hits": 4},
+      {"name": "micro missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 9, "travel": 6, "cooldown": 18, "start": 15, "count": 6, "hits": 4}
+    ]
+  },
+  "anvil": {
+    "hp": 130,
+    "weapons": [
+      {"name": "siege buster", "motif": "buster", "viewer_kind": "fire_buster", "tier": 3, "damage": 30, "travel": 7, "cooldown": 33, "start": 18},
+      {"name": "heavy beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 13, "travel": 5, "cooldown": 18, "start": 12}
+    ]
+  },
+  "hornet": {
+    "hp": 85,
+    "weapons": [
+      {"name": "swarm missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 10, "travel": 5, "cooldown": 13, "start": 9, "count": 8, "hits": 5},
+      {"name": "stinger vulcans", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 5, "travel": 3, "cooldown": 8, "start": 13, "rounds": 12, "hits": 5}
+    ]
+  },
+  "lancer": {
+    "hp": 95,
+    "weapons": [
+      {"name": "lance saber", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 16, "travel": 1, "cooldown": 14, "start": 10},
+      {"name": "snap beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 9, "travel": 4, "cooldown": 16, "start": 17}
+    ]
+  },
+  "bastion": {
+    "hp": 140,
+    "weapons": [
+      {"name": "fortress beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "travel": 5, "cooldown": 16, "start": 13},
+      {"name": "shoulder missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 12, "travel": 6, "cooldown": 23, "start": 21, "count": 6, "hits": 4},
+      {"name": "capital buster", "motif": "buster", "viewer_kind": "fire_buster", "tier": 3, "damage": 22, "travel": 7, "cooldown": 42, "start": 36}
+    ]
+  }
+}

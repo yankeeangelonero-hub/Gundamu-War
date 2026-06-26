@@ -13,7 +13,7 @@ const VOCAB := ["iso", "iso_aftermath", "hero_os", "hero_cut", "melee_cut", "bul
 const RANGED_FIRE := ["fire_beam", "fire_buster", "fire_missiles", "fire_burst"]
 
 
-static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = null) -> Array:
+static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = null, enabled_modes: Dictionary = {}) -> Array:
 	if grammar == null:
 		grammar = ShotGrammar.default()
 	var first_t := -1.0
@@ -52,19 +52,23 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 		if mid.is_empty() or absf(float(m.t) - target) < absf(float(mid.t) - target):
 			mid = m
 
-	var fixed: Array = [{"t0": first_t - 0.3, "t1": first_t + grammar.os_len, "mode": "hero_os",
-		"focus": first_actor, "time_scale": 1.0}]
-	if not mid.is_empty() and float(mid.t) - 0.3 > first_t + grammar.os_len:
+	var fixed: Array = []
+	if _mode_enabled(enabled_modes, "hero_os"):
+		fixed.append({"t0": first_t - 0.3, "t1": first_t + grammar.os_len, "mode": "hero_os",
+			"focus": first_actor, "time_scale": 1.0})
+	if _mode_enabled(enabled_modes, "hero_cut") and not mid.is_empty() and float(mid.t) - 0.3 > first_t + grammar.os_len:
 		fixed.append({"t0": float(mid.t) - 0.3, "t1": float(mid.t) + grammar.cut_len, "mode": "hero_cut",
 			"focus": str(mid.actor), "time_scale": 1.0})
 	# Every non-lethal melee clash gets a tight close-up so the blade reads.
-	for e in events:
-		if e.kind == "melee" and not e.payload.get("lethal", false):
-			var mt := float(e.tick) * TICK
-			fixed.append({"t0": mt - grammar.melee_cut_pre, "t1": mt + grammar.melee_cut_post, "mode": "melee_cut",
-				"focus": str(e.actor), "time_scale": grammar.melee_cut_scale})
-	fixed.append({"t0": lethal_t - grammar.bt_pre, "t1": lethal_t + grammar.bt_post, "mode": "bullet_time",
-		"focus": lethal_actor, "time_scale": grammar.bt_scale})
+	if _mode_enabled(enabled_modes, "melee_cut"):
+		for e in events:
+			if e.kind == "melee" and not e.payload.get("lethal", false):
+				var mt := float(e.tick) * TICK
+				fixed.append({"t0": mt - grammar.melee_cut_pre, "t1": mt + grammar.melee_cut_post, "mode": "melee_cut",
+					"focus": str(e.actor), "time_scale": grammar.melee_cut_scale})
+	if _mode_enabled(enabled_modes, "bullet_time"):
+		fixed.append({"t0": lethal_t - grammar.bt_pre, "t1": lethal_t + grammar.bt_post, "mode": "bullet_time",
+			"focus": lethal_actor, "time_scale": grammar.bt_scale})
 	fixed.sort_custom(func(x, y): return float(x.t0) < float(y.t0))
 
 	# Iso fills every gap; the tail after the kill is the iso aftermath read.
@@ -85,6 +89,10 @@ static func build_shot_list(events: Array, dur: float, grammar: ShotGrammar = nu
 	if dur - cursor > 0.001:
 		shots.append({"t0": cursor, "t1": dur, "mode": "iso_aftermath", "focus": "", "time_scale": 1.0})
 	return shots
+
+
+static func _mode_enabled(enabled_modes: Dictionary, mode: String) -> bool:
+	return bool(enabled_modes.get(mode, true))
 
 # ---- runtime camera ----
 

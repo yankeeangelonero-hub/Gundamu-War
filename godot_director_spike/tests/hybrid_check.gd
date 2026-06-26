@@ -19,6 +19,7 @@ func check(cond: bool, label: String) -> void:
 
 func _initialize() -> void:
 	_check_hybrid_shot_list()
+	_check_hybrid_enabled_modes()
 	_check_hybrid_parity_snapshot()
 	print("---- %s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 	quit(0 if fails == 0 else 1)
@@ -66,6 +67,27 @@ func _check_hybrid_shot_list() -> void:
 	check(modes.count("hero_os") == 1, "exactly one over-shoulder intercut (opening exchange)")
 	check(modes.count("hero_cut") >= 1, "at least one cinematic mid-fight intercut")
 	check(modes.count("iso") >= 2, "iso base returns between the intercuts")
+
+func _check_hybrid_enabled_modes() -> void:
+	var FightLog := load("res://scripts/fight_log.gd")
+	var Hybrid := load("res://scripts/directors/hybrid.gd")
+	var ShotGrammar := load("res://scripts/director/shot_grammar.gd")
+	check(Hybrid != null, "hybrid variant script loads (enabled modes)")
+	if Hybrid == null:
+		return
+	var events: Array = FightLog.load_events("res://data/fight_log_everything.json")
+	var dur: float = FightLog.duration_sec(events)
+	var g = ShotGrammar.default()
+	var no_os: Array = Hybrid.build_shot_list(events, dur, g, {"hero_os": false})
+	var modes_no_os: Array = no_os.map(func(s): return s.mode)
+	check(modes_no_os.count("hero_os") == 0, "disabled hero_os is omitted")
+	check(absf(float(no_os[0].t0)) < 0.001 and absf(float(no_os[-1].t1) - dur) < 0.001,
+		"disabled hero_os falls back to contiguous iso coverage")
+	var no_bt: Array = Hybrid.build_shot_list(events, dur, g, {"bullet_time": false})
+	var modes_no_bt: Array = no_bt.map(func(s): return s.mode)
+	check(modes_no_bt.count("bullet_time") == 0, "disabled bullet_time is omitted")
+	check(no_bt.filter(func(s): return float(s.time_scale) < 1.0).is_empty(),
+		"disabling bullet_time removes time dilation")
 
 func _check_hybrid_parity_snapshot() -> void:
 	var FightLog := load("res://scripts/fight_log.gd")

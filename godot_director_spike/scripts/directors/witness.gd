@@ -13,7 +13,7 @@ const KILL_POST := 2.6
 const BEAT_TAIL := 1.6     # a scramble beat runs until this long after its fire event
 const BEAT_MIN_GAP := 0.8  # fire events closer than this to the cut stay in the current beat
 
-static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null) -> Array:
+static func build_shot_list(events: Array, dur: float, _grammar: ShotGrammar = null, _enabled_modes: Dictionary = {}) -> Array:
 	var lethal_t := dur
 	var lethal_actor := "A"
 	for e in events:

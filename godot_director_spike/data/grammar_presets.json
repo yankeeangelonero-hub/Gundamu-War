@@ -50,9 +50,9 @@
   },
   "bombard": {
     "name": "bombard",
-    "heft_bias": 0.45,
+    "heft_bias": 0.5,
     "tempo_bias": 0.4,
-    "mode_mix": {"barrage": 0.85, "ranged": 0.15},
-    "overrides": {}
+    "mode_mix": {"ranged": 1.0},
+    "overrides": {"BTRADE_BAND": 70.0}
   }
 }

@@ -414,7 +414,9 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
 			return _dash_profile(shooter, start, end, sp, tp + dir * (_P.RANGE_CLOSE * 0.7), heft)
 		_:  # beam-trade
-			var band := lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft)
+			# Heft sets the band by default (heavy = closer brawl); a preset may override it to
+			# a fixed standoff so a bombardment stance HOLDS its range instead of closing in.
+			var band := _param(feel, shooter, "BTRADE_BAND", lerpf(_P.RANGE_MID, _P.RANGE_CLOSE, heft))
 			var amp := oamp * (1.3 - heft)
 			var rate := ORBIT_RATE * (0.5 + tempo)
 			var bearing := base + sign * amp * sin(float(it.orbit) * rate)

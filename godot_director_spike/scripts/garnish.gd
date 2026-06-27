@@ -205,7 +205,7 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		to = to + Vector3(0, 6, 22) + (to - from).normalized() * 30.0  # overshoot into a building
 	to = _barrel_aim(shooter, from, to)   # leave the shot down the rifle barrel
 	var color := Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
-	_draw_beam(from, to, color, 1.15)   # fat endgame energy lance (core + halo)
+	_draw_beam(from, to, color, 0.6)   # slim beam rifle (core + subtle halo)
 	_impact_flash(to, color, 1.8)
 	_ring(to, color, 18.0)              # a shock ring sells the punch
 	_beam_light(from, color, 11.0)  # muzzle flash lights the firing mech
@@ -657,8 +657,8 @@ func _plasma(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	# The travelling bolt: a fat glowing orb, slow (the beam is instant), trailing plasma.
 	var bolt := MeshInstance3D.new()
 	var bmesh := SphereMesh.new()
-	bmesh.radius = 1.8
-	bmesh.height = 3.6
+	bmesh.radius = 2.4
+	bmesh.height = 4.8
 	bmesh.material = _energy_mat(color, 13.0)
 	bolt.mesh = bmesh
 	add_child(bolt)
@@ -729,8 +729,8 @@ func _railgun(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		to = to + Vector3(0, 5, 18) + (to - from).normalized() * 34.0
 	to = _barrel_aim(shooter, from, to)
 	# Thin lingering rail trace + a brighter white-hot inner core.
-	_draw_rail(from, to, color, 0.28, 0.6)
-	_draw_rail(from, to, Color(1, 1, 1), 0.1, 0.36)
+	_draw_rail(from, to, color, 0.45, 0.6)
+	_draw_rail(from, to, Color(1, 1, 1), 0.18, 0.36)
 	_beam_light(from, color, 13.0)
 	_impact_flash(to, color, 1.2)
 	_impact_flash(to, Color(1, 1, 1), 0.7)
@@ -791,9 +791,9 @@ func _full_burst_bolt(from: Vector3, to: Vector3, color: Color, delay: float) ->
 	await get_tree().create_timer(delay).timeout
 	var bolt := MeshInstance3D.new()
 	var bmesh := SphereMesh.new()
-	bmesh.radius = 1.0
-	bmesh.height = 2.0
-	bmesh.material = _energy_mat(color, 11.0)
+	bmesh.radius = 1.4
+	bmesh.height = 2.8
+	bmesh.material = _energy_mat(color, 12.0)
 	bolt.mesh = bmesh
 	add_child(bolt)
 	bolt.global_position = from

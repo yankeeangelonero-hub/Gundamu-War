@@ -209,6 +209,11 @@ func _dispatch(e: Dictionary) -> void:
 			# the whole rack + plant + impact fire in garnish
 			if e.payload.get("hit", false):
 				target.flinch(true)
+		"fire_gerobi":
+			actor.face_toward(target.position)
+			# the charge + sustained beam + swath fire in garnish; plant and hold here
+			if e.payload.get("hit", false):
+				target.flinch(true)
 		"melee":
 			actor.face_toward(target.position)
 			_log_melee_contact("event", e, actor, target)

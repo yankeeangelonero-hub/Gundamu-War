@@ -54,6 +54,7 @@ const DEBUG_KIND_TO_MOTIF := {
 	"fire_plasma": "plasma",
 	"fire_railgun": "railgun",
 	"fire_full_burst": "full_burst",
+	"fire_gerobi": "gerobi",
 	"melee": "saber",
 }
 const DEBUG_MOTIF_TO_KIND := {
@@ -66,6 +67,7 @@ const DEBUG_MOTIF_TO_KIND := {
 	"plasma": "fire_plasma",
 	"railgun": "fire_railgun",
 	"full_burst": "fire_full_burst",
+	"gerobi": "fire_gerobi",
 }
 
 # --camlog: per-frame trace of the ACTUAL runtime camera, for diagnosing transitions /
@@ -845,7 +847,7 @@ func _debug_staged_truth_to_viewer_events(staged: Array) -> Array:
 
 
 func _viewer_attack_connects(kind: String, payload: Dictionary) -> bool:
-	if kind in ["fire_beam", "fire_buster", "fire_plasma", "fire_railgun", "fire_full_burst", "melee"]:
+	if kind in ["fire_beam", "fire_buster", "fire_plasma", "fire_railgun", "fire_full_burst", "fire_gerobi", "melee"]:
 		return bool(payload.get("hit", true)) and not bool(payload.get("blocked", false))
 	return int(payload.get("hits", 0)) > 0
 

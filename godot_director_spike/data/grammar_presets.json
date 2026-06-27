@@ -54,5 +54,12 @@
     "tempo_bias": 0.5,
     "mode_mix": {"ranged": 1.0},
     "overrides": {"BTRADE_BAND": 70.0}
+  },
+  "siege": {
+    "name": "siege",
+    "heft_bias": 0.85,
+    "tempo_bias": 0.2,
+    "mode_mix": {"ranged": 1.0},
+    "overrides": {"BTRADE_BAND": 82.0}
   }
 }

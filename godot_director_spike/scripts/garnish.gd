@@ -49,6 +49,8 @@ func _on_event(e: Dictionary) -> void:
 			_railgun(shooter, target, e.payload)
 		"fire_full_burst":
 			_full_burst(shooter, target, e.payload)
+		"fire_gerobi":
+			_gerobi(shooter, target, e.payload)
 		"melee":
 			_melee_clash(shooter, target, e.payload)
 		"destroyed":
@@ -803,6 +805,88 @@ func _full_burst_bolt(from: Vector3, to: Vector3, color: Color, delay: float) ->
 	tw.tween_callback(func():
 		_plasma_splash(to, color, true)
 		bolt.queue_free())
+
+## GEROBI: a slow buster-rifle that gathers a huge charge then unleashes a SUSTAINED, massive
+## beam that holds for ~1s and vaporises a wide swath of the city in its corridor (not just the
+## line). The slow, screen-filling "destroy everything in front" beat.
+func _gerobi(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var color: Color = Color(0.5, 0.95, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.6, 0.3)
+	# Big charge-up: a swelling orb + light over the firer.
+	var orb := MeshInstance3D.new()
+	var omesh := SphereMesh.new()
+	omesh.radius = 1.5
+	omesh.height = 3.0
+	omesh.material = _energy_mat(color, 16.0)
+	orb.mesh = omesh
+	orb.scale = Vector3.ONE * 0.2
+	shooter.muzzle.add_child(orb)
+	var gl := OmniLight3D.new()
+	gl.light_color = color
+	gl.omni_range = 44.0
+	shooter.muzzle.add_child(gl)
+	var ctw := create_tween().set_parallel(true)
+	ctw.tween_property(orb, "scale", Vector3.ONE * 4.5, 0.5)
+	ctw.tween_property(gl, "light_energy", 15.0 * grammar.fx_light_energy, 0.5)
+	await get_tree().create_timer(0.5).timeout
+	orb.queue_free()
+	gl.queue_free()
+	if not is_instance_valid(shooter) or not is_instance_valid(target):
+		return
+	var from: Vector3 = shooter.muzzle_pos()
+	var aim: Vector3 = target.position + Vector3(0, 11, 0)
+	# The gerobi punches WAY past the target — it vaporises everything behind, too.
+	var to: Vector3 = from + (aim - from).normalized() * (from.distance_to(aim) + 140.0)
+	to = _barrel_aim(shooter, from, to)
+	_draw_gerobi(from, to, color, 7.0, 1.0, 0.5)   # sustained, held 1.0s
+	_beam_light(from, color, 16.0)
+	_beam_light(aim, color, 16.0)
+	_gerobi_swath(from, to, 9.0)                    # wipe a wide corridor of city
+	_explosion(aim)
+	# Sustained heavy shake across the hold.
+	for i in 6:
+		get_tree().create_timer(0.13 * float(i)).timeout.connect(func():
+			if is_instance_valid(director):
+				director.shake_strength = maxf(director.shake_strength, 2.8))
+	if payload.get("hit", false):
+		_emphasize(grammar.hitstop_threshold + 1.0, grammar.melee_hitstop_dur)
+
+## A massive beam that HOLDS at full intensity for `hold` seconds, then fades — the sustained
+## gerobi, vs the instant flash of an ordinary beam. Bright core + wide translucent halo.
+func _draw_gerobi(from: Vector3, to: Vector3, color: Color, width: float, hold: float, fade: float) -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	holder.global_position = (from + to) * 0.5
+	if not holder.global_position.is_equal_approx(to):
+		holder.look_at(to, Vector3.UP)
+	var length := from.distance_to(to)
+	var em := _energy_mat(color, 20.0)
+	_beam_box(holder, Vector3(width, width, length), em)
+	var halo := _energy_mat(color, 6.0)
+	halo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	halo.albedo_color = Color(1, 1, 1, 0.3)
+	_beam_box(holder, Vector3(width * 2.1, width * 2.1, length), halo)
+	var tw := create_tween()
+	tw.tween_interval(hold)
+	tw.tween_property(em, "emission_energy_multiplier", 0.0, fade)
+	tw.parallel().tween_property(halo, "emission_energy_multiplier", 0.0, fade)
+	tw.chain().tween_callback(holder.queue_free)
+
+## Every building whose centre lies within `half_width` of the gerobi line dies — a WIDE
+## corridor, not just the centre line, so the beam carves a swath. Staggered by distance so
+## the destruction races outward along the beam.
+func _gerobi_swath(from: Vector3, to: Vector3, half_width: float) -> void:
+	var dir := (to - from).normalized()
+	var beam_len := from.distance_to(to)
+	for bld in get_tree().get_nodes_in_group("kb_building"):
+		var aabb: AABB = bld.get_meta("aabb")
+		var c: Vector3 = aabb.get_center()
+		var along := (c - from).dot(dir)
+		if along < 0.0 or along > beam_len:
+			continue
+		var closest := from + dir * along
+		if Vector2(closest.x - c.x, closest.z - c.z).length() <= half_width + aabb.size.length() * 0.3:
+			bld.remove_from_group("kb_building")
+			_detonate_building(bld, closest, from)
 
 func _draw_rail(from: Vector3, to: Vector3, color: Color, core_w: float, fade: float) -> void:
 	var holder := Node3D.new()

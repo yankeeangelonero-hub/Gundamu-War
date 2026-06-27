@@ -83,6 +83,7 @@
       "archetype": "rifle_missile_pressure",
       "grammar_preset": "bombard",
       "hp": 195,
+      "evasion": 0.4,
       "power_identity": "relentless ranged pressure",
       "defense_beats": ["evade"],
       "spectacle_intent": {"matchup_shape": "ranged pressure", "summary": "A relentless gunner ace: beam, missiles and sustained fire never let up."},
@@ -133,7 +134,8 @@
       "name": "Artillery Ghost",
       "kit": "buster_artillery",
       "hp_bonus": 15,
-      "grammar_preset": "bombard"
+      "grammar_preset": "bombard",
+      "evasion": 0.4
     },
     "duelist_ghost": {
       "name": "Duelist Ghost",

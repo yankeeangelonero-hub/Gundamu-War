@@ -76,7 +76,8 @@ static func generate(loadout_a: Dictionary, loadout_b: Dictionary, seed: int, ch
 			if hp[actor] <= 0 or hp[target] <= 0:
 				continue
 			var weapon: Dictionary = s.weapon
-			var hit := _roll_hit(rng, weapon, c)
+			var target_load: Dictionary = loadout_a if target == "A" else loadout_b
+			var hit := _roll_hit(rng, weapon, c, float(target_load.get("evasion", 0.0)))
 			var dmg := _roll_damage(rng, weapon, c) if hit else 0
 			impacts.append({
 				"tick": tick + maxi(1, int(weapon.get("travel", 1))),
@@ -160,6 +161,8 @@ static func resolve_opponent_loadout(catalog: Dictionary, opponent_id: String) -
 	# shell, not charge in like the melee-leaning anvil its kit defaults to).
 	if opponent.has("grammar_preset"):
 		loadout["grammar_preset"] = str(opponent.get("grammar_preset"))
+	if opponent.has("evasion"):
+		loadout["evasion"] = float(opponent.get("evasion"))
 	return loadout
 
 
@@ -236,8 +239,9 @@ static func _resolve_impact(impact: Dictionary, hp: Dictionary, decided: bool, c
 	return {"tick": int(impact.tick), "actor": str(impact.actor), "kind": "shot", "payload": payload}
 
 
-static func _roll_hit(rng: Dictionary, weapon: Dictionary, chaos: float) -> bool:
-	var acc := float(weapon.get("accuracy", 0.8))
+static func _roll_hit(rng: Dictionary, weapon: Dictionary, chaos: float, evasion := 0.0) -> bool:
+	# A fast suit dodges ~evasion of incoming shots — the shooter's effective accuracy drops.
+	var acc := float(weapon.get("accuracy", 0.8)) - evasion
 	var spread := lerpf(0.02, 0.12, chaos)
 	acc = clampf(acc + (_next_float(rng) - 0.5) * spread, 0.05, 0.98)
 	return _next_float(rng) <= acc

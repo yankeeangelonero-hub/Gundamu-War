@@ -403,7 +403,8 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 		"swarm":
 			var band := lerpf(_P.RANGE_FAR - 5.0, _P.RANGE_MID, heft)  # stand off and lob
 			var bearing := base + sign * (oamp * 0.4) * sin(float(it.orbit) * ORBIT_RATE)
-			return [_adv(shooter, start, end, tp + Vector2(cos(bearing), sin(bearing)) * band)]
+			# Centre-anchored own-side: band/2 from the fixed centre (see beam-trade note).
+			return [_adv(shooter, start, end, Vector2(cos(bearing), sin(bearing)) * (band * 0.5))]
 		"dodge-pursuit":
 			var band := lerpf(_P.RANGE_NEAR, _P.RANGE_CLOSE, heft)  # charge in on a grounded boost
 			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
@@ -417,7 +418,12 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			var amp := oamp * (1.3 - heft)
 			var rate := ORBIT_RATE * (0.5 + tempo)
 			var bearing := base + sign * amp * sin(float(it.orbit) * rate)
-			return _dash_profile(shooter, start, end, sp, tp + Vector2(cos(bearing), sin(bearing)) * band, heft)
+			# Centre-anchored own-side mark (band/2 from the fixed contested centre), NOT a band
+			# measured off the enemy's transient position. A standoff exchange where both close at
+			# once must not chase the other's mid-dash position across centre — that produced an
+			# opening contact collapse and a slow positional drift. base points to the shooter's own
+			# side, so each mech holds its half of the lane; the per-side sign keeps the CG-BLIND mirror.
+			return _dash_profile(shooter, start, end, sp, Vector2(cos(bearing), sin(bearing)) * (band * 0.5), heft)
 
 
 ## A weighty grounded boost-dash to `target`, as a burst-coast-snap waypoint sequence (F1/F3/F13):

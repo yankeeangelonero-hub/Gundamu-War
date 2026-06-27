@@ -89,8 +89,8 @@
       "weapons": [
         {"id": "beam_rifle", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "cooldown": 22, "accuracy": 0.88, "initiative": 20, "travel": 5, "variance": 0.12, "start": 10},
         {"id": "micro_missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 9, "cooldown": 28, "accuracy": 0.80, "initiative": 15, "travel": 8, "variance": 0.18, "start": 16, "count": 8},
-        {"id": "long_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 9, "cooldown": 30, "accuracy": 0.84, "initiative": 14, "travel": 6, "variance": 0.12, "start": 20},
-        {"id": "head_vulcan", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 4, "cooldown": 18, "accuracy": 0.70, "initiative": 12, "travel": 3, "variance": 0.20, "start": 13, "rounds": 4}
+        {"id": "plasma_cannon", "motif": "plasma", "viewer_kind": "fire_plasma", "tier": 3, "damage": 18, "cooldown": 40, "accuracy": 0.80, "initiative": 12, "travel": 9, "variance": 0.16, "start": 18},
+        {"id": "railgun", "motif": "railgun", "viewer_kind": "fire_railgun", "tier": 2, "damage": 16, "cooldown": 36, "accuracy": 0.90, "initiative": 24, "travel": 2, "variance": 0.08, "start": 14}
       ]
     },
     "buster_artillery_showcase": {

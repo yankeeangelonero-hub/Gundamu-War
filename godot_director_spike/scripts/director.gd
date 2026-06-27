@@ -194,6 +194,16 @@ func _dispatch(e: Dictionary) -> void:
 		"fire_buster":
 			actor.face_toward(target.position)
 			# the heavy recoil/knockback + impact fire after the charge, in garnish
+		"fire_plasma":
+			actor.face_toward(target.position)
+			actor.recoil()
+			if e.payload.get("hit", false):
+				target.flinch(float(e.payload.get("damage", 0)) > 25.0)
+		"fire_railgun":
+			actor.face_toward(target.position)
+			# the kinetic recoil kick fires in garnish (knockback); face only here
+			if e.payload.get("hit", false):
+				target.flinch(true)
 		"melee":
 			actor.face_toward(target.position)
 			_log_melee_contact("event", e, actor, target)

@@ -43,6 +43,10 @@ func _on_event(e: Dictionary) -> void:
 			_missiles(shooter, target, e.payload)
 		"fire_buster":
 			_buster(shooter, target, e.payload)
+		"fire_plasma":
+			_plasma(shooter, target, e.payload)
+		"fire_railgun":
+			_railgun(shooter, target, e.payload)
 		"melee":
 			_melee_clash(shooter, target, e.payload)
 		"destroyed":
@@ -606,6 +610,147 @@ func _emphasize(damage: float, hitstop_dur: float) -> void:
 		"impact":
 			_impact_frame()
 		# "bullet" / "none": no transient emphasis
+
+## Plasma cannon: a short muzzle gather, then a fat slow glowing bolt that lobs straight
+## to the target and bursts in a heavy plasma splash. Reads distinct from the instant beam
+## (a TRAVELLING orb, not a line) and from missiles (one heavy bolt, not a swarm). Green for
+## A / magenta for B keeps it off the beam's cyan/orange palette.
+func _plasma(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var color: Color = Color(0.4, 1.0, 0.45) if shooter.actor_id == "A" else Color(0.95, 0.4, 1.0)
+	# Short gather at the muzzle (shorter than a buster charge).
+	var orb := MeshInstance3D.new()
+	var omesh := SphereMesh.new()
+	omesh.radius = 0.8
+	omesh.height = 1.6
+	omesh.material = _energy_mat(color, 12.0)
+	orb.mesh = omesh
+	orb.scale = Vector3.ONE * 0.2
+	shooter.muzzle.add_child(orb)
+	var gl := OmniLight3D.new()
+	gl.light_color = color
+	gl.omni_range = 24.0
+	shooter.muzzle.add_child(gl)
+	var ctw := create_tween().set_parallel(true)
+	ctw.tween_property(orb, "scale", Vector3.ONE * 1.6, 0.25)
+	ctw.tween_property(gl, "light_energy", 8.0 * grammar.fx_light_energy, 0.25)
+	await get_tree().create_timer(0.25).timeout
+	orb.queue_free()
+	gl.queue_free()
+	if not is_instance_valid(shooter) or not is_instance_valid(target):
+		return
+	var from: Vector3 = shooter.muzzle_pos()
+	var to: Vector3 = target.position + Vector3(0, 11, 0)
+	if payload.get("blocked", false):
+		to = to - (target.position - shooter.position).normalized() * 4.0
+	elif not payload.get("hit", false):
+		to = to + Vector3(0, 6, 20) + (to - from).normalized() * 26.0
+	# The travelling bolt: a fat glowing orb, slow (the beam is instant), trailing plasma.
+	var bolt := MeshInstance3D.new()
+	var bmesh := SphereMesh.new()
+	bmesh.radius = 1.4
+	bmesh.height = 2.8
+	bmesh.material = _energy_mat(color, 11.0)
+	bolt.mesh = bmesh
+	add_child(bolt)
+	bolt.global_position = from
+	var blight := OmniLight3D.new()
+	blight.light_color = color
+	blight.light_energy = 6.0 * grammar.fx_light_energy
+	blight.omni_range = 22.0
+	bolt.add_child(blight)
+	var hit: bool = payload.get("hit", false)
+	var dmg := float(payload.get("damage", 0))
+	var seg := [-1]
+	var tw := create_tween()
+	tw.tween_method(_plasma_step.bind(bolt, from, to, color, seg), 0.0, 1.0, maxf(from.distance_to(to) / 95.0, 0.25))
+	tw.tween_callback(func():
+		_plasma_splash(to, color, hit)
+		if hit:
+			_emphasize(dmg, grammar.hitstop_dur)
+		bolt.queue_free())
+
+func _plasma_step(p: float, bolt: Node3D, from: Vector3, to: Vector3, color: Color, seg: Array) -> void:
+	if not is_instance_valid(bolt):
+		return
+	bolt.global_position = from.lerp(to, p)
+	var s := int(p * 16)
+	if s != seg[0]:
+		seg[0] = s
+		_plasma_trail(bolt.global_position, color)
+
+func _plasma_trail(pos: Vector3, color: Color) -> void:
+	var s := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.7
+	mesh.height = 1.4
+	var mat := _energy_mat(color, 7.0)
+	mesh.material = mat
+	s.mesh = mesh
+	add_child(s)
+	s.global_position = pos
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(s, "scale", Vector3.ONE * 0.1, 0.45)
+	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.45)
+	tw.chain().tween_callback(s.queue_free)
+
+func _plasma_splash(pos: Vector3, color: Color, hit: bool) -> void:
+	_impact_flash(pos, color, 2.0)
+	_ring(pos, color, 26.0)
+	var fl := OmniLight3D.new()
+	fl.light_color = color
+	fl.light_energy = 30.0 * grammar.fx_light_energy
+	fl.omni_range = 46.0
+	add_child(fl)
+	fl.global_position = pos
+	create_tween().tween_property(fl, "light_energy", 0.0, 0.6)
+	get_tree().create_timer(1.2).timeout.connect(func(): fl.queue_free())
+	director.shake_strength = maxf(director.shake_strength, 1.2 if hit else 0.6)
+
+## Railgun: an INSTANT ultra-thin white-hot kinetic line with a long lingering rail trace,
+## a hard recoil kick, and a sharp piercing crack. Reads distinct from the beam (far thinner,
+## kinetic white-blue, a slower-fading trace + real recoil). Punches through architecture.
+func _railgun(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var color: Color = Color(0.75, 0.88, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.86, 0.7)
+	var from: Vector3 = shooter.muzzle_pos()
+	var to: Vector3 = target.position + Vector3(0, 11, 0)
+	if payload.get("blocked", false):
+		to = to - (target.position - shooter.position).normalized() * 4.0
+	elif not payload.get("hit", false):
+		to = to + Vector3(0, 5, 18) + (to - from).normalized() * 34.0
+	to = _barrel_aim(shooter, from, to)
+	# Thin lingering rail trace + a brighter white-hot inner core.
+	_draw_rail(from, to, color, 0.16, 0.55)
+	_draw_rail(from, to, Color(1, 1, 1), 0.06, 0.32)
+	_beam_light(from, color, 9.0)
+	_impact_flash(to, color, 0.7)
+	_impact_flash(to, Color(1, 1, 1), 0.4)
+	_ring(to, color, 16.0)
+	# Kinetic penetrator: any building on the line dies (deterministic, like a beam).
+	for bld in get_tree().get_nodes_in_group("kb_building"):
+		var aabb: AABB = bld.get_meta("aabb")
+		var hp: Variant = aabb.intersects_segment(from, to)
+		if hp != null:
+			bld.remove_from_group("kb_building")
+			_detonate_building(bld, hp, from)
+	# Hard recoil kick (kinetic, snappier than a buster's capital shove).
+	if shooter.has_method("knockback"):
+		shooter.knockback(shooter.position - target.position, 16.0)
+	shooter.recoil()
+	if payload.get("hit", false):
+		_emphasize(float(payload.get("damage", 0)), grammar.hitstop_dur)
+	director.shake_strength = maxf(director.shake_strength, 1.6 if payload.get("hit", false) else 0.9)
+
+func _draw_rail(from: Vector3, to: Vector3, color: Color, core_w: float, fade: float) -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	holder.global_position = (from + to) * 0.5
+	if not holder.global_position.is_equal_approx(to):
+		holder.look_at(to, Vector3.UP)
+	var em := _energy_mat(color, 18.0)
+	_beam_box(holder, Vector3(core_w, core_w, from.distance_to(to)), em)
+	var tw := create_tween()
+	tw.tween_property(em, "emission_energy_multiplier", 0.0, fade)
+	tw.chain().tween_callback(holder.queue_free)
 
 ## A sub-perceptual screen flash on a minor contact (F37, impact-frame). Subtle by
 ## default (grammar.impact_frame_strength ~0.15), lasting impact_frame_len frames.

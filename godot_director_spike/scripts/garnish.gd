@@ -78,10 +78,17 @@ func _draw_beam(from: Vector3, to: Vector3, color: Color, core_w: float) -> void
 	if not holder.global_position.is_equal_approx(to):
 		holder.look_at(to, Vector3.UP)
 	var length := from.distance_to(to)
-	var em := _energy_mat(color, 14.0)
+	# Bright inner core...
+	var em := _energy_mat(color, 17.0)
 	_beam_box(holder, Vector3(core_w, core_w, length), em)
-	var tw := create_tween()
-	tw.tween_property(em, "emission_energy_multiplier", 0.0, 0.35)
+	# ...wrapped in a wider, softer glow sheath so the lance reads heavy and powerful.
+	var halo := _energy_mat(color, 5.0)
+	halo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	halo.albedo_color = Color(1, 1, 1, 0.32)
+	_beam_box(holder, Vector3(core_w * 2.8, core_w * 2.8, length), halo)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(em, "emission_energy_multiplier", 0.0, 0.38)
+	tw.tween_property(halo, "emission_energy_multiplier", 0.0, 0.38)
 	tw.chain().tween_callback(holder.queue_free)
 
 ## Re-aim a shot so it leaves straight down the barrel (following the rifle's
@@ -198,10 +205,11 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		to = to + Vector3(0, 6, 22) + (to - from).normalized() * 30.0  # overshoot into a building
 	to = _barrel_aim(shooter, from, to)   # leave the shot down the rifle barrel
 	var color := Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
-	_draw_beam(from, to, color, 0.6)
-	_impact_flash(to, color)
-	_beam_light(from, color, 7.0)   # muzzle flash lights the firing mech
-	_beam_light(to, color, 9.0)     # impact flash lights the target / struck city
+	_draw_beam(from, to, color, 1.15)   # fat endgame energy lance (core + halo)
+	_impact_flash(to, color, 1.8)
+	_ring(to, color, 18.0)              # a shock ring sells the punch
+	_beam_light(from, color, 11.0)  # muzzle flash lights the firing mech
+	_beam_light(to, color, 14.0)    # impact flash lights the target / struck city
 	# Beams punch through architecture: any building crossing the line dies.
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
@@ -211,7 +219,7 @@ func _beam(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 			_detonate_building(bld, hit_pt, from)
 	if payload.get("hit", false):
 		_emphasize(float(payload.get("damage", 0)), grammar.hitstop_dur)
-	director.shake_strength = maxf(director.shake_strength, 0.8 if payload.get("hit", false) else 0.3)
+	director.shake_strength = maxf(director.shake_strength, 1.1 if payload.get("hit", false) else 0.4)
 
 ## A beam tore through this building: blast at the entry point, then the
 ## whole block collapses straight down into a charred slab. Visual-only -
@@ -649,9 +657,9 @@ func _plasma(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	# The travelling bolt: a fat glowing orb, slow (the beam is instant), trailing plasma.
 	var bolt := MeshInstance3D.new()
 	var bmesh := SphereMesh.new()
-	bmesh.radius = 1.4
-	bmesh.height = 2.8
-	bmesh.material = _energy_mat(color, 11.0)
+	bmesh.radius = 1.8
+	bmesh.height = 3.6
+	bmesh.material = _energy_mat(color, 13.0)
 	bolt.mesh = bmesh
 	add_child(bolt)
 	bolt.global_position = from
@@ -696,12 +704,12 @@ func _plasma_trail(pos: Vector3, color: Color) -> void:
 	tw.chain().tween_callback(s.queue_free)
 
 func _plasma_splash(pos: Vector3, color: Color, hit: bool) -> void:
-	_impact_flash(pos, color, 2.0)
-	_ring(pos, color, 26.0)
+	_impact_flash(pos, color, 2.6)
+	_ring(pos, color, 34.0)
 	var fl := OmniLight3D.new()
 	fl.light_color = color
-	fl.light_energy = 30.0 * grammar.fx_light_energy
-	fl.omni_range = 46.0
+	fl.light_energy = 40.0 * grammar.fx_light_energy
+	fl.omni_range = 54.0
 	add_child(fl)
 	fl.global_position = pos
 	create_tween().tween_property(fl, "light_energy", 0.0, 0.6)
@@ -721,12 +729,12 @@ func _railgun(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 		to = to + Vector3(0, 5, 18) + (to - from).normalized() * 34.0
 	to = _barrel_aim(shooter, from, to)
 	# Thin lingering rail trace + a brighter white-hot inner core.
-	_draw_rail(from, to, color, 0.16, 0.55)
-	_draw_rail(from, to, Color(1, 1, 1), 0.06, 0.32)
-	_beam_light(from, color, 9.0)
-	_impact_flash(to, color, 0.7)
-	_impact_flash(to, Color(1, 1, 1), 0.4)
-	_ring(to, color, 16.0)
+	_draw_rail(from, to, color, 0.28, 0.6)
+	_draw_rail(from, to, Color(1, 1, 1), 0.1, 0.36)
+	_beam_light(from, color, 13.0)
+	_impact_flash(to, color, 1.2)
+	_impact_flash(to, Color(1, 1, 1), 0.7)
+	_ring(to, color, 22.0)
 	# Kinetic penetrator: any building on the line dies (deterministic, like a beam).
 	for bld in get_tree().get_nodes_in_group("kb_building"):
 		var aabb: AABB = bld.get_meta("aabb")
@@ -769,8 +777,8 @@ func _full_burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 			i += 1
 	# The main rifle beam straight down the centre of the fan.
 	var beam_col: Color = Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
-	_draw_beam(shooter.muzzle_pos(), to_base, beam_col, 0.7)
-	_impact_flash(to_base, beam_col, 1.4)
+	_draw_beam(shooter.muzzle_pos(), to_base, beam_col, 1.4)
+	_impact_flash(to_base, beam_col, 1.9)
 	_ring(to_base, pl_color, 34.0)
 	if lethal or hit:
 		_explosion(to_base)
@@ -802,7 +810,7 @@ func _draw_rail(from: Vector3, to: Vector3, color: Color, core_w: float, fade: f
 	holder.global_position = (from + to) * 0.5
 	if not holder.global_position.is_equal_approx(to):
 		holder.look_at(to, Vector3.UP)
-	var em := _energy_mat(color, 18.0)
+	var em := _energy_mat(color, 22.0)
 	_beam_box(holder, Vector3(core_w, core_w, from.distance_to(to)), em)
 	var tw := create_tween()
 	tw.tween_property(em, "emission_energy_multiplier", 0.0, fade)

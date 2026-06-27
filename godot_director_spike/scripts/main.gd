@@ -490,6 +490,14 @@ func _on_build_launcher_fight_requested(player_kit_id: String, opponent_id: Stri
 
 
 func _auto_fight_from_args() -> void:
+	var showcase := _arg_value("--showcase=", "")
+	if showcase != "":
+		var s := LoadoutGenerator.resolve_showcase(LoadoutGenerator.load_catalog(), showcase)
+		if str(s.get("kit", "")) == "":
+			push_error("Unknown showcase '%s'" % showcase)
+			return
+		_on_build_launcher_fight_requested(str(s.get("kit")), str(s.get("opponent")), float(s.get("chaos")), int(s.get("seed")))
+		return
 	var player_kit := _arg_value("--player-kit=", "rifle_missile_pressure")
 	var opponent := _arg_value("--opponent=", "artillery_ghost")
 	var chaos := float(_arg_value("--chaos=", "0.50"))

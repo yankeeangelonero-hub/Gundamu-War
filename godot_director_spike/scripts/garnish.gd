@@ -47,6 +47,8 @@ func _on_event(e: Dictionary) -> void:
 			_plasma(shooter, target, e.payload)
 		"fire_railgun":
 			_railgun(shooter, target, e.payload)
+		"fire_full_burst":
+			_full_burst(shooter, target, e.payload)
 		"melee":
 			_melee_clash(shooter, target, e.payload)
 		"destroyed":
@@ -739,6 +741,60 @@ func _railgun(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	if payload.get("hit", false):
 		_emphasize(float(payload.get("damage", 0)), grammar.hitstop_dur)
 	director.shake_strength = maxf(director.shake_strength, 1.6 if payload.get("hit", false) else 0.9)
+
+## FULL BURST: the gunner plants and unleashes everything at once — railgun lines from the
+## four shoulder mounts + plasma bolts from the four waist mounts + the main rifle beam, all
+## converging on the target in one wall of fire. The signature alpha-strike spectacle.
+func _full_burst(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	var hit: bool = payload.get("hit", false)
+	var lethal: bool = payload.get("lethal", false)
+	var to_base: Vector3 = target.position + Vector3(0, 11, 0)
+	shooter.recoil()
+	# A bloom of light over the firer as the whole rack lights up.
+	var rail_color: Color = Color(0.75, 0.88, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.86, 0.7)
+	var pl_color: Color = Color(0.4, 1.0, 0.45) if shooter.actor_id == "A" else Color(0.95, 0.4, 1.0)
+	_beam_light(shooter.position + Vector3(0, 10, 0), rail_color, 13.0)
+	# Railgun fan from the shoulders — instant kinetic lines, slight spread.
+	if shooter.has_method("railgun_mounts"):
+		for mp in shooter.railgun_mounts():
+			var to: Vector3 = to_base + Vector3(rng.randf_range(-5, 5), rng.randf_range(-4, 6), rng.randf_range(-3, 3))
+			_draw_rail(mp, to, rail_color, 0.14, 0.5)
+			_draw_rail(mp, to, Color(1, 1, 1), 0.05, 0.3)
+			_impact_flash(to, rail_color, 0.5)
+	# Plasma bolts from the waist — slow heavy orbs, staggered a hair so they read as a salvo.
+	if shooter.has_method("plasma_mounts"):
+		var i := 0
+		for mp in shooter.plasma_mounts():
+			_full_burst_bolt(mp, to_base + Vector3(rng.randf_range(-6, 6), rng.randf_range(-3, 7), rng.randf_range(-3, 3)), pl_color, float(i) * 0.04)
+			i += 1
+	# The main rifle beam straight down the centre of the fan.
+	var beam_col: Color = Color(0.3, 0.9, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.4, 0.2)
+	_draw_beam(shooter.muzzle_pos(), to_base, beam_col, 0.7)
+	_impact_flash(to_base, beam_col, 1.4)
+	_ring(to_base, pl_color, 34.0)
+	if lethal or hit:
+		_explosion(to_base)
+	director.shake_strength = 2.5
+	if hit:
+		_emphasize(grammar.hitstop_threshold + 1.0, grammar.hitstop_dur)
+
+## One plasma bolt of a full-burst salvo: travels from a body mount to the aim point, bursts.
+func _full_burst_bolt(from: Vector3, to: Vector3, color: Color, delay: float) -> void:
+	await get_tree().create_timer(delay).timeout
+	var bolt := MeshInstance3D.new()
+	var bmesh := SphereMesh.new()
+	bmesh.radius = 1.0
+	bmesh.height = 2.0
+	bmesh.material = _energy_mat(color, 11.0)
+	bolt.mesh = bmesh
+	add_child(bolt)
+	bolt.global_position = from
+	var seg := [-1]
+	var tw := create_tween()
+	tw.tween_method(_plasma_step.bind(bolt, from, to, color, seg), 0.0, 1.0, maxf(from.distance_to(to) / 120.0, 0.2))
+	tw.tween_callback(func():
+		_plasma_splash(to, color, true)
+		bolt.queue_free())
 
 func _draw_rail(from: Vector3, to: Vector3, color: Color, core_w: float, fade: float) -> void:
 	var holder := Node3D.new()

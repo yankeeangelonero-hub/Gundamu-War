@@ -81,7 +81,7 @@
     "rifle_missile_showcase": {
       "name": "Rifle / Missile — Fully Expressed",
       "archetype": "rifle_missile_pressure",
-      "grammar_preset": "gunner",
+      "grammar_preset": "bombard",
       "hp": 195,
       "power_identity": "relentless ranged pressure",
       "defense_beats": ["evade"],
@@ -90,7 +90,8 @@
         {"id": "beam_rifle", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "cooldown": 22, "accuracy": 0.88, "initiative": 20, "travel": 5, "variance": 0.12, "start": 10},
         {"id": "micro_missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 9, "cooldown": 28, "accuracy": 0.80, "initiative": 15, "travel": 8, "variance": 0.18, "start": 16, "count": 8},
         {"id": "plasma_cannon", "motif": "plasma", "viewer_kind": "fire_plasma", "tier": 3, "damage": 18, "cooldown": 40, "accuracy": 0.80, "initiative": 12, "travel": 9, "variance": 0.16, "start": 18},
-        {"id": "railgun", "motif": "railgun", "viewer_kind": "fire_railgun", "tier": 2, "damage": 16, "cooldown": 36, "accuracy": 0.90, "initiative": 24, "travel": 2, "variance": 0.08, "start": 14}
+        {"id": "railgun", "motif": "railgun", "viewer_kind": "fire_railgun", "tier": 2, "damage": 16, "cooldown": 36, "accuracy": 0.90, "initiative": 24, "travel": 2, "variance": 0.08, "start": 14},
+        {"id": "full_burst", "motif": "full_burst", "viewer_kind": "fire_full_burst", "tier": 3, "damage": 45, "cooldown": 75, "accuracy": 0.85, "initiative": 6, "travel": 4, "variance": 0.10, "start": 36}
       ]
     },
     "buster_artillery_showcase": {

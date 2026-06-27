@@ -107,6 +107,7 @@ class_name ShotGrammar
 # capital discharge gets the outsized "fear beat", a sidearm stays modest.
 @export var yield_by_class: Dictionary = {
 	"fire_buster": 3,
+	"fire_full_burst": 3,
 	"fire_plasma": 3,
 	"fire_railgun": 2,
 	"fire_missiles": 2,

@@ -570,6 +570,24 @@ func muzzle_forward() -> Vector3:
 		return transform.basis.z.normalized()
 	return muzzle.global_transform.basis.z.normalized()
 
+## Body-mounted full-burst fire origins (world space). Shoulder mounts spit railgun
+## lines; waist mounts lob plasma. Offsets are in the suit's own frame (+Z forward,
+## +X right, +Y up), so they swing to wherever the suit is facing.
+const RAILGUN_MOUNTS: Array = [Vector3(5.0, 13.0, 1.5), Vector3(-5.0, 13.0, 1.5), Vector3(4.0, 11.0, 3.5), Vector3(-4.0, 11.0, 3.5)]
+const PLASMA_MOUNTS: Array = [Vector3(4.0, 5.5, 2.0), Vector3(-4.0, 5.5, 2.0), Vector3(2.5, 4.0, 3.5), Vector3(-2.5, 4.0, 3.5)]
+
+func railgun_mounts() -> Array:
+	return _mounts_world(RAILGUN_MOUNTS)
+
+func plasma_mounts() -> Array:
+	return _mounts_world(PLASMA_MOUNTS)
+
+func _mounts_world(locals: Array) -> Array:
+	var out: Array = []
+	for l in locals:
+		out.append(global_transform * (l as Vector3))
+	return out
+
 ## A weapon just fired: in rigged mode, snap into the firing-rifle stance and hold
 ## it briefly (the body plants to shoot, Torrington-style). Block-out mode has its
 ## own recoil tween, so this is a no-op there.

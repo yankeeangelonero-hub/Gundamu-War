@@ -47,5 +47,12 @@
     "tempo_bias": 0.2,
     "mode_mix": {"ranged": 1.0},
     "overrides": {}
+  },
+  "bombard": {
+    "name": "bombard",
+    "heft_bias": 0.55,
+    "tempo_bias": 0.4,
+    "mode_mix": {"barrage": 0.65, "ranged": 0.35},
+    "overrides": {}
   }
 }

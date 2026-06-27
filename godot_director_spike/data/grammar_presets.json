@@ -61,5 +61,12 @@
     "tempo_bias": 0.2,
     "mode_mix": {"ranged": 1.0},
     "overrides": {"BTRADE_BAND": 82.0}
+  },
+  "duelist": {
+    "name": "duelist",
+    "heft_bias": 0.25,
+    "tempo_bias": 0.9,
+    "mode_mix": {"melee": 0.7, "ranged": 0.3},
+    "overrides": {"ORBIT_AMP": 0.2, "BTRADE_BAND": 22.0, "WEAVE": 12.0, "KNOCK": 5.0}
   }
 }

@@ -377,6 +377,12 @@ func _buster(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 ## suits. A block locks blades (cool sparks, push apart); a connecting cleave is
 ## a hot flash + hitstop. Placed at the rendered midpoint - the outcome is the log.
 func _melee_clash(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
+	# The blade flurry erupts FROM the shooter's hand the instant the melee fires (rooted to the
+	# muzzle so it follows the body, not floating in space) — it IS the attack, so it must always
+	# read even if the enemy is fleeing out of the strict contact range (which gates only the
+	# contact flash / collision explosion below).
+	var sab_col: Color = Color(0.5, 0.85, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.45, 0.25)
+	_saber_flurry(shooter, sab_col, 7 if (payload.get("hit", false) and not payload.get("blocked", false)) else 5)
 	var connected: bool = await _wait_for_melee_fx_contact(shooter, target)
 	if not is_instance_valid(shooter) or not is_instance_valid(target):
 		return
@@ -891,6 +897,44 @@ func _gerobi_swath(from: Vector3, to: Vector3, half_width: float) -> void:
 		if Vector2(closest.x - c.x, closest.z - c.z).length() <= half_width + aabb.size.length() * 0.3:
 			bld.remove_from_group("kb_building")
 			_detonate_building(bld, closest, from)
+
+## A burst of `count` giant glowing beam-sabers that erupt FROM the shooter's hand, fanned at
+## different angles and each sweeping an arc as it ignites and fades — a multi-directional blade
+## flurry rooted to the body (parented to the muzzle, so it tracks the mech), not floating swords.
+func _saber_flurry(shooter: Node3D, color: Color, count: int) -> void:
+	for i in count:
+		var fan_yaw := lerpf(-1.1, 1.1, float(i) / float(maxi(count - 1, 1))) + rng.randf_range(-0.2, 0.2)
+		var fan_pitch := rng.randf_range(-0.5, 0.5)
+		_one_saber_slash(shooter, color, fan_yaw, fan_pitch, float(i) * 0.04)
+
+func _one_saber_slash(shooter: Node3D, color: Color, fan_yaw: float, fan_pitch: float, delay: float) -> void:
+	await get_tree().create_timer(delay).timeout
+	if not is_instance_valid(shooter) or shooter.muzzle == null:
+		return
+	# Rooted at the hand: the hilt sits at the muzzle, the giant blade extends out along +Z.
+	var pivot := Node3D.new()
+	shooter.muzzle.add_child(pivot)
+	pivot.rotation = Vector3(fan_pitch - 0.8, fan_yaw, 0.0)   # cocked up + fanned, ready to swing down
+	var blade := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(1.4, 1.4, 26.0)   # giant blade along +Z (out of the hand)
+	var mat := _energy_mat(color, 17.0)
+	mesh.material = mat
+	blade.mesh = mesh
+	blade.position = Vector3(0, 0, 13.0)   # hilt at the hand, blade reaches forward
+	pivot.add_child(blade)
+	blade.scale = Vector3(0.12, 0.12, 1.0)   # ignite along the length
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = 6.0 * grammar.fx_light_energy
+	light.omni_range = 22.0
+	pivot.add_child(light)
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(blade, "scale", Vector3.ONE, 0.06)                   # snap to a full blade
+	tw.tween_property(pivot, "rotation:x", pivot.rotation.x + 1.7, 0.22)   # swing the slash down
+	tw.tween_property(mat, "emission_energy_multiplier", 0.0, 0.28).set_delay(0.06)
+	tw.tween_property(light, "light_energy", 0.0, 0.28)
+	tw.chain().tween_callback(pivot.queue_free)
 
 func _draw_rail(from: Vector3, to: Vector3, color: Color, core_w: float, fade: float) -> void:
 	var holder := Node3D.new()

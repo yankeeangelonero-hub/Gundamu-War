@@ -16,7 +16,7 @@ class_name ShotGrammar
 @export var camera_speed_scale: float = 0.25 # global camera follow/cap speed multiplier
 @export var dolly_cap: float = 42.0   # max camera linear speed (u/s wall) for the eased orbiting
                                       # shots, so a fast/violent subject is tracked, never whip-panned
-@export var melee_radius_factor: float = 1.4  # melee_cut orbit radius grows with mech separation by
+@export var melee_radius_factor: float = 1.7  # melee_cut orbit radius grows with mech separation by
                                               # this factor, so both mechs stay framed through a recoil
 
 # --- Render: body feel (F1 mass-ramp + F11 weight + tempo cadence) ---
@@ -67,10 +67,10 @@ class_name ShotGrammar
 @export var framing: Dictionary = {
 	"hero_os":     {"pullback": 18.0, "lateral": 8.0, "height": 16.0, "fov": 40.0},
 	"hero_cut":    {"pullback": 2.0,  "lateral": 9.0, "height": 5.0,  "fov": 46.0, "roll": -0.05},
-	"melee_cut":   {"radius": 26.0, "height": 11.0, "fov": 46.0},
-	"melee_chase": {"pullback": 20.0, "lateral": 6.0, "height": 9.0, "fov": 50.0, "roll": -0.03},
-	"melee_profile": {"distance": 34.0, "height": 13.0, "fov": 42.0},
-	"melee_high":  {"radius": 38.0, "height": 28.0, "fov": 52.0},
+	"melee_cut":   {"radius": 38.0, "height": 14.0, "fov": 46.0},
+	"melee_chase": {"pullback": 30.0, "lateral": 8.0, "height": 11.0, "fov": 50.0, "roll": -0.03},
+	"melee_profile": {"distance": 44.0, "height": 16.0, "fov": 42.0},
+	"melee_high":  {"radius": 48.0, "height": 30.0, "fov": 52.0},
 	"bullet_time": {"radius": 32.0, "height_base": 8.0, "height_rise": 9.0, "depth": 14.0, "fov": 48.0},
 }
 

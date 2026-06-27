@@ -321,15 +321,19 @@ static func _beam_trade(beats: Array, feel_profiles: Dictionary, spawn_pos: Dict
 	for b in beats:
 		var shooter: String = b.shooter
 		var target := "B" if shooter == "A" else "A"
+		# Melee is the suit-as-projectile: the lunge BOOSTS all the way to the clash tick (so the
+		# suit is in melee range exactly when the hit resolves), not just up to fire_tick.
+		var is_melee := str(b.exchange_mode) == "melee"
+		var eng_end := maxi(int(b.impact_tick), int(b.cue_tick) + 1) if is_melee else maxi(int(b.fire_tick), int(b.cue_tick) + 1)
 		intents.append({
-			"start": int(b.cue_tick), "end": maxi(int(b.fire_tick), int(b.cue_tick) + 1),
+			"start": int(b.cue_tick), "end": eng_end,
 			"actor": shooter, "kind": "engage", "shooter": shooter, "target": target,
 			"orbit": orbit[shooter], "mode": b.exchange_mode,
 		})
 		orbit[shooter] += 1
 		# Mobile shooter (light build): keep strafing through the shot instead of planting, so a
-		# light mech attacks WHILE moving and is never stationary. Heavy builds plant (>= MOBILE_HEFT).
-		if _feel(feel_profiles, shooter, "heft") < _param(feel_profiles, shooter, "MOBILE_HEFT", _P.MOBILE_HEFT):
+		# light mech attacks WHILE moving. A melee lunge boosts straight in, so it never strafes.
+		if not is_melee and _feel(feel_profiles, shooter, "heft") < _param(feel_profiles, shooter, "MOBILE_HEFT", _P.MOBILE_HEFT):
 			intents.append({
 				"start": maxi(int(b.fire_tick), int(b.cue_tick)), "end": int(b.impact_tick) + react + 12,
 				"actor": shooter, "kind": "strafe", "shooter": shooter, "target": target,
@@ -410,9 +414,11 @@ static func _engage(it: Dictionary, built: Array, spawn_pos: Dictionary, feel: D
 			var bearing := base + sign * (oamp * 0.8) * sin(float(it.orbit) * ORBIT_RATE)
 			return _dash_profile(shooter, start, end, sp, tp + Vector2(cos(bearing), sin(bearing)) * band, heft)
 		"melee":
-			var dir := (sp - tp)  # grounded lunge straight to contact (speed spike into the clash)
+			# The suit IS the projectile: boost straight onto the enemy, arriving in true contact
+			# at the clash tick (the dash spans cue->impact). Overshoot carries it into the clash.
+			var dir := (sp - tp)
 			dir = dir.normalized() if dir.length() > 0.001 else Vector2.RIGHT
-			return _dash_profile(shooter, start, end, sp, tp + dir * (_P.RANGE_CLOSE * 0.7), heft)
+			return _dash_profile(shooter, start, end, sp, tp + dir * (float(_P.RANGE_CLOSE) * 0.25), heft)
 		_:  # beam-trade
 			# Heft sets the band by default (heavy = closer brawl); a preset may override it to
 			# a fixed standoff so a bombardment stance HOLDS its range instead of closing in.
@@ -471,8 +477,17 @@ static func _reaction(it: Dictionary, built: Array, spawn_pos: Dictionary, feel:
 		"dodge-pursuit":
 			return _weave_path(actor, start, end, tp + away * (knock * 0.5), lat, weave, 3)
 		"melee":
-			var mid := (start + end) / 2  # contact dwell, then break apart
-			return [_adv(actor, start, mid, tp), _adv(actor, mid, end, tp + away * (knock * (1.6 - heft)))]
+			var mid := (start + end) / 2
+			if bool(it.connects):
+				# A connecting blow: yank the struck mech INTO CONTACT with the attacker so the
+				# blades land where the damage lands (the sim is positionless — staging must agree),
+				# dwell on the clash, then knock it away. Guarantees a hit reads as a real clash.
+				var into := tp - sp
+				into = into.normalized() if into.length() > 0.001 else Vector2(1.0 if actor == "A" else -1.0, 0.0)
+				var contact: Vector2 = sp + into * (float(_P.RANGE_CLOSE) * 0.4)
+				return [_adv(actor, start, mid, contact), _adv(actor, mid, end, contact + into * (knock * (1.6 - heft)))]
+			# A miss/block: the struck mech dodges clear of the swing - no contact, no damage.
+			return _weave_path(actor, start, end, tp, lat, weave, 3)
 		_:  # beam-trade
 			if bool(it.connects):
 				return [_adv(actor, start, end, tp + away * (knock * (1.5 - heft)))]

@@ -112,15 +112,15 @@
     "saber_booster_showcase": {
       "name": "Saber / Booster — Fully Expressed",
       "archetype": "saber_booster_chase",
-      "grammar_preset": "lancer",
+      "grammar_preset": "duelist",
       "hp": 185,
       "power_identity": "aggressive duelist",
       "defense_beats": ["evade", "parry"],
       "spectacle_intent": {"matchup_shape": "melee chase", "summary": "An aggressive duelist: boost-closes, twin-saber pressure, blade finish."},
       "weapons": [
-        {"id": "twin_sabers", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 17, "cooldown": 22, "accuracy": 0.85, "initiative": 30, "travel": 1, "variance": 0.15, "start": 10, "style": "cleave"},
-        {"id": "snap_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 1, "damage": 7, "cooldown": 30, "accuracy": 0.80, "initiative": 18, "travel": 4, "variance": 0.14, "start": 17},
-        {"id": "shield_breaker", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 5, "cooldown": 24, "accuracy": 0.72, "initiative": 22, "travel": 2, "variance": 0.18, "start": 14, "rounds": 3}
+        {"id": "twin_sabers", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 17, "cooldown": 14, "accuracy": 0.85, "initiative": 30, "travel": 7, "variance": 0.15, "start": 10, "style": "cleave"},
+        {"id": "snap_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 1, "damage": 7, "cooldown": 48, "accuracy": 0.80, "initiative": 18, "travel": 4, "variance": 0.14, "start": 17},
+        {"id": "shield_breaker", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 5, "cooldown": 44, "accuracy": 0.72, "initiative": 22, "travel": 2, "variance": 0.18, "start": 14, "rounds": 3}
       ]
     },
     "buster_rifle_showcase": {
@@ -160,7 +160,7 @@
   "showcases": {
     "rifle":  {"kit": "rifle_missile_showcase",   "opponent": "artillery_ghost", "seed": 77, "chaos": 0.5},
     "buster": {"kit": "buster_artillery_showcase", "opponent": "pressure_ghost",  "seed": 77, "chaos": 0.5},
-    "saber":  {"kit": "saber_booster_showcase",    "opponent": "pressure_ghost",  "seed": 77, "chaos": 0.5},
+    "saber":  {"kit": "saber_booster_showcase",    "opponent": "duelist_ghost",   "seed": 77, "chaos": 0.5},
     "gerobi": {"kit": "buster_rifle_showcase",     "opponent": "duelist_ghost",   "seed": 77, "chaos": 0.5}
   }
 }

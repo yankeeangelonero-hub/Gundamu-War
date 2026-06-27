@@ -24,8 +24,8 @@ class_name ShotGrammar
 # [value-at-param-0, value-at-param-1], lerped by the named param. Lifting these here makes the
 # fast-vs-slow spread a tunable grammar value instead of a hardcoded curve in the actor.
 @export var feel: Dictionary = {
-	"max_speed": [64.0, 28.0],   # by HEFT: cruise cap — light darts, heavy lumbers
-	"max_accel": [34.0, 10.0],   # by HEFT: accel — light snaps up to speed, heavy ramps slowly
+	"max_speed": [192.0, 84.0],   # by HEFT: cruise cap — light darts, heavy lumbers (3x: fast suits)
+	"max_accel": [102.0, 30.0],   # by HEFT: accel — light snaps up to speed, heavy ramps slowly (3x)
 	"pose_rate": [1.0, 0.5],     # by HEFT: upper-body ease rate — heavy commits/holds a pose (F11)
 	"gait":      [0.6, 1.7],     # by TEMPO: walk-bob/footfall cadence — high tempo = busy/twitchy legs
 }

@@ -151,7 +151,7 @@ func _ready() -> void:
 	_target = position
 	if full_armor:
 		_add_armor()
-		max_accel = 18.0   # all that plating + ordnance = heavier still
+		max_accel = 54.0   # all that plating + ordnance = heavier still (3x: fast suits)
 	look_at_enemy_side()
 	_prev_yaw = rotation.y
 

@@ -159,6 +159,17 @@ static func resolve_opponent_loadout(catalog: Dictionary, opponent_id: String) -
 	return loadout
 
 
+static func resolve_showcase(catalog: Dictionary, name: String) -> Dictionary:
+	var showcases: Dictionary = catalog.get("showcases", {}) if catalog.get("showcases", {}) is Dictionary else {}
+	var entry: Dictionary = showcases.get(name, {}) if showcases.get(name, {}) is Dictionary else {}
+	return {
+		"kit": str(entry.get("kit", "")),
+		"opponent": str(entry.get("opponent", "")),
+		"seed": int(entry.get("seed", 77)),
+		"chaos": float(entry.get("chaos", 0.5)),
+	}
+
+
 static func _add_streams(streams: Array, actor: String, loadout: Dictionary, seed: int) -> void:
 	var weapons: Array = loadout.get("weapons", [])
 	for i in weapons.size():

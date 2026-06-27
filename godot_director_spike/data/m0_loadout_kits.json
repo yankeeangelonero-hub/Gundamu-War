@@ -77,6 +77,49 @@
         {"id": "beam_saber", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 15, "cooldown": 24, "accuracy": 0.82, "initiative": 28, "travel": 1, "variance": 0.15, "start": 11, "style": "cleave"},
         {"id": "snap_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 1, "damage": 7, "cooldown": 33, "accuracy": 0.78, "initiative": 18, "travel": 4, "variance": 0.14, "start": 19}
       ]
+    },
+    "rifle_missile_showcase": {
+      "name": "Rifle / Missile — Fully Expressed",
+      "archetype": "rifle_missile_pressure",
+      "grammar_preset": "gunner",
+      "hp": 195,
+      "power_identity": "relentless ranged pressure",
+      "defense_beats": ["evade"],
+      "spectacle_intent": {"matchup_shape": "ranged pressure", "summary": "A relentless gunner ace: beam, missiles and sustained fire never let up."},
+      "weapons": [
+        {"id": "beam_rifle", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "cooldown": 22, "accuracy": 0.88, "initiative": 20, "travel": 5, "variance": 0.12, "start": 10},
+        {"id": "micro_missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 9, "cooldown": 28, "accuracy": 0.80, "initiative": 15, "travel": 8, "variance": 0.18, "start": 16, "count": 8},
+        {"id": "long_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 9, "cooldown": 30, "accuracy": 0.84, "initiative": 14, "travel": 6, "variance": 0.12, "start": 20},
+        {"id": "head_vulcan", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 4, "cooldown": 18, "accuracy": 0.70, "initiative": 12, "travel": 3, "variance": 0.20, "start": 13, "rounds": 4}
+      ]
+    },
+    "buster_artillery_showcase": {
+      "name": "Buster Artillery — Fully Expressed",
+      "archetype": "buster_artillery",
+      "grammar_preset": "anvil",
+      "hp": 215,
+      "power_identity": "heavy executioner",
+      "defense_beats": ["block"],
+      "spectacle_intent": {"matchup_shape": "artillery execution", "summary": "A heavy executioner: slow charge commits and a devastating finisher behind a shield."},
+      "weapons": [
+        {"id": "buster_cannon", "motif": "buster", "viewer_kind": "fire_buster", "tier": 3, "damage": 30, "cooldown": 46, "accuracy": 0.76, "initiative": 8, "travel": 10, "variance": 0.20, "start": 22},
+        {"id": "heavy_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 2, "damage": 11, "cooldown": 32, "accuracy": 0.82, "initiative": 11, "travel": 6, "variance": 0.12, "start": 15},
+        {"id": "scatter_missiles", "motif": "missiles", "viewer_kind": "fire_missiles", "tier": 2, "damage": 8, "cooldown": 38, "accuracy": 0.74, "initiative": 9, "travel": 9, "variance": 0.20, "start": 26, "count": 6}
+      ]
+    },
+    "saber_booster_showcase": {
+      "name": "Saber / Booster — Fully Expressed",
+      "archetype": "saber_booster_chase",
+      "grammar_preset": "lancer",
+      "hp": 185,
+      "power_identity": "aggressive duelist",
+      "defense_beats": ["evade", "parry"],
+      "spectacle_intent": {"matchup_shape": "melee chase", "summary": "An aggressive duelist: boost-closes, twin-saber pressure, blade finish."},
+      "weapons": [
+        {"id": "twin_sabers", "motif": "saber", "viewer_kind": "melee", "tier": 2, "damage": 17, "cooldown": 22, "accuracy": 0.85, "initiative": 30, "travel": 1, "variance": 0.15, "start": 10, "style": "cleave"},
+        {"id": "snap_beam", "motif": "beam", "viewer_kind": "fire_beam", "tier": 1, "damage": 7, "cooldown": 30, "accuracy": 0.80, "initiative": 18, "travel": 4, "variance": 0.14, "start": 17},
+        {"id": "shield_breaker", "motif": "vulcan", "viewer_kind": "fire_burst", "tier": 1, "damage": 5, "cooldown": 24, "accuracy": 0.72, "initiative": 22, "travel": 2, "variance": 0.18, "start": 14, "rounds": 3}
+      ]
     }
   },
   "opponents": {
@@ -95,5 +138,10 @@
       "kit": "saber_booster_chase",
       "hp_bonus": 5
     }
+  },
+  "showcases": {
+    "rifle":  {"kit": "rifle_missile_showcase",   "opponent": "artillery_ghost", "seed": 77, "chaos": 0.5},
+    "buster": {"kit": "buster_artillery_showcase", "opponent": "pressure_ghost",  "seed": 77, "chaos": 0.5},
+    "saber":  {"kit": "saber_booster_showcase",    "opponent": "pressure_ghost",  "seed": 77, "chaos": 0.5}
   }
 }

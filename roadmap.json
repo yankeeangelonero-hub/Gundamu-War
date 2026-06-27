@@ -118,7 +118,7 @@
     {
       "id": "cf-fireworks",
       "title": "Fireworks profiler + parity report",
-      "state": "in-progress",
+      "state": "shipped",
       "kind": "slice",
       "version": "0.1",
       "deps": [
@@ -127,7 +127,7 @@
       ],
       "goal": "The spectacle-profile tooling: read a fight log (authored or generated) and emit its spectacle profile â€” intended archetype/matchup shape, duration, event/attack density, longest dead-air gap, weapon mix, heavy-beat count, defensive/reversal beats, movement/boost/stagger profile, director-beat availability, finisher quality, taste verdict. Tracking records the intended archetype + spectacle shape, not only raw event counts. Plus a comparison report of any candidate log against fight_log_everything.json as the fireworks floor (not as a metronomic mold to mimic).",
       "doneWhen": "A profiler produces a spectacle profile for fight_log_everything.json (baseline: 23.1s, 101 events, 50 attacks, 48 advances, 10 boosts, full arsenal, lethal buster finish) and a comparison report runs candidate-vs-baseline with a dead-air / spectacle-floor check.",
-      "next": "Profiler and compare scaffold exist in spectacle_profile.gd and are surfaced in the debug HUD. Next: emit an explicit candidate-vs-baseline report artifact for generated archetype/opponent pairs, with dead-air/spectacle-floor pass/fail.",
+      "next": "SHIPPED: spectacle_report.gd aggregates the full kit x opponent matrix against the fight_log_everything baseline; `--spectacle-report` emits the candidate-vs-baseline artifact (text table + tmp/spectacle_report.json) with per-cell dead-air/density/weapon-mix/finisher pass-fail. Deterministic per seed+chaos (spectacle_report_matrix_check). At seed 77 chaos 0.50, 8/9 cells clear the floor; buster_artillery vs artillery_ghost dips below density floor (a real two-heavy dead-air signal, not a bug).",
       "spec": "docs/slices/CF-FIREWORKS-cinematic-combat-sandbox.md"
     },
     {
@@ -160,7 +160,7 @@
       ],
       "goal": "The smallest deterministic build-vs-build sim: two weapon combinations + a seed -> a contract-valid combat-truth event-log, then wired sim -> choreographer -> hybrid director (a temporary v2->v1 adapter is allowed if it is the shortest path). No grid economy required yet â€” it consumes a raw loadout so the sandbox can run before the full M1 editor. Different archetypes (rifle/missile pressure, buster artillery, saber/booster aggression, shield/tank attrition, mixed arsenal) must produce distinct logs and distinct camera/staging reads. Later extended to consume the M1 grid build.",
       "doneWhen": "Two weapon loadouts + seed resolve to a contract-valid log that the choreographer stages and the hybrid director films; same loadouts + seed reproduce the identical normalized log byte-for-byte; no dead-air failure vs the fireworks floor.",
-      "next": "Deterministic loadout generator and v2->viewer bridge are working for rifle/missile, buster, and saber archetypes. Next: harden acceptance with candidate-vs-baseline spectacle reports across the archetype/opponent matrix."
+      "next": "Deterministic loadout generator and v2->viewer bridge are working for rifle/missile, buster, and saber archetypes. The candidate-vs-baseline spectacle matrix report now exists (cf-fireworks, --spectacle-report) and covers all 9 kit x opponent pairs deterministically; at seed 77 chaos 0.50 no cell shows a dead-air failure (the one sub-floor cell is density, dead-air 2.1s < 3.0s). Remaining for ship: confirm hybrid-director films each archetype distinctly and lock byte-for-byte normalized-log determinism as an acceptance gate."
     },
     {
       "id": "build-picker",
@@ -271,6 +271,18 @@
         "v02-pilot"
       ],
       "goal": "The networked backend for real-player ghosts and async-PvP; the two-faction GM-steered live war. No dates; architecture must not preclude it."
+    },
+    {
+      "id": "team-battle",
+      "title": "Team battles (2v2 / 4v4)",
+      "state": "pending",
+      "kind": "milestone",
+      "version": "0.2",
+      "deps": [
+        "cf-sandbox"
+      ],
+      "goal": "Squad combat: 2v2 and 4v4 fights of distinct-archetype mechs against AI ghost teams. The fantasy is reading a squad of aces, not a duel.",
+      "next": "Parked thread (owner ask, 2026-06-27). Milestone-sized, NOT a feature: the engine assumes exactly two mechs (A vs B) through sim, choreographer, director, and especially camera. The hard, unsolved part is filming a 4v4 melee legibly (which pair to cut to, wide vs intimate). Needs its own brainstorm. Distinct archetypes (m0-sandbox-sim) are a prerequisite for squads to read, so it sequences after the showcases. A prior untracked 4v4 spike (experiments/team-battle-spike-viewer*.html/png + tests/team_battle_spike_check.gd) was removed in the 2026-06-27 working-tree revert and is unrecoverable from git."
     }
   ],
   "canon": {

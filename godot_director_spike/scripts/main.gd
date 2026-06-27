@@ -11,6 +11,7 @@ const BuildLauncher := preload("res://scripts/build_launcher.gd")
 const Choreographer := preload("res://scripts/sim/choreographer.gd")
 const LoadoutGenerator := preload("res://scripts/sim/loadout_fight_generator.gd")
 const SpectacleProfile := preload("res://scripts/sim/spectacle_profile.gd")
+const SpectacleReport := preload("res://scripts/sim/spectacle_report.gd")
 const DEBUG_LOADOUTS_PATH := "res://data/debug_archetype_loadouts.json"
 
 var camera: Camera3D
@@ -137,6 +138,9 @@ func _capture_frames(director_name: String) -> void:
 		idx += 1
 
 func _ready() -> void:
+	if "--spectacle-report" in OS.get_cmdline_user_args():
+		_run_spectacle_report_cli()
+		return
 	var director_name := "cinematic"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--director="):
@@ -498,6 +502,74 @@ func _arg_value(prefix: String, fallback: String) -> String:
 		if arg.begins_with(prefix):
 			return arg.trim_prefix(prefix)
 	return fallback
+
+
+## CF-FIREWORKS matrix report: run the live loadout pipeline for every kit x opponent pair,
+## profile each candidate against the fight_log_everything baseline, and aggregate one report.
+## Pure given the catalog: same seed + chaos reproduce the identical report byte-for-byte.
+func build_spectacle_report(seed := 77, chaos := 0.5, kit_ids: Array = [], opponent_ids: Array = []) -> Dictionary:
+	var catalog := LoadoutGenerator.load_catalog()
+	var kits: Array = kit_ids.duplicate() if not kit_ids.is_empty() else (catalog.get("kits", {}) as Dictionary).keys()
+	var opponents: Array = opponent_ids.duplicate() if not opponent_ids.is_empty() else (catalog.get("opponents", {}) as Dictionary).keys()
+	kits.sort()
+	opponents.sort()
+	# The per-cell pipeline mutates _feel; preserve any live fight's feel across the report run.
+	var saved_feel: Dictionary = _feel.duplicate(true)
+	var candidates: Array = []
+	for kit_id in kits:
+		for opponent_id in opponents:
+			candidates.append(_spectacle_candidate(catalog, str(kit_id), str(opponent_id), seed, chaos))
+	_feel = saved_feel
+	var baseline_events: Array = FightLog.load_events("res://data/fight_log_everything.json")
+	var baseline: Dictionary = SpectacleProfile.profile(baseline_events, "fight_log_everything", {"source": "authored"})
+	return SpectacleReport.build(baseline, candidates)
+
+
+## Headless artifact mode: emit the CF-FIREWORKS matrix report to stdout + JSON, then quit.
+## No 3D scene is built — the report runs entirely on the pure sim/profiler pipeline.
+func _run_spectacle_report_cli() -> void:
+	var seed := int(_arg_value("--seed=", "77"))
+	var chaos := float(_arg_value("--chaos=", "0.50"))
+	var out_path := _arg_value("--report-out=", "res://tmp/spectacle_report.json")
+	var report := build_spectacle_report(seed, chaos)
+	print(SpectacleReport.format_report(report))
+	DirAccess.make_dir_recursive_absolute(out_path.get_base_dir())
+	var file := FileAccess.open(out_path, FileAccess.WRITE)
+	if file != null:
+		file.store_string(SpectacleReport.to_json(report))
+		file.close()
+		print("KM-SPECTACLE-REPORT wrote %s (%d/%d cells pass, seed=%d chaos=%.2f)" % [
+			out_path, int(report.get("pass_count", 0)), int(report.get("cell_count", 0)), seed, chaos])
+	else:
+		push_error("KM-SPECTACLE-REPORT could not write %s" % out_path)
+	get_tree().quit(0)
+
+
+func _spectacle_candidate(catalog: Dictionary, kit_id: String, opponent_id: String, seed: int, chaos: float) -> Dictionary:
+	var player_loadout: Dictionary = LoadoutGenerator.resolve_player_loadout(catalog, kit_id, "pilot_aya")
+	var opponent_loadout: Dictionary = LoadoutGenerator.resolve_opponent_loadout(catalog, opponent_id)
+	_feel = {
+		"A": Choreographer.apply_preset(str(player_loadout.get("grammar_preset", "gunner"))),
+		"B": Choreographer.apply_preset(str(opponent_loadout.get("grammar_preset", "gunner"))),
+	}
+	var generated: Dictionary = LoadoutGenerator.generate(player_loadout, opponent_loadout, seed, chaos)
+	var staged: Array = Choreographer.stage(generated.get("events", []), seed, {
+		"A": _feel_profile_for_stage("A"),
+		"B": _feel_profile_for_stage("B"),
+	})
+	var viewer: Array = _debug_staged_truth_to_viewer_events(staged)
+	var intent: Dictionary = player_loadout.get("spectacle_intent", {}) if player_loadout.get("spectacle_intent", {}) is Dictionary else {}
+	var profile: Dictionary = SpectacleProfile.profile(viewer, "%s__vs__%s" % [kit_id, opponent_id], {
+		"source": "generated",
+		"seed": seed,
+		"chaos": chaos,
+		"archetypes": {
+			"A": str(player_loadout.get("archetype", kit_id)),
+			"B": str(opponent_loadout.get("archetype", opponent_id)),
+		},
+		"matchup_shape": str(intent.get("matchup_shape", "unclassified")),
+	})
+	return {"label": "%s vs %s" % [kit_id, opponent_id], "profile": profile}
 
 
 func _feel_profile_for(actor: String) -> Dictionary:

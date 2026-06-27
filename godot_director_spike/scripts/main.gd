@@ -518,6 +518,10 @@ func _arg_value(prefix: String, fallback: String) -> String:
 func build_spectacle_report(seed := 77, chaos := 0.5, kit_ids: Array = [], opponent_ids: Array = []) -> Dictionary:
 	var catalog := LoadoutGenerator.load_catalog()
 	var kits: Array = kit_ids.duplicate() if not kit_ids.is_empty() else (catalog.get("kits", {}) as Dictionary).keys()
+	# Showcase kits (*_showcase) are curated single-fight demos, not part of the regression
+	# matrix; exclude them from the default sweep. An explicit kit_ids list is honored as-is.
+	if kit_ids.is_empty():
+		kits = kits.filter(func(k): return not str(k).ends_with("_showcase"))
 	var opponents: Array = opponent_ids.duplicate() if not opponent_ids.is_empty() else (catalog.get("opponents", {}) as Dictionary).keys()
 	kits.sort()
 	opponents.sort()

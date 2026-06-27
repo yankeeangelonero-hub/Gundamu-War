@@ -156,6 +156,10 @@ static func resolve_opponent_loadout(catalog: Dictionary, opponent_id: String) -
 	loadout["pilot_id"] = "opponent"
 	loadout["name"] = str(opponent.get("name", loadout.get("name", "Opponent")))
 	loadout["hp"] = int(loadout.get("hp", 180)) + int(opponent.get("hp_bonus", 0))
+	# An opponent may override the kit's stance (e.g. an artillery ghost should hold and
+	# shell, not charge in like the melee-leaning anvil its kit defaults to).
+	if opponent.has("grammar_preset"):
+		loadout["grammar_preset"] = str(opponent.get("grammar_preset"))
 	return loadout
 
 

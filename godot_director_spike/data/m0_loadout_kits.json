@@ -132,7 +132,8 @@
     "artillery_ghost": {
       "name": "Artillery Ghost",
       "kit": "buster_artillery",
-      "hp_bonus": 15
+      "hp_bonus": 15,
+      "grammar_preset": "bombard"
     },
     "duelist_ghost": {
       "name": "Duelist Ghost",

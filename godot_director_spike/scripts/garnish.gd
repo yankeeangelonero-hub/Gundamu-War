@@ -811,6 +811,10 @@ func _full_burst_bolt(from: Vector3, to: Vector3, color: Color, delay: float) ->
 ## line). The slow, screen-filling "destroy everything in front" beat.
 func _gerobi(shooter: Node3D, target: Node3D, payload: Dictionary) -> void:
 	var color: Color = Color(0.5, 0.95, 1.0) if shooter.actor_id == "A" else Color(1.0, 0.6, 0.3)
+	# Plant the suit for the whole charge + sustained beam: a gerobi is fired braced, and a
+	# locked muzzle keeps the beam attached instead of drifting off mid-air as the mech moves.
+	if shooter.has_method("clash_lock"):
+		shooter.clash_lock(1.8)
 	# Big charge-up: a swelling orb + light over the firer.
 	var orb := MeshInstance3D.new()
 	var omesh := SphereMesh.new()
